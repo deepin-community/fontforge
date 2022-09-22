@@ -1,0 +1,7 @@
+0001-add-extra-cmake-install-rules.patch
+0002-remove-custom-library-search-path.patch
+0003-use-local-libjs-mathjax.patch
+0004-hurd-PATH_MAX-and-MAXPATHLEN.patch
+0005-hurd-rename-extended-to-avoid-conflict-with-gnumach-dev.patch
+2003_avoid_privacy_breach.patch
+2004-fix-privacy-breach-logo.patch

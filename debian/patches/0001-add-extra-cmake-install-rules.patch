@@ -1,0 +1,43 @@
+Description: Add extra CMake install rules
+ for contrib/cidmap, contrib/fonttools and pycontrib to restore the
+ files that were installed to fontforge-extras and python3-fontforge
+ prior to the FontForge 2020 March Release.
+Author: Anthony Fok <foka@debian.org>
+Origin: vendor
+Forwarded: not-needed
+Last-Update: 2020-11-18
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/contrib/cidmap/CMakeLists.txt
++++ b/contrib/cidmap/CMakeLists.txt
+@@ -11,3 +11,8 @@
+ target_link_libraries(mapjapan1 PRIVATE fontforge)
+ target_link_libraries(mapjapan2 PRIVATE fontforge)
+ target_link_libraries(mapkorean PRIVATE fontforge)
++
++install(FILES Adobe-CNS1-6.cidmap Adobe-GB1-5.cidmap Adobe-Identity-0.cidmap
++  Adobe-Japan1-5.cidmap Adobe-Japan1-6.cidmap Adobe-Japan1-7.cidmap
++  Adobe-Japan2-0.cidmap Adobe-Korea1-2.cidmap
++  DESTINATION ${CMAKE_INSTALL_DATADIR}/fontforge)
+--- a/contrib/fonttools/CMakeLists.txt
++++ b/contrib/fonttools/CMakeLists.txt
+@@ -18,3 +18,12 @@
+ target_link_libraries(pcl2ttf PRIVATE MathLib::MathLib)
+ target_link_libraries(ttf2eps PRIVATE fontforge)
+ target_link_libraries(woff PRIVATE ZLIB::ZLIB)
++
++install(TARGETS
++  acorn2sfd dewoff findtable pcl2ttf pfadecrypt
++  rmligamarks showttf stripttc ttf2eps woff
++  RUNTIME
++  DESTINATION ${CMAKE_INSTALL_BINDIR})
++
++install(FILES acorn2sfd.1 showttf.1 ttf2eps.1
++  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+--- a/pycontrib/CMakeLists.txt
++++ b/pycontrib/CMakeLists.txt
+@@ -1,3 +1,4 @@
+ # Distributed under the original FontForge BSD 3-clause license
+ 
+ install(FILES excepthook.py DESTINATION ${CMAKE_INSTALL_DATADIR}/fontforge/python)
++install(DIRECTORY simple DESTINATION ${CMAKE_INSTALL_DATADIR}/fontforge/python)
