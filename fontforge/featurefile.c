@@ -157,7 +157,7 @@ static void dump_glyphnamelist(FILE *out, SplineFont *sf, char *names) {
     }
 }
 
-static int MarkNeeded(uint8 *needed,uint8 *setsneeded,OTLookup *otl) {
+static int MarkNeeded(uint8_t *needed,uint8_t *setsneeded,OTLookup *otl) {
     int index = (otl->lookup_flags>>8)&0xff;
     int sindex = (otl->lookup_flags>>16)&0xffff;
     int any = false;
@@ -185,8 +185,8 @@ return( any );
 }
 
 static void gdef_markclasscheck(FILE *out,SplineFont *sf,OTLookup *otl) {
-    uint8 *needed;
-    uint8 *setsneeded;
+    uint8_t *needed;
+    uint8_t *setsneeded;
     int any = false;
     int gpos;
 
@@ -603,7 +603,7 @@ static void dump_contextpstglyphs(FILE *out,SplineFont *sf,
 	putc(' ',out);
     }
     last_start = last_end = NULL;
-    for ( pt=r->u.glyph.names; ; ) {
+    for ( pt=r->u.glyph.names, i=0; ; ++i) {
 	while ( *pt==' ' ) ++pt;
 	if ( *pt=='\0' )
     break;
@@ -829,7 +829,7 @@ static int ClassUsed(FPST *fpst, int which, int class_num) {
     for ( j=0; j<fpst->rule_cnt; ++j ) {
 	struct fpst_rule *r = &fpst->rules[j];
 	int cnt = which==0? r->u.class.ncnt : which==1 ? r->u.class.bcnt : r->u.class.fcnt;
-	uint16 *checkme = which==0? r->u.class.nclasses : which==1 ? r->u.class.bclasses : r->u.class.fclasses;
+	uint16_t *checkme = which==0? r->u.class.nclasses : which==1 ? r->u.class.bclasses : r->u.class.fclasses;
 	for ( i=0; i<cnt; ++i )
 	    if ( checkme[i] == class_num )
 return( true );
@@ -1017,7 +1017,7 @@ return( true );
 return( false );
 }
 
-static int SameBaseAP(SplineChar *sc1,SplineChar *sc2,struct lookup_subtable *sub) {
+static int AsymmetricSameBaseAP(SplineChar *sc1,SplineChar *sc2,struct lookup_subtable *sub) {
     AnchorPoint *ap1, *ap2;
 
     for ( ap1=sc1->anchor; ap1!=NULL; ap1=ap1->next ) {
@@ -1034,10 +1034,15 @@ return( false );
 	    break;
 		}
 	    }
-return( ap2!=NULL );
+	    if ( ap2==NULL )
+return( false );
 	}
     }
-return( false );
+return( true );
+}
+
+static int SameBaseAP(SplineChar *sc1,SplineChar *sc2,struct lookup_subtable *sub) {
+    return AsymmetricSameBaseAP(sc1,sc2,sub) && AsymmetricSameBaseAP(sc2,sc1,sub);
 }
 
 static void dump_anchors(FILE *out,SplineFont *sf,struct lookup_subtable *sub) {
@@ -1405,7 +1410,11 @@ return;					/* No support for apple "lookups" */
 			    fprintf( out, "    sub " );
 			    dump_glyphname(out,sc);
 			    fprintf( out, " by " );
-			    dump_glyphnamelist(out,sf,pst->u.subs.variant );
+			    if (*(pst->u.subs.variant) != '\0') {
+				dump_glyphnamelist(out,sf,pst->u.subs.variant );
+			    } else {
+				fprintf( out, "NULL" ); // really possible! see GH: №4618
+			    }
 			    fprintf( out,";\n" );
 			  break;
 			  case gsub_alternate:
@@ -1532,7 +1541,7 @@ void FeatDumpOneLookup(FILE *out,SplineFont *sf, OTLookup *otl) {
 	    fprintf( out, "  script %c%c%c%c;\n",
 		    sl->script>>24, sl->script>>16, sl->script>>8, sl->script );
 	    for ( l=0; l<sl->lang_cnt; ++l ) {
-		uint32 lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
+		uint32_t lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
 		fprintf( out, "     language %c%c%c%c %s;\n",
 			lang>>24, lang>>16, lang>>8, lang,
 			lang!=DEFAULT_LANG ? "exclude_dflt" : "" );
@@ -1634,7 +1643,7 @@ return;					/* No anchor positioning, no ligature carets */
     }
     fprintf( out, "\ntable GDEF {\n" );
     if ( needsclasses ) {
-	/* AFDKO does't like empty classes, there should be just a placeholder */
+	/* AFDKO doesn't like empty classes, there should be just a placeholder */
 	fprintf( out, "  GlyphClassDef %s, %s, %s, %s;\n\n",
 		hasclass[0]? clsnames[0]: "",
 		hasclass[1]? clsnames[1]: "",
@@ -1666,15 +1675,15 @@ static void dump_baseaxis(FILE *out,struct Base *axis,char *key) {
 return;
     fprintf( out, "  %sAxis.BaseTagList", key );
     for ( i=0; i<axis->baseline_cnt; ++i ) {
-	uint32 tag = axis->baseline_tags[i];
+	uint32_t tag = axis->baseline_tags[i];
 	fprintf( out, " %c%c%c%c", tag>>24, tag>>16, tag>>8, tag );
     }
     fprintf( out, ";\n");
 
     fprintf( out, "  %sAxis.BaseScriptList\n", key );
     for ( script=axis->scripts; script!=NULL; script=script->next ) {
-	uint32 scrtag = script->script;
-	uint32 tag = axis->baseline_tags[script->def_baseline];
+	uint32_t scrtag = script->script;
+	uint32_t tag = axis->baseline_tags[script->def_baseline];
 	fprintf( out, "\t%c%c%c%c", scrtag>>24, scrtag>>16, scrtag>>8, scrtag );
 	fprintf( out, " %c%c%c%c", tag>>24, tag>>16, tag>>8, tag );
 	for ( i=0; i<axis->baseline_cnt; ++i )
@@ -1739,24 +1748,24 @@ static void dump_header_languagesystem(FILE *out, SplineFont *sf) {
     GTree* ht = g_tree_new_full( tree_strcasecmp, 0, free, NULL );
 
     for ( isgpos=0; isgpos<2; ++isgpos ) {
-	uint32 *feats = SFFeaturesInScriptLang(sf,isgpos,0xffffffff,0xffffffff);
+	uint32_t *feats = SFFeaturesInScriptLang(sf,isgpos,0xffffffff,0xffffffff);
 	if ( feats[0]!=0 ) {
-	    uint32 *scripts = SFScriptsInLookups(sf,isgpos);
+	    uint32_t *scripts = SFScriptsInLookups(sf,isgpos);
 	    note_nested_lookups_used_twice(isgpos ? sf->gpos_lookups : sf->gsub_lookups);
 	    for ( i=0; feats[i]!=0; ++i ) {
 
 		for ( s=0; scripts[s]!=0; ++s ) {
-		    uint32 *langs = SFLangsInScript(sf,isgpos,scripts[s]);
+		    uint32_t *langs = SFLangsInScript(sf,isgpos,scripts[s]);
 		    for ( l=0; langs[l]!=0; ++l ) {
 			for ( otl = isgpos ? sf->gpos_lookups : sf->gsub_lookups; otl!=NULL; otl=otl->next ) {
 			    for ( fl=otl->features; fl!=NULL; fl=fl->next ) if ( fl->featuretag==feats[i] ) {
 				    for ( sl=fl->scripts; sl!=NULL; sl=sl->next ) if ( sl->script==scripts[s] ) {
 					    for ( subl=0; subl<sl->lang_cnt; ++subl ) {
 						char key[100];
-                                                const uint32 DFLT_int = (uint32)'D' << 24 | (uint32)'F' << 16 |
-                                                (uint32)'L' << 8 | (uint32)'T';
-                                                const uint32 dflt_int = (uint32)'d' << 24 | (uint32)'f' << 16 |
-                                                (uint32)'l' << 8 | (uint32)'t';
+                                                const uint32_t DFLT_int = (uint32_t)'D' << 24 | (uint32_t)'F' << 16 |
+                                                (uint32_t)'L' << 8 | (uint32_t)'T';
+                                                const uint32_t dflt_int = (uint32_t)'d' << 24 | (uint32_t)'f' << 16 |
+                                                (uint32_t)'l' << 8 | (uint32_t)'t';
 						if ((scripts[s] == DFLT_int) && (langs[l] == dflt_int)) {
 						  has_DFLT = 1;
 						} else {
@@ -1792,9 +1801,9 @@ static void dump_gsubgpos(FILE *out, SplineFont *sf) {
     struct otfname *on;
 
     for ( isgpos=0; isgpos<2; ++isgpos ) {
-	uint32 *feats = SFFeaturesInScriptLang(sf,isgpos,0xffffffff,0xffffffff);
+	uint32_t *feats = SFFeaturesInScriptLang(sf,isgpos,0xffffffff,0xffffffff);
 	if ( feats[0]!=0 ) {
-	    uint32 *scripts = SFScriptsInLookups(sf,isgpos);
+	    uint32_t *scripts = SFScriptsInLookups(sf,isgpos);
 	    fprintf( out, "\n# %s \n\n", isgpos ? "GPOS" : "GSUB" );
 	    note_nested_lookups_used_twice(isgpos ? sf->gpos_lookups : sf->gsub_lookups);
 	    for ( otl= isgpos ? sf->gpos_lookups : sf->gsub_lookups; otl!=NULL; otl=otl->next )
@@ -1836,7 +1845,7 @@ static void dump_gsubgpos(FILE *out, SplineFont *sf) {
 		    } else
 			fprintf( out, " 0 0 0;\n" );
 		} else for ( s=0; scripts[s]!=0; ++s ) {
-		    uint32 *langs = SFLangsInScript(sf,isgpos,scripts[s]);
+		    uint32_t *langs = SFLangsInScript(sf,isgpos,scripts[s]);
 		    int firsts = true;
 		    for ( l=0; langs[l]!=0; ++l ) {
 			int first = true;
@@ -1844,7 +1853,7 @@ static void dump_gsubgpos(FILE *out, SplineFont *sf) {
 			    for ( fl=otl->features; fl!=NULL; fl=fl->next ) if ( fl->featuretag==feats[i] ) {
 				for ( sl=fl->scripts; sl!=NULL; sl=sl->next ) if ( sl->script==scripts[s] ) {
 				    for ( subl=0; subl<sl->lang_cnt; ++subl ) {
-					uint32 lang = subl<MAX_LANG ? sl->langs[subl] : sl->morelangs[subl-MAX_LANG];
+					uint32_t lang = subl<MAX_LANG ? sl->langs[subl] : sl->morelangs[subl-MAX_LANG];
 			                if ( lang==langs[l] )
 			    goto found;
 				    }
@@ -1989,15 +1998,15 @@ void FeatDumpFontLookups(FILE *out,SplineFont *sf) {
 /* ************************************************************************** */
 
 struct nameid {
-    uint16 strid;
-    uint16 platform, specific, language;
+    uint16_t strid;
+    uint16_t platform, specific, language;
     char *utf8_str;
     struct nameid *next;
 };
 
 struct tablekeywords {
     char *name;
-    int size;			/* 1=>byte, 2=>short, 4=>int32 */
+    int size;			/* 1=>byte, 2=>short, 4=>int32_t */
     int cnt;			/* normally 1, but 10 for panose, -1 for infinite */
     int offset;			/* -1 => parse but don't store */
 };
@@ -2006,7 +2015,7 @@ struct tablekeywords {
 struct tablevalues {
     int index;			/* in the table key structure above */
     int value;
-    uint8 panose_vals[10];
+    uint8_t panose_vals[10];
     struct tablevalues *next;
 };
 
@@ -2016,13 +2025,13 @@ enum feat_type { ft_lookup_start, ft_lookup_end, ft_feat_start, ft_feat_end,
     ft_subtable, ft_script, ft_lang, ft_lookupflags, ft_langsys,
     ft_pst, ft_pstclass, ft_fpst, ft_ap, ft_lookup_ref, ft_featname };
 struct feat_item {
-    uint16 /* enum feat_type */ type;
-    uint8 ticked;
+    uint16_t /* enum feat_type */ type;
+    uint8_t ticked;
     union {
 	SplineChar *sc;		/* For psts, aps */
 	char *class;		/* List of glyph names for kerning by class, lcarets */
 	char *lookup_name;	/* for lookup_start/ lookup_ref */
-	uint32 tag;		/* for feature/script/lang tag */
+	uint32_t tag;		/* for feature/script/lang tag */
 	int *params;		/* size params */
 	struct tablekeywords *offsets;
 	char **gdef_classes;
@@ -2037,7 +2046,7 @@ struct feat_item {
 	int exclude_dflt;		/* for lang tags */
 	struct nameid *names;		/* size params */
 	struct tablevalues *tvals;
-	int16 *lcaret;
+	int16_t *lcaret;
 	struct otffeatname *featnames;
     } u2;
     struct gpos_mark *mclass;		/* v1.8 For mark to base-ligature-mark, names of all marks which attach to this anchor */
@@ -2255,7 +2264,7 @@ struct parseState {
     char tokbuf[MAXT+1];
     long value;
     enum toktype type;
-    uint32 tag;
+    uint32_t tag;
     int could_be_tag;
     FILE *inlist[MAXI];
     int inc_depth;
@@ -2267,6 +2276,8 @@ struct parseState {
     unsigned int in_vkrn: 1;
     unsigned int backedup: 1;
     unsigned int skipping: 1;
+    unsigned int in_ufo: 1;
+    unsigned int ignore_invalid_replacement: 1;      // Don't error out if a substitution rule is not applicable. Used for merging feature files
     SplineFont *sf;
     struct scriptlanglist *def_langsyses;
     struct glyphclasses *classes; // TODO: This eventually needs to merge with the SplineFont group storage. For now, it needs to copy from it at first invocation.
@@ -2361,7 +2372,7 @@ static struct tablekeywords vhead_keys[] = {
 
 static struct tablekeywords os2_keys[] = {
     { "FSType", sizeof(short), 1, offsetof(struct pfminfo,fstype)+offsetof(SplineFont,pfminfo) },
-    { "Panose", sizeof(uint8), 10, offsetof(struct pfminfo,panose)+offsetof(SplineFont,pfminfo) },
+    { "Panose", sizeof(uint8_t), 10, offsetof(struct pfminfo,panose)+offsetof(SplineFont,pfminfo) },
     { "UnicodeRange", sizeof(short), -1, -1 },
     { "CodePageRange", sizeof(short), -1, -1 },
     { "TypoAscender", sizeof(short), 1, offsetof(struct pfminfo,os2_typoascent)+offsetof(SplineFont,pfminfo) },
@@ -2382,7 +2393,7 @@ static void fea_ParseTok(struct parseState *tok);
 
 static void fea_handle_include(struct parseState *tok) {
     FILE *in;
-    char namebuf[1025], *pt, *filename;
+    char namebuf[1025], *pt, *filename, *filename_deprecated;
     int ch;
 
     fea_ParseTok(tok);
@@ -2431,21 +2442,49 @@ return;
 return;
     }
 
-    if ( *namebuf=='/' ||
-	    ( pt = strrchr(tok->filename[tok->inc_depth],'/') )==NULL )
-	filename=copy(namebuf);
-    else {
-	*pt = '\0';
-	filename = GFileAppendFile(tok->filename[tok->inc_depth],namebuf,false);
-	*pt = '/';
+
+    pt = strrchr(tok->filename[tok->inc_depth],'/');
+    if ( pt != NULL ) *pt = '\0';
+    filename_deprecated = GFileAppendFile(tok->filename[tok->inc_depth],namebuf,false);
+    if ( pt != NULL ) *pt = '/';
+    if ( tok->in_ufo && *namebuf!='/' ) {
+        // we know this is a UFO's features.fea file
+        filename = GFileDirName(tok->filename[tok->inc_depth]);
+        char* filename_above = GFileAppendFile(filename, "..", false);
+        char* filename_fea = GFileAppendFile(filename_above, namebuf, false);
+        TRACE("fea_handle_include: FEA: %s, deprecated FEA: %s\n", filename_fea, filename_deprecated);
+        free(filename_above);
+        free(filename);
+        filename = filename_fea;
+    } else {
+        if ( *namebuf=='/' || pt == NULL ) {
+            filename = copy(namebuf);
+        } else {
+            filename = filename_deprecated;
+        }
     }
+
     in = fopen(filename,"r");
     if ( in==NULL ) {
-	LogError(_("Could not open include file (%s) on line %d of %s"),
-		filename, tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
-	++tok->err_count;
-	free(filename);
+        if ( filename != filename_deprecated ) {
+            free(filename);
+            filename = filename_deprecated;
+            in = fopen(filename,"r");
+        }
+        if ( in == NULL ) {
+            LogError(_("Could not open include file (%s) on line %d of %s"),
+                     filename, tok->line[tok->inc_depth], tok->filename[tok->inc_depth]);
+            ++tok->err_count;
+            free(filename);
 return;
+        } else {
+            LogError(_("Warning: FontForge's implementation of \
+include statements in UFO features.fea files was wrong. Please \
+correct your path `%s` as per the specification for guaranteed \
+future compatibility. (See GitHub issue №4629 for more info.)"), namebuf);
+        }
+    } else if ( filename != filename_deprecated ) {
+        free(filename_deprecated);
     }
 
     ++tok->inc_depth;
@@ -3223,7 +3262,7 @@ return;
 }
 
 static void fea_ParseLangSys(struct parseState *tok, int inside_feat) {
-    uint32 script, lang;
+    uint32_t script, lang;
     struct scriptlanglist *sl;
     int l;
 
@@ -3253,7 +3292,7 @@ return;
 	tok->def_langsyses = sl;
     }
     for ( l=0; l<sl->lang_cnt; ++l ) {
-	uint32 language = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
+	uint32_t language = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
 	if ( language==lang )
     break;
     }
@@ -3262,7 +3301,7 @@ return;
     else if ( sl->lang_cnt<MAX_LANG )
 	sl->langs[sl->lang_cnt++] = lang;
     else {
-	sl->morelangs = realloc(sl->morelangs,(sl->lang_cnt+1)*sizeof(uint32));
+	sl->morelangs = realloc(sl->morelangs,(sl->lang_cnt+1)*sizeof(uint32_t));
 	sl->morelangs[sl->lang_cnt++ - MAX_LANG] = lang;
     }
     fea_end_statement(tok);
@@ -3279,7 +3318,7 @@ return;
 struct apmark {
     AnchorPoint *ap;
     struct gpos_mark *mark_class;
-    uint16 mark_count;
+    uint16_t mark_count;
 };
 
 struct ligcomponent {
@@ -3297,7 +3336,7 @@ struct markedglyphs {
     unsigned int is_mark2lig: 1;
     unsigned int is_name: 1;		/* Otherwise a class */
     unsigned int hidden_marked_glyphs: 1;/* for glyphs with marked marks in a mark2base sequence */
-    uint16 mark_count;			/* 0=>unmarked, 1=>first mark, etc. */
+    uint16_t mark_count;			/* 0=>unmarked, 1=>first mark, etc. */
     char *name_or_class;		/* Glyph name / class contents */
     struct vr *vr;			/* A value record. Only in position sequences */
     int ap_cnt;				/* Number of anchor points */
@@ -3316,7 +3355,7 @@ static void fea_ParseDeviceTable(struct parseState *tok,DeviceTable *adjust)
 	{
     int first = true;
     int min=0, max= -1;
-    int8 values[512];
+    int8_t values[512];
 
     memset(values,0,sizeof(values));
 
@@ -4032,7 +4071,7 @@ static void fea_markedglyphsFree(struct markedglyphs *gl) {
     }
 }
 
-static struct feat_item *fea_AddAllLigPosibilities(struct parseState *tok,struct markedglyphs *glyphs,
+static struct feat_item *fea_AddAllLigPossibilities(struct parseState *tok,struct markedglyphs *glyphs,
 	SplineChar *sc,char *sequence_start,char *next, struct feat_item *sofar) {
     char *start, *pt, ch;
     SplineChar *temp;
@@ -4054,7 +4093,7 @@ static struct feat_item *fea_AddAllLigPosibilities(struct parseState *tok,struct
 	after = next+strlen(next);
 	if ( glyphs->next!=NULL && glyphs->next->mark_count == glyphs->mark_count ) {
 	    *after++ = ' ';
-	    sofar = fea_AddAllLigPosibilities(tok,glyphs->next,sc,sequence_start,after,sofar);
+	    sofar = fea_AddAllLigPossibilities(tok,glyphs->next,sc,sequence_start,after,sofar);
 	} else {
 	    *after = '\0';
 	    item = chunkalloc(sizeof(struct feat_item));
@@ -4399,7 +4438,7 @@ static struct feat_item *fea_process_sub_multiple(struct parseState *tok,
 	len += strlen(g->name_or_class);
 	mult[len++] = ' ';
     }
-    mult[len-1] = '\0';
+    mult[len>1?len-1:0] = '\0';
     item = chunkalloc(sizeof(struct feat_item));
     item->type = ft_pst;
     item->next = sofar;
@@ -4425,7 +4464,7 @@ static struct feat_item *fea_process_sub_ligature(struct parseState *tok,
 	for ( g=glyphs; g!=NULL && g->mark_count==glyphs->mark_count; g=g->next )
 	    len += strlen(g->name_or_class)+1;
 	space = malloc(len+1);
-	sofar = fea_AddAllLigPosibilities(tok,glyphs,sc,space,space,sofar);
+	sofar = fea_AddAllLigPossibilities(tok,glyphs,sc,space,space,sofar);
 	free(space);
     }
 return( sofar );
@@ -4694,8 +4733,8 @@ static void fea_ParseSubstitute(struct parseState *tok) {
     /* reversesub <marked glyph sequence> by <name> => reverse context chaining */
     int is_reverse = tok->type == tk_reversesub;
     struct markedglyphs *glyphs = fea_ParseMarkedGlyphs(tok,false,true,false),
-	    *g, *rpl, *rp;
-    int cnt, i, has_lookups, mk_num;
+	    *g, *rpl;
+    int cnt, has_lookups, mk_num;
     SplineChar *sc;
     struct feat_item *item, *head;
 
@@ -4707,8 +4746,14 @@ static void fea_ParseSubstitute(struct parseState *tok) {
 	    ++mk_num;
     }
     if ( glyphs==NULL ) {
-	LogError(_("Empty substitute on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
-	++tok->err_count;
+        LogError(_("Empty substitute on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
+        if (! tok->ignore_invalid_replacement) { // If glyphs in some substitutions rules are not present in this font, warn but skip error
+            ++tok->err_count;
+        }
+        else {
+            fea_skip_to_semi(tok);
+            fea_UnParseTok(tok);    //Semicolon is expected on end of this lookup
+        }
     } else if ( is_reverse && (mk_num!=1 || has_lookups!=0)) {
 	LogError(_("Reverse substitute must have exactly one marked glyph and no lookups on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
 	++tok->err_count;
@@ -4732,14 +4777,29 @@ static void fea_ParseSubstitute(struct parseState *tok) {
 	    }
 	} else if ( cnt>=1 && tok->type==tk_by ) {
 	    rpl = fea_ParseMarkedGlyphs(tok,false,false,false);
-	    if ( rpl==NULL ) {
+
+	    // It's okay to advance the token like this because all the valid possible
+	    // replacements already got read into rpl above
+	    //
+	    // tok only gets passed into the fea_process_sub_(single|multiple|ligature)
+	    // functions for error reporting puroposes
+	    fea_ParseTok(tok);
+	    bool next_is_null = tok->type == tk_NULL;
+	    if ( !next_is_null )
+		fea_UnParseTok(tok);
+
+	    if ( rpl==NULL && !next_is_null ) {
 		LogError(_("No substitution specified on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
-		++tok->err_count;
-	    } else if ( rpl->has_marks ) {
+        if (! tok->ignore_invalid_replacement) { // If glyphs in some substitutions rules are not present in this font, warn but skip error
+            ++tok->err_count;
+        }
+	    } else if ( !next_is_null && rpl->has_marks ) {
 		LogError(_("No marked glyphs allowed in replacement on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
 		++tok->err_count;
 	    } else {
-		if ( cnt==1 && rpl->next==NULL ) {
+		if (next_is_null) {
+		    tok->sofar = fea_process_sub_multiple(tok,glyphs,NULL,tok->sofar);
+		} else if ( cnt==1 && rpl->next==NULL ) {
 		    tok->sofar = fea_process_sub_single(tok,glyphs,rpl,tok->sofar);
 		} else if ( cnt==1 && glyphs->is_name && rpl->next!=NULL && rpl->is_name ) {
 		    /* Multiple substitution */
@@ -4784,7 +4844,9 @@ static void fea_ParseSubstitute(struct parseState *tok) {
 	    } else {
 		if ( rpl==NULL ) {
 		    LogError(_("No substitution specified on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
-		    ++tok->err_count;
+		    if (! tok->ignore_invalid_replacement) {
+			    ++tok->err_count;
+		    }
 		} else {
 		    if ( rpl->lookupname!=NULL ) {
 			head = chunkalloc(sizeof(struct feat_item));
@@ -4929,7 +4991,7 @@ return( ot_undef );		/* Can happen */
     }
 }
 
-static struct feat_item *fea_AddFeatItem(struct parseState *tok,enum feat_type type,uint32 tag) {
+static struct feat_item *fea_AddFeatItem(struct parseState *tok,enum feat_type type,uint32_t tag) {
     struct feat_item *item;
 
     item = chunkalloc(sizeof(struct feat_item));
@@ -4978,7 +5040,9 @@ static int fea_LookupSwitch(struct parseState *tok) {
 	fea_TokenMustBe(tok,tk_char,';');
       break;
       case tk_char:
-	if ( tok->tokbuf[0]=='}' )
+	if ( tok->tokbuf[0]==';' ) // lone semicolon, see GitHub issue №4600
+return( 1 );
+	else if ( tok->tokbuf[0]=='}' )
 return( 2 );
 	/* Fall through */
       default:
@@ -5131,7 +5195,9 @@ return;
     if ( lookuptype==ot_undef ) {
 	LogError(_("This lookup has no effect, I can't figure out its type on line %d of %s"),
 		tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
-	++tok->err_count;
+        if (!tok->ignore_invalid_replacement) {
+            ++tok->err_count;
+        }
     }
 
     item = chunkalloc(sizeof(struct feat_item));
@@ -5147,7 +5213,7 @@ static struct nameid *fea_ParseNameId(struct parseState *tok,int strid) {
     char *start, *pt;
     int max, ch, value;
     FILE *in = tok->inlist[tok->inc_depth];
-    /* nameid <id> [<string attibute>] string; */
+    /* nameid <id> [<string attribute>] string; */
     /*  "nameid" and <id> will already have been parsed when we get here */
     /* <string attribute> := <platform> | <platform> <specific> <language> */
     /* <patform>==3 => <specific>=1 <language>=0x409 */
@@ -5293,12 +5359,12 @@ static struct feat_item *fea_ParseSizeMenuName(struct parseState *tok, struct fe
 return( feat );
 }
 
-static void fea_ParseFeatureNames(struct parseState *tok,uint32 tag) {
+static void fea_ParseFeatureNames(struct parseState *tok,uint32_t tag) {
     struct otffeatname *cur;
     struct otfname *head=NULL, *string;
     struct nameid *temp;
     struct feat_item *item;
-    /* name [<string attibute>] string; */
+    /* name [<string attribute>] string; */
 
     for (;;) {
 	fea_ParseTok(tok);
@@ -5334,11 +5400,9 @@ static void fea_ParseFeatureNames(struct parseState *tok,uint32 tag) {
 }
 
 static void fea_ParseFeatureDef(struct parseState *tok) {
-    uint32 feat_tag;
+    uint32_t feat_tag;
     struct feat_item *item, *size_item = NULL;
     int type, ret;
-    enum otlookup_type lookuptype;
-    int has_single, has_multiple, has_ligature, has_alternate;
 
     fea_ParseTag(tok);
     if ( tok->type!=tk_name || !tok->could_be_tag ) {
@@ -5485,7 +5549,7 @@ return;
 static void fea_ParseNameTable(struct parseState *tok) {
     struct nameid *head=NULL, *string;
     struct feat_item *item;
-    /* nameid <id> [<string attibute>] string; */
+    /* nameid <id> [<string attribute>] string; */
 
     for (;;) {
 	fea_ParseTok(tok);
@@ -5544,7 +5608,7 @@ static void fea_ParseTableKeywords(struct parseState *tok, struct tablekeywords 
 		/* Accept a normal tag, since that's what it really is */
 		tv->value = tok->tag;
 	    else if ( tok->type==tk_char && tok->tokbuf[0]=='"' ) {
-		uint8 foo[4]; int ch;
+		uint8_t foo[4]; int ch;
 		FILE *in = tok->inlist[tok->inc_depth];
 		memset(foo,' ',sizeof(foo));
 		for ( i=0; i<4; ++i ) {
@@ -5638,7 +5702,7 @@ static void fea_ParseGDEFTable(struct parseState *tok) {
     /* LigatureCaretByIndex <glyph>|<glyph class> <number>+; */	/* parse & ignore */
     int i;
     struct feat_item *item;
-    int16 *carets=NULL; int len=0, max=0;
+    int16_t *carets=NULL; int len=0, max=0;
 
     for (;;) {
 	fea_ParseTok(tok);
@@ -5689,7 +5753,7 @@ static void fea_ParseGDEFTable(struct parseState *tok) {
 		    fea_ParseCaret(tok);
 		else
 	    break;
-		carets = realloc(carets,(max+=10)*sizeof(int16));
+		carets = realloc(carets,(max+=10)*sizeof(int16_t));
 		carets[len++] = tok->value;
 	    }
 	    if ( tok->type!=tk_char || tok->tokbuf[0]!=';' ) {
@@ -5698,8 +5762,8 @@ static void fea_ParseGDEFTable(struct parseState *tok) {
 		fea_skip_to_semi(tok);
 	    }
 	    if (carets != NULL) {
-		item->u2.lcaret = malloc((len+1)*sizeof(int16));
-		memcpy(item->u2.lcaret,carets,len*sizeof(int16));
+		item->u2.lcaret = malloc((len+1)*sizeof(int16_t));
+		memcpy(item->u2.lcaret,carets,len*sizeof(int16_t));
 		item->u2.lcaret[len] = 0;
 	    } else {
 		LogError(_("Expected integer or list of integers after %s on line %d of %s"), item->u1.class,
@@ -5769,8 +5833,8 @@ static void fea_ParseBaseTable(struct parseState *tok) {
 /*  what might be right */
     struct Base h, v, *active;
     int cnt=0, i, off;
-    uint32 baselines[50];
-    int16 poses[50];
+    uint32_t baselines[50];
+    int16_t poses[50];
     struct basescript *last=NULL, *cur;
 
     memset(&h,0,sizeof(h));
@@ -5803,13 +5867,13 @@ static void fea_ParseBaseTable(struct parseState *tok) {
 		    baselines[cnt++] = tok->tag;
 	    }
 	    active->baseline_cnt = cnt;
-	    active->baseline_tags = malloc(cnt*sizeof(uint32));
-	    memcpy(active->baseline_tags,baselines,cnt*sizeof(uint32));
+	    active->baseline_tags = malloc(cnt*sizeof(uint32_t));
+	    memcpy(active->baseline_tags,baselines,cnt*sizeof(uint32_t));
 	} else if ( strcmp(tok->tokbuf+off,"BaseScriptList")==0 ) {
 	    last = NULL;
 	    while ( (fea_ParseTag(tok), tok->could_be_tag) ) {
-		uint32 script_tag = tok->tag;
-		uint32 base_tag;
+		uint32_t script_tag = tok->tag;
+		uint32_t base_tag;
 		int err=0;
 		fea_ParseTag(tok);
 		if ( !tok->could_be_tag ) {
@@ -5835,8 +5899,8 @@ static void fea_ParseBaseTable(struct parseState *tok) {
 			active->scripts = cur;
 		    last = cur;
 		    cur->script = script_tag;
-		    cur->baseline_pos = calloc(cnt,sizeof(int16));
-		    memcpy(cur->baseline_pos,poses,i*sizeof(int16));
+		    cur->baseline_pos = calloc(cnt,sizeof(int16_t));
+		    memcpy(cur->baseline_pos,poses,i*sizeof(int16_t));
 		    for ( i=0; i<active->baseline_cnt; ++i ) {
 			if ( base_tag == active->baseline_tags[i] ) {
 			    cur->def_baseline = i;
@@ -5883,7 +5947,7 @@ static void fea_ParseBaseTable(struct parseState *tok) {
 }
 
 static void fea_ParseTableDef(struct parseState *tok) {
-    uint32 table_tag;
+    uint32_t table_tag;
     struct feat_item *item;
 
     fea_ParseTag(tok);
@@ -6176,6 +6240,7 @@ static void fea_ApplyLookupListPST(struct parseState *tok,
 	    l->u2.pst = NULL;			/* So we don't free it later */
 	  break;
 	  default:
+        if ( l->type != ft_lookup_end || !tok->ignore_invalid_replacement ) /* Skip error when lookup list contains no valid substitutions */
 	    IError("Unexpected feature type %d in a PST feature", l->type );
 	  break;
 	}
@@ -6228,6 +6293,7 @@ static void fea_ApplyLookupListContextual(struct parseState *tok,
 	    }
 	  break;
 	  default:
+        if ( l->type != ft_lookup_end || !tok->ignore_invalid_replacement ) /* Skip error when lookup list contains no valid substitutions */
 	    IError("Unexpected feature type %d in a FPST feature", l->type );
 	  break;
 	}
@@ -6667,7 +6733,7 @@ static void fea_ApplyLookupListPair(struct parseState *tok,
 	    for ( i=0; i<rights.cnt; ++i )
 		kc->seconds[i+1] = rights.classes[i];
 	    kc->subtable = sub;
-	    kc->offsets = calloc(kc->first_cnt*kc->second_cnt,sizeof(int16));
+	    kc->offsets = calloc(kc->first_cnt*kc->second_cnt,sizeof(int16_t));
 	    kc->adjusts = calloc(kc->first_cnt*kc->second_cnt,sizeof(DeviceTable));
 	    fea_fillKernClass(kc,first);
 	    KernClass *lastkc = NULL;
@@ -6750,7 +6816,7 @@ return( otl );
 	else if ( otl->lookup_type != temp )
 	    IError(_("Mismatch lookup types inside a parsed lookup"));
     }
-    if ( otl->lookup_type == ot_undef )
+    if ( otl->lookup_type == ot_undef && !tok->ignore_invalid_replacement )  /* Skip error on invalid lookup list */
 	IError(_("Could not figure out a lookup type"));
     if ( otl->lookup_type==gpos_mark2base ||
 	    otl->lookup_type==gpos_mark2ligature ||
@@ -6786,7 +6852,7 @@ static struct otfname *fea_NameID2OTFName(struct nameid *names) {
 return( head );
 }
 
-static void fea_AttachFeatureToLookup(OTLookup *otl,uint32 feat_tag,
+static void fea_AttachFeatureToLookup(OTLookup *otl,uint32_t feat_tag,
 	struct scriptlanglist *sl) {
     FeatureScriptLangList *fl;
 
@@ -6838,11 +6904,11 @@ static void fea_TableByKeywords(SplineFont *sf, struct feat_item *f) {
 	    /* We don't support this guy, whatever he may be, but we did parse it */;
 	else if ( cur->cnt==1 ) {
 	    if ( cur->size==4 )
-		*((uint32 *) (((uint8 *) sf) + cur->offset)) = tv->value;
+		*((uint32_t *) (((uint8_t *) sf) + cur->offset)) = tv->value;
 	    else if ( cur->size==2 )
-		*((uint16 *) (((uint8 *) sf) + cur->offset)) = tv->value;
+		*((uint16_t *) (((uint8_t *) sf) + cur->offset)) = tv->value;
 	    else
-		*((uint8 *) (((uint8 *) sf) + cur->offset)) = tv->value;
+		*((uint8_t *) (((uint8_t *) sf) + cur->offset)) = tv->value;
 	    if ( strcmp(cur->name,"Ascender")==0 )
 		sf->pfminfo.hheadascent_add = false;
 	    else if ( strcmp(cur->name,"Descender")==0 )
@@ -6857,7 +6923,7 @@ static void fea_TableByKeywords(SplineFont *sf, struct feat_item *f) {
 		sf->pfminfo.typodescent_add = false;
 	} else if ( cur->cnt==10 && cur->size==1 ) {
 	    for ( i=0; i<10; ++i )
-		(((uint8 *) sf) + cur->offset)[i] = tv->panose_vals[i];
+		(((uint8_t *) sf) + cur->offset)[i] = tv->panose_vals[i];
 	}
     }
 }
@@ -6926,7 +6992,7 @@ static void fea_GDefLigCarets(SplineFont *sf, struct feat_item *f) {
 static struct feat_item *fea_ApplyFeatureList(struct parseState *tok,
 	struct feat_item *feat_data) {
     int lookup_flags = 0;
-    uint32 feature_tag = feat_data->u1.tag;
+    uint32_t feature_tag = feat_data->u1.tag;
     struct scriptlanglist *sl = feat_data->u2.sl;
     struct feat_item *f, *start;
     OTLookup *otl;
@@ -7285,19 +7351,26 @@ static void CopySplineFontGroupsForFeatureFile(SplineFont *sf, struct parseState
   }
 }
 
-void SFApplyFeatureFile(SplineFont *sf,FILE *file,char *filename) {
+static bool fea_isInUFO(char *filename) {
+    return g_regex_match_simple("^.*ufo[23]?[/\\\\]features.fea$", filename, 0, 0);
+}
+
+void SFApplyFeatureFile(SplineFont *sf,FILE *file,char *filename,bool ignore_invalid_replacement) {
     struct parseState tok;
     struct glyphclasses *gc, *gcnext;
     struct namedanchor *nap, *napnext;
     struct namedvalue *nvr, *nvrnext;
 
     memset(&tok,0,sizeof(tok));
+
     tok.line[0] = 1;
     tok.filename[0] = filename;
     tok.inlist[0] = file;
     tok.base = 10;
+    tok.in_ufo = fea_isInUFO(filename);
     if ( sf->cidmaster ) sf = sf->cidmaster;
     tok.sf = sf;
+    tok.ignore_invalid_replacement = ignore_invalid_replacement;
     CopySplineFontGroupsForFeatureFile(sf, &tok);
 
     locale_t tmplocale; locale_t oldlocale; // Declare temporary locale storage.
@@ -7336,13 +7409,13 @@ void SFApplyFeatureFile(SplineFont *sf,FILE *file,char *filename) {
     }
 }
 
-void SFApplyFeatureFilename(SplineFont *sf,char *filename) {
+void SFApplyFeatureFilename(SplineFont *sf,char *filename,bool ignore_invalid_replacement) {
     FILE *in = fopen(filename,"r");
 
     if ( in==NULL ) {
 	ff_post_error(_("Cannot open file"),_("Cannot open feature file %.120s"), filename );
 return;
     }
-    SFApplyFeatureFile(sf,in,filename);
+    SFApplyFeatureFile(sf,in,filename,ignore_invalid_replacement);
     fclose(in);
 }

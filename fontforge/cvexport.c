@@ -35,7 +35,6 @@
 #include "fontforgevw.h"
 #include "gfile.h"
 #include "gicons.h"
-#include "gio.h"
 #include "gutils.h"
 #include "print.h"	/* For pdf output routines */
 #include "spiro.h"
@@ -186,7 +185,6 @@ int _ExportPDF(FILE *pdf,SplineChar *sc,int layer) {
     GDateTime *gdt;
     GTimeSpan zoffset;
     int ret;
-    char oldloc[24];
     int _objlocs[8], xrefloc, streamstart, streamlength, resid = 0, nextobj;
     int *objlocs = _objlocs;
     const char *author = GetAuthor();
@@ -329,7 +327,6 @@ return( ret );
 
 
 int _ExportPlate(FILE *plate,SplineChar *sc,int layer) {
-    char oldloc[24];
     int do_open;
     SplineSet *ss;
     spiro_cp *spiros;
@@ -534,7 +531,7 @@ int ExportImage(char *filename,SplineChar *sc, int layer, int format, int pixels
     BDFChar *bdfc;
     int ret;
     int tot, i;
-    uint8 *pt, *end;
+    uint8_t *pt, *end;
     int scale;
     void *freetypecontext;
     double emsize = sc->parent->ascent+sc->parent->descent;
@@ -563,7 +560,7 @@ int ExportImage(char *filename,SplineChar *sc, int layer, int format, int pixels
 		(int) rint(sc->width*pixelsize/emsize),
 		(int) rint(sc->parent->ascent*pixelsize/emsize));
 
-	/* Sigh. Bitmaps use a different defn of set than images do. make it consistant */
+	/* Sigh. Bitmaps use a different defn of set than images do. make it consistent */
 	tot = bdfc->bytes_per_line*(bdfc->ymax-bdfc->ymin+1);
 	for ( pt = bdfc->bitmap, end = pt+tot; pt<end; *pt++ ^= 0xff );
 
@@ -631,7 +628,7 @@ int BCExportXBM(char *filename,BDFChar *bdfc, int format) {
     int ret;
     int tot;
     int scale, i;
-    uint8 *pt, *end;
+    uint8_t *pt, *end;
 
     memset(&gi,'\0', sizeof(gi));
     memset(&base,'\0', sizeof(base));
@@ -639,7 +636,7 @@ int BCExportXBM(char *filename,BDFChar *bdfc, int format) {
 
     if ( !bdfc->byte_data ) {
 	BCRegularizeBitmap(bdfc);
-	/* Sigh. Bitmaps use a different defn of set than images do. make it consistant */
+	/* Sigh. Bitmaps use a different defn of set than images do. make it consistent */
 	tot = bdfc->bytes_per_line*(bdfc->ymax-bdfc->ymin+1);
 	for ( pt = bdfc->bitmap, end = pt+tot; pt<end; *pt++ ^= 0xff );
 

@@ -69,7 +69,7 @@ struct garbage {
     int cnt;
     struct garbage *next;
     struct pskeyval *entries[GARBAGE_MAX];
-    int16 cnts[GARBAGE_MAX];
+    int16_t cnts[GARBAGE_MAX];
 };
 
 static bigreal MinTransMag(real trans[6]) {
@@ -733,6 +733,7 @@ static void circlearcto(real a1, real a2, real cx, real cy, real r,
 	SplineSet *cur, real *transform ) {
     SplinePoint *pt;
     DBasePoint temp, base, cp;
+    BasePoint ocp;
     real cplen;
     int sign=1;
     real s1, s2, c1, c2;
@@ -745,8 +746,8 @@ return;
     s1 = sin(a1); s2 = sin(a2); c1 = cos(a1); c2 = cos(a2);
     temp.x = cx+r*c2; temp.y = cy+r*s2;
     base.x = cx+r*c1; base.y = cy+r*s1;
-    pt = chunkalloc(sizeof(SplinePoint));
-    Transform(&pt->me,&temp,transform);
+    Transform(&ocp,&temp,transform);
+    pt = SplinePointCreate(ocp.x, ocp.y);
     cp.x = temp.x-cplen*s2; cp.y = temp.y + cplen*c2;
     if ( (cp.x-base.x)*(cp.x-base.x)+(cp.y-base.y)*(cp.y-base.y) >
 	     (temp.x-base.x)*(temp.x-base.x)+(temp.y-base.y)*(temp.y-base.y) ) {
@@ -754,10 +755,8 @@ return;
 	cp.x = temp.x+cplen*s2; cp.y = temp.y - cplen*c2;
     }
     Transform(&pt->prevcp,&cp,transform);
-    pt->nonextcp = true;
     cp.x = base.x + sign*cplen*s1; cp.y = base.y - sign*cplen*c1;
     Transform(&cur->last->nextcp,&cp,transform);
-    cur->last->nonextcp = false;
     CheckMake(cur->last,pt);
     SplineMake3(cur->last,pt);
     cur->last = pt;
@@ -1001,9 +1000,9 @@ static Entity *EntityCreate(SplinePointList *head,int linecap,int linejoin,
 return( ent );
 }
 
-static uint8 *StringToBytes(struct psstack *stackel,int *len) {
+static uint8_t *StringToBytes(struct psstack *stackel,int *len) {
     char *pt;
-    uint8 *upt, *base, *ret;
+    uint8_t *upt, *base, *ret;
     int half, sofar, val, nesting;
     int i,j;
 
@@ -1149,7 +1148,7 @@ return(ret);
 
 static int PSAddImagemask(EntityChar *ec,struct psstack *stack,int sp,
 	real transform[6],Color fillcol) {
-    uint8 *data;
+    uint8_t *data;
     int datalen, width, height, polarity;
     real trans[6];
     struct _GImage *base;
@@ -1272,6 +1271,7 @@ return;		/* Hunh. I don't understand it. I give up */
 static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
     SplinePointList *cur=NULL, *head=NULL;
     DBasePoint current, temp;
+    BasePoint ini_me;
     int tok, i, j;
     struct psstack stack[100];
     real dval;
@@ -2042,9 +2042,8 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
 		    current.y = stack[sp-1].u.val;
 		    sp -= 2;
 		}
-		pt = chunkalloc(sizeof(SplinePoint));
-		Transform(&pt->me,&current,transform);
-		pt->noprevcp = true; pt->nonextcp = true;
+		Transform(&ini_me,&current,transform);
+		pt = SplinePointCreate(ini_me.x, ini_me.y);
 		if ( tok==pt_moveto || tok==pt_rmoveto ) {
 		    SplinePointList *spl = chunkalloc(sizeof(SplinePointList));
 		    spl->first = spl->last = pt;
@@ -2078,12 +2077,10 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
 		if ( cur!=NULL && cur->first!=NULL && (cur->first!=cur->last || cur->first->next==NULL) ) {
 		    temp.x = stack[sp-6].u.val; temp.y = stack[sp-5].u.val;
 		    Transform(&cur->last->nextcp,&temp,transform);
-		    cur->last->nonextcp = false;
-		    pt = chunkalloc(sizeof(SplinePoint));
+		    Transform(&ini_me,&current,transform);
+		    pt = SplinePointCreate(ini_me.x, ini_me.y);
 		    temp.x = stack[sp-4].u.val; temp.y = stack[sp-3].u.val;
 		    Transform(&pt->prevcp,&temp,transform);
-		    Transform(&pt->me,&current,transform);
-		    pt->nonextcp = true;
 		    CheckMake(cur->last,pt);
 		    SplineMake3(cur->last,pt);
 		    cur->last = pt;
@@ -2105,9 +2102,8 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
 		temp.y = cy+r*sin(a1/180 * FF_PI);
 		if ( temp.x!=current.x || temp.y!=current.y ||
 			!( cur!=NULL && cur->first!=NULL && (cur->first!=cur->last || cur->first->next==NULL) )) {
-		    pt = chunkalloc(sizeof(SplinePoint));
-		    Transform(&pt->me,&temp,transform);
-		    pt->noprevcp = true; pt->nonextcp = true;
+		    Transform(&ini_me,&temp,transform);
+		    pt = SplinePointCreate(ini_me.x, ini_me.y);
 		    if ( cur!=NULL && cur->first!=NULL && (cur->first!=cur->last || cur->first->next==NULL) ) {
 			CheckMake(cur->last,pt);
 			SplineMake3(cur->last,pt);
@@ -2148,9 +2144,8 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
 			(current.x-x1)*(y2-y1) == (x2-x1)*(current.y-y1) ) {
 		    /* Degenerate case */
 		    current.x = x1; current.y = y1;
-		    pt = chunkalloc(sizeof(SplinePoint));
-		    Transform(&pt->me,&current,transform);
-		    pt->noprevcp = true; pt->nonextcp = true;
+		    Transform(&ini_me,&current,transform);
+		    pt = SplinePointCreate(ini_me.x, ini_me.y);
 		    CheckMake(cur->last,pt);
 		    SplineMake3(cur->last,pt);
 		    cur->last = pt;
@@ -2181,9 +2176,8 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
 		    if ( xt1!=current.x || yt1!=current.y ) {
 			DBasePoint temp;
 			temp.x = xt1; temp.y = yt1;
-			pt = chunkalloc(sizeof(SplinePoint));
-			Transform(&pt->me,&temp,transform);
-			pt->noprevcp = true; pt->nonextcp = true;
+			Transform(&ini_me,&temp,transform);
+			pt = SplinePointCreate(ini_me.x, ini_me.y);
 			CheckMake(cur->last,pt);
 			SplineMake3(cur->last,pt);
 			cur->last = pt;
@@ -2564,7 +2558,7 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
 		--sp;
 	  break;
 	  case pt_currentsmoothness:
-	    /* default value is installation dependant. I don't handle this properly */
+	    /* default value is installation dependent. I don't handle this properly */
 	    if ( sp<sizeof(stack)/sizeof(stack[0]) ) {
 		stack[sp].u.val = 1.0;
 		stack[sp++].type = ps_num;
@@ -2576,7 +2570,7 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
 		--sp;
 	  break;
 	  case pt_currentobjectformat:
-	    /* default value is installation dependant. I don't handle this properly */
+	    /* default value is installation dependent. I don't handle this properly */
 	    if ( sp<sizeof(stack)/sizeof(stack[0]) ) {
 		stack[sp].u.val = 0.0;
 		stack[sp++].type = ps_num;
@@ -2903,7 +2897,7 @@ static SplinePointList *SplinesFromLayers(SplineChar *sc,
                                           ImportParams *ip,
                                           int tostroke) {
     int layer;
-    SplinePointList *head=NULL, *last, *nlast, *temp, *each, *transed;
+    SplinePointList *head=NULL, *last, *temp, *transed;
     StrokeInfo si;
     /*SplineSet *spl;*/
     real inversetrans[6], transform[6];
@@ -3096,11 +3090,10 @@ void EntityDefaultStrokeFill(Entity *ent) {
 SplinePointList *SplinesFromEntityChar(EntityChar *ec, ImportParams *ip,
                                        int is_stroked) {
     Entity *ent, *next;
-    SplinePointList *head=NULL, *last, *nlast, *temp, *each, *transed;
+    SplinePointList *head=NULL, *last, *temp, *transed;
     StrokeInfo si;
     real inversetrans[6];
     /*SplineSet *spl;*/
-    int ask = false;
 
     EntityDefaultStrokeFill(ec->splines);
 
@@ -3356,7 +3349,7 @@ void PSFontInterpretPS(FILE *ps,struct charprocs *cp,char **encoding) {
 We're not smart here no: 0 1 255 {1 index exch /.notdef put} for */
 Encoding *PSSlurpEncodings(FILE *file) {
     char *names[1024];
-    int32 encs[1024];
+    int32_t encs[1024];
     Encoding *item, *head = NULL, *last;
     char *encname;
     char tokbuf[200];
@@ -3418,8 +3411,8 @@ return( head );
 	    item = calloc(1,sizeof(Encoding));
 	    item->enc_name = encname;
 	    item->char_cnt = max;
-	    item->unicode = malloc(max*sizeof(int32));
-	    memcpy(item->unicode,encs,max*sizeof(int32));
+	    item->unicode = malloc(max*sizeof(int32_t));
+	    memcpy(item->unicode,encs,max*sizeof(int32_t));
 	    if ( any && !codepointsonly ) {
 		item->psnames = calloc(max,sizeof(char *));
 		memcpy(item->psnames,names,max*sizeof(char *));
@@ -3621,7 +3614,7 @@ return( sum );
 /*  we'll get it right */
 /* Char width is done differently. Moveto starts a newpath. 0xff starts a 16.16*/
 /*  number rather than a 32 bit number */
-SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *context,
+SplineChar *PSCharStringToSplines(uint8_t *type1, int len, struct pscontext *context,
 	struct pschars *subrs, struct pschars *gsubrs, const char *name) {
     int is_type2 = context->is_type2;
     real stack[50]; int sp=0, v;		/* Type1 stack is about 25 long, Type2 stack is 48 */
@@ -3630,6 +3623,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
     SplinePointList *cur=NULL, *oldcur=NULL;
     RefChar *r1, *r2, *rlast=NULL;
     DBasePoint current;
+    BasePoint ini_me;
     real dx, dy, dx2, dy2, dx3, dy3, dx4, dy4, dx5, dy5, dx6, dy6;
     SplinePoint *pt;
     /* subroutines may be nested to a depth of 10 */
@@ -3654,7 +3648,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 
     ret->name = copy( name );
     ret->unicodeenc = -1;
-    ret->width = (int16) 0x8000;
+    ret->width = (int16_t) 0x8000;
     if ( name==NULL ) name = "unnamed";
     ret->manualhints = true;
 
@@ -3904,14 +3898,14 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 		    popsp = 0;
 		    for ( k=sp-3; k>=sp-2-tot; --k )
 			pops[popsp++] = stack[k];
-		    /* othersubrs 0-3 must be interpretted. 0-2 are Flex, 3 is Hint Replacement */
+		    /* othersubrs 0-3 must be interpreted. 0-2 are Flex, 3 is Hint Replacement */
 		    /* othersubrs 12,13 are for counter hints. We don't need to */
 		    /*  do anything to ignore them */
 		    /* Subroutines 14-18 are multiple master blenders. We need */
 		    /*  to pay attention to them too */
 		    switch ( (int) stack[sp-1] ) {
 		      case 3: {
-			/* when we weren't capabable of hint replacement we */
+			/* when we weren't capable of hint replacement we */
 			/*  punted by putting 3 on the stack (T1 spec page 70) */
 			/*  subroutine 3 is a noop */
 			/*pops[popsp-1] = 3;*/
@@ -3966,20 +3960,16 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 			    cur = oldcur;
 			    if ( cur!=NULL && cur->first!=NULL && (cur->first!=cur->last || cur->first->next==NULL) ) {
 				cur->last->nextcp = old_nextcp;
-				cur->last->nonextcp = false;
-				pt = chunkalloc(sizeof(SplinePoint));
+				pt = SplinePointCreate(mid.x, mid.y);
 			        pt->hintmask = pending_hm; pending_hm = NULL;
 				pt->prevcp = mid_prevcp;
-				pt->me = mid;
 				pt->nextcp = mid_nextcp;
 				/*pt->flex = pops[2];*/
 			        CheckMake(cur->last,pt);
 				SplineMake3(cur->last,pt);
 				cur->last = pt;
-				pt = chunkalloc(sizeof(SplinePoint));
+				pt = SplinePointCreate(end.x, end.y);
 				pt->prevcp = end_prevcp;
-				pt->me = end;
-				pt->nonextcp = true;
 			        CheckMake(cur->last,pt);
 				SplineMake3(cur->last,pt);
 				cur->last = pt;
@@ -3989,9 +3979,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 			    /* Um, something's wrong. Let's just draw a line */
 			    /* do the simple method, which consists of creating */
 			    /*  the appropriate line */
-			    pt = chunkalloc(sizeof(SplinePoint));
-			    pt->me.x = pops[1]; pt->me.y = pops[0];
-			    pt->noprevcp = true; pt->nonextcp = true;
+			    pt = SplinePointCreate(pops[1], pops[0]);
 			    SplinePointListFree(oldcur->next); oldcur->next = NULL; spl = NULL;
 			    cur = oldcur;
 			    if ( cur!=NULL && cur->first!=NULL && (cur->first!=cur->last || cur->first->next==NULL) ) {
@@ -4011,7 +3999,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 			is_type2 = context->is_type2;
 			/* If we found a type2 font with a type1 flex sequence */
 			/*  (an illegal idea, but never mind, someone gave us one)*/
-			/*  then we had to turn off type2 untill the end of the */
+			/*  then we had to turn off type2 until the end of the */
 			/*  flex sequence. Which is here */
 		      break;
 		      case 14: 		/* results in 1 blended value */
@@ -4186,27 +4174,23 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 		if ( cur!=NULL && cur->first!=NULL && (cur->first!=cur->last || cur->first->next==NULL) ) {
 		    current.x = rint((current.x+dx)*1024)/1024; current.y = rint((current.y+dy)*1024)/1024;
 		    cur->last->nextcp.x = current.x; cur->last->nextcp.y = current.y;
-		    cur->last->nonextcp = false;
 		    current.x = rint((current.x+dx2)*1024)/1024; current.y = rint((current.y+dy2)*1024)/1024;
-		    pt = chunkalloc(sizeof(SplinePoint));
-		    pt->hintmask = pending_hm; pending_hm = NULL;
-		    pt->prevcp.x = current.x; pt->prevcp.y = current.y;
+		    ini_me.x = current.x; ini_me.y = current.y; // Store for setting prevcp;
 		    current.x = rint((current.x+dx3)*1024)/1024; current.y = rint((current.y+dy3)*1024)/1024;
-		    pt->me.x = current.x; pt->me.y = current.y;
-		    pt->nonextcp = true;
+		    pt = SplinePointCreate(current.x, current.y);
+		    pt->hintmask = pending_hm; pending_hm = NULL;
+		    pt->prevcp = ini_me;
 		    CheckMake(cur->last,pt);
 		    SplineMake3(cur->last,pt);
 		    cur->last = pt;
 
 		    current.x = rint((current.x+dx4)*1024)/1024; current.y = rint((current.y+dy4)*1024)/1024;
 		    cur->last->nextcp.x = current.x; cur->last->nextcp.y = current.y;
-		    cur->last->nonextcp = false;
 		    current.x = rint((current.x+dx5)*1024)/1024; current.y = rint((current.y+dy5)*1024)/1024;
-		    pt = chunkalloc(sizeof(SplinePoint));
-		    pt->prevcp.x = current.x; pt->prevcp.y = current.y;
+		    ini_me.x = current.x; ini_me.y = current.y; // Store for setting prevcp;
 		    current.x = rint((current.x+dx6)*1024)/1024; current.y = rint((current.y+dy6)*1024)/1024;
-		    pt->me.x = current.x; pt->me.y = current.y;
-		    pt->nonextcp = true;
+		    pt = SplinePointCreate(current.x, current.y);
+		    pt->prevcp = ini_me;
 		    CheckMake(cur->last,pt);
 		    SplineMake3(cur->last,pt);
 		    cur->last = pt;
@@ -4222,7 +4206,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 	  case 1: /* hstem */
 	  case 18: /* hstemhm */
 	    base = 0;
-	    if ( (sp&1) && ret->width == (int16) 0x8000 )
+	    if ( (sp&1) && ret->width == (int16_t) 0x8000 )
 		ret->width = stack[0];
 	    if ( sp&1 )
 		base=1;
@@ -4268,7 +4252,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 	  case 23: /* vstemhm */
 	    base = 0;
 	    if ( cur==NULL || v==3 || v==23 ) {
-		if ( (sp&1) && is_type2 && ret->width == (int16) 0x8000 ) {
+		if ( (sp&1) && is_type2 && ret->width == (int16_t) 0x8000 ) {
 		    ret->width = stack[0];
 		}
 		if ( sp&1 )
@@ -4338,7 +4322,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 	  break;
 	  case 14: /* endchar */
 	    /* endchar is allowed to terminate processing even within a subroutine */
-	    if ( (sp&1) && is_type2 && ret->width == (int16) 0x8000 )
+	    if ( (sp&1) && is_type2 && ret->width == (int16_t) 0x8000 )
 		ret->width = stack[0];
 	    if ( context->painttype!=2 )
 		closepath(cur,is_type2);
@@ -4381,7 +4365,7 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 	  case 22: /* hmoveto */
 	  case 4: /* vmoveto */
 	    if ( is_type2 ) {
-		if (( (v==21 && sp==3) || (v!=21 && sp==2))  && ret->width == (int16) 0x8000 )
+		if (( (v==21 && sp==3) || (v!=21 && sp==2))  && ret->width == (int16_t) 0x8000 )
 		    /* Character's width may be specified on the first moveto */
 		    ret->width = stack[0];
 		if ( v==21 && sp>2 ) {
@@ -4423,14 +4407,13 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 		}
 		++polarity;
 		current.x = rint((current.x+dx)*1024)/1024; current.y = rint((current.y+dy)*1024)/1024;
-		pt = chunkalloc(sizeof(SplinePoint));
+		pt = SplinePointCreate(current.x, current.y);
 		pt->hintmask = pending_hm; pending_hm = NULL;
-		pt->me.x = current.x; pt->me.y = current.y;
-		pt->noprevcp = true; pt->nonextcp = true;
 		if ( v==4 || v==21 || v==22 ) {
 		    if ( cur!=NULL && cur->first==cur->last && cur->first->prev==NULL && is_type2 ) {
 			/* Two adjacent movetos should not create single point paths */
-			cur->first->me.x = current.x; cur->first->me.y = current.y;
+			cur->first->prevcp.x = cur->first->nextcp.x = cur->first->me.x = current.x;
+            cur->first->prevcp.y = cur->first->nextcp.y = cur->first->me.y = current.y;
 			SplinePointFree(pt);
 		    } else {
 			SplinePointList *spl = chunkalloc(sizeof(SplinePointList));
@@ -4460,10 +4443,8 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 	    while ( sp>base+6 ) {
 		current.x = rint((current.x+stack[base++])*1024)/1024; current.y = rint((current.y+stack[base++])*1024)/1024;
 		if ( cur!=NULL ) {
-		    pt = chunkalloc(sizeof(SplinePoint));
+		    pt = SplinePointCreate(current.x, current.y);
 		    pt->hintmask = pending_hm; pending_hm = NULL;
-		    pt->me.x = current.x; pt->me.y = current.y;
-		    pt->noprevcp = true; pt->nonextcp = true;
 		    CheckMake(cur->last,pt);
 		    SplineMake3(cur->last,pt);
 		    cur->last = pt;
@@ -4541,14 +4522,12 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 		if ( cur!=NULL && cur->first!=NULL && (cur->first!=cur->last || cur->first->next==NULL) ) {
 		    current.x = rint((current.x+dx)*1024)/1024; current.y = rint((current.y+dy)*1024)/1024;
 		    cur->last->nextcp.x = current.x; cur->last->nextcp.y = current.y;
-		    cur->last->nonextcp = false;
 		    current.x = rint((current.x+dx2)*1024)/1024; current.y = rint((current.y+dy2)*1024)/1024;
-		    pt = chunkalloc(sizeof(SplinePoint));
-		    pt->hintmask = pending_hm; pending_hm = NULL;
-		    pt->prevcp.x = current.x; pt->prevcp.y = current.y;
+		    ini_me.x = current.x; ini_me.y = current.y; // Store for setting prevcp;
 		    current.x = rint((current.x+dx3)*1024)/1024; current.y = rint((current.y+dy3)*1024)/1024;
-		    pt->me.x = current.x; pt->me.y = current.y;
-		    pt->nonextcp = true;
+		    pt = SplinePointCreate(current.x, current.y);
+		    pt->hintmask = pending_hm; pending_hm = NULL;
+		    pt->prevcp = ini_me;
 		    CheckMake(cur->last,pt);
 		    SplineMake3(cur->last,pt);
 		    cur->last = pt;
@@ -4558,10 +4537,8 @@ SplineChar *PSCharStringToSplines(uint8 *type1, int len, struct pscontext *conte
 	    if ( v==24 ) {
 		current.x = rint((current.x+stack[base++])*1024)/1024; current.y = rint((current.y+stack[base++])*1024)/1024;
 		if ( cur!=NULL ) {	/* In legal code, cur can't be null here, but I got something illegal... */
-		    pt = chunkalloc(sizeof(SplinePoint));
+		    pt = SplinePointCreate(current.x, current.y);
 		    pt->hintmask = pending_hm; pending_hm = NULL;
-		    pt->me.x = current.x; pt->me.y = current.y;
-		    pt->noprevcp = true; pt->nonextcp = true;
 		    CheckMake(cur->last,pt);
 		    SplineMake3(cur->last,pt);
 		    cur->last = pt;

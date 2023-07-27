@@ -62,6 +62,7 @@ void InitImportParams(ImportParams *ip) {
     ip->scale = true;
     ip->accuracy_target = 0.25;
     ip->default_joinlimit = JLIMIT_INHERITED;
+    ip->dimensions = false;
 }
 
 ImportParams *ImportParamsState() {
@@ -324,7 +325,7 @@ return;
     transform[0] = 1; transform[3] = -1;
     transform[5] = 800;
     head = SplinePointListTransform(head,transform,tpt_AllPoints);
-    /* After doing the above flip, the contours appear oriented acording to my*/
+    /* After doing the above flip, the contours appear oriented according to my*/
     /*  conventions */
 
     if ( sc->layers[layer].order2 ) {
@@ -350,6 +351,8 @@ void SCImportSVG(SplineChar *sc,int layer,char *path,char *memory, int memlen,
                  bool doclear, ImportParams *ip) {
     SplinePointList *spl, *espl, **head;
 
+    if (ip->dimensions)
+	SCDimensionFromSVGFile(path, sc, false);
     if ( sc->parent->multilayer && layer>ly_back ) {
 	SCAppendEntityLayers(sc,
 	       EntityInterpretSVG(path,memory,memlen,
@@ -464,7 +467,6 @@ static SplinePoint *ArcSpline(SplinePoint *sp,float sa,SplinePoint *ep,float ea,
 
     sp->nextcp.x = sp->me.x - len*ss; sp->nextcp.y = sp->me.y + len*sc;
     ep->prevcp.x = ep->me.x + len*es; ep->prevcp.y = ep->me.y - len*ec;
-    sp->nonextcp = ep->noprevcp = false;
     SplineMake3(sp,ep);
 return( ep );
 }
@@ -543,23 +545,19 @@ static SplineSet * slurpelipse(FILE *fig,SplineChar *sc, SplineSet *sofar) {
 
     spl = chunkalloc(sizeof(SplinePointList));
     spl->next = sofar;
-    spl->first = sp = chunkalloc(sizeof(SplinePoint));
-    sp->me.x = dcx; sp->me.y = dcy+dry;
+    spl->first = sp = SplinePointCreate(dcx, dcy+dry);
 	sp->nextcp.x = sp->me.x + .552*drx; sp->nextcp.y = sp->me.y;
 	sp->prevcp.x = sp->me.x - .552*drx; sp->prevcp.y = sp->me.y;
-    spl->last = sp = chunkalloc(sizeof(SplinePoint));
-    sp->me.x = dcx+drx; sp->me.y = dcy;
+    spl->last = sp = SplinePointCreate(dcx+drx, dcy);
 	sp->nextcp.x = sp->me.x; sp->nextcp.y = sp->me.y - .552*dry;
 	sp->prevcp.x = sp->me.x; sp->prevcp.y = sp->me.y + .552*dry;
     SplineMake3(spl->first,sp);
-    sp = chunkalloc(sizeof(SplinePoint));
-    sp->me.x = dcx; sp->me.y = dcy-dry;
+    sp = SplinePointCreate(dcx, dcy-dry);
 	sp->nextcp.x = sp->me.x - .552*drx; sp->nextcp.y = sp->me.y;
 	sp->prevcp.x = sp->me.x + .552*drx; sp->prevcp.y = sp->me.y;
     SplineMake3(spl->last,sp);
     spl->last = sp;
-    sp = chunkalloc(sizeof(SplinePoint));
-    sp->me.x = dcx-drx; sp->me.y = dcy;
+    sp = SplinePointCreate(dcx-drx, dcy);
 	sp->nextcp.x = sp->me.x; sp->nextcp.y = sp->me.y + .552*dry;
 	sp->prevcp.x = sp->me.x; sp->prevcp.y = sp->me.y - .552*dry;
     SplineMake3(spl->last,sp);
@@ -611,33 +609,31 @@ static SplineSet * slurppolyline(FILE *fig,SplineChar *sc, SplineSet *sofar) {
 		bottomright.y = bps[2].y;
 	    }
 	    spl->first = SplinePointCreate(topleft.x,topleft.y-r); spl->first->pointtype = pt_tangent;
-	    spl->first->nextcp.y += .552*r; spl->first->nonextcp = false;
+	    spl->first->nextcp.y += .552*r;
 	    spl->last = sp = SplinePointCreate(topleft.x+r,topleft.y); sp->pointtype = pt_tangent;
-	    sp->prevcp.x -= .552*r; sp->noprevcp = false;
+	    sp->prevcp.x -= .552*r;
 	    SplineMake3(spl->first,sp);
 	    sp = SplinePointCreate(bottomright.x-r,topleft.y); sp->pointtype = pt_tangent;
-	    sp->nextcp.x += .552*r; sp->nonextcp = false;
+	    sp->nextcp.x += .552*r;
 	    SplineMake3(spl->last,sp); spl->last = sp;
 	    sp = SplinePointCreate(bottomright.x,topleft.y-r); sp->pointtype = pt_tangent;
-	    sp->prevcp.y += .552*r; sp->noprevcp = false;
+	    sp->prevcp.y += .552*r;
 	    SplineMake3(spl->last,sp); spl->last = sp;
 	    sp = SplinePointCreate(bottomright.x,bottomright.y+r); sp->pointtype = pt_tangent;
-	    sp->nextcp.y -= .552*r; sp->nonextcp = false;
+	    sp->nextcp.y -= .552*r;
 	    SplineMake3(spl->last,sp); spl->last = sp;
 	    sp = SplinePointCreate(bottomright.x-r,bottomright.y); sp->pointtype = pt_tangent;
-	    sp->prevcp.x += .552*r; sp->noprevcp = false;
+	    sp->prevcp.x += .552*r;
 	    SplineMake3(spl->last,sp); spl->last = sp;
 	    sp = SplinePointCreate(topleft.x+r,bottomright.y); sp->pointtype = pt_tangent;
-	    sp->nextcp.x -= .552*r; sp->nonextcp = false;
+	    sp->nextcp.x -= .552*r;
 	    SplineMake3(spl->last,sp); spl->last = sp;
 	    sp = SplinePointCreate(topleft.x,bottomright.y+r); sp->pointtype = pt_tangent;
-	    sp->prevcp.y -= .552*r; sp->noprevcp = false;
+	    sp->prevcp.y -= .552*r;
 	    SplineMake3(spl->last,sp); spl->last = sp;
 	} else {
 	    for ( i=0; i<cnt; ++i ) {
-		sp = chunkalloc(sizeof(SplinePoint));
-		sp->me = sp->nextcp = sp->prevcp = bps[i];
-		sp->nonextcp = sp->noprevcp = true;
+		sp = SplinePointCreate(bps[i].x, bps[i].y);
 		sp->pointtype = pt_corner;
 		if ( spl->first==NULL )
 		    spl->first = sp;
@@ -762,17 +758,18 @@ static SplineSet *ApproximateXSpline(struct xspline *xs,int order2) {
     FitPoint mids[7];
     SplineSet *spl = chunkalloc(sizeof(SplineSet));
     SplinePoint *sp;
+    BasePoint tbp;
 
-    spl->first = spl->last = chunkalloc(sizeof(SplinePoint));
-    xsplineeval(&spl->first->me,0,xs);
+    xsplineeval(&tbp,0,xs);
+    spl->first = spl->last = SplinePointCreate(tbp.x, tbp.y);
     spl->first->pointtype = ( xs->s[0]==0 )?pt_corner:pt_curve;
     for ( i=0; i<(size_t)(xs->n-1); ++i ) {
 	if ( i==(size_t)(xs->n-2) && xs->closed )
 	    sp = spl->first;
 	else {
-	    sp = chunkalloc(sizeof(SplinePoint));
 	    sp->pointtype = ( xs->s[i+1]==0 )?pt_corner:pt_curve;
-	    xsplineeval(&sp->me,i+1,xs);
+	    xsplineeval(&tbp,i+1,xs);
+	    sp = SplinePointCreate(tbp.x, tbp.y);
 	}
 	for ( j=0, t=1./8; j<sizeof(mids)/sizeof(mids[0]); ++j, t+=1./8 ) {
 	    xsplineeval((BasePoint *) &mids[j].p,i+t,xs);
@@ -783,11 +780,7 @@ static SplineSet *ApproximateXSpline(struct xspline *xs,int order2) {
 	SPAverageCps(spl->last);
 	spl->last = sp;
     }
-    if ( !xs->closed ) {
-	spl->first->noprevcp = spl->last->nonextcp = true;
-	spl->first->prevcp = spl->first->me;
-	spl->last->nextcp = spl->last->me;
-    } else
+    if ( xs->closed )
 	SPAverageCps(spl->first);
 return( spl );
 }

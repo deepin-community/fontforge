@@ -141,8 +141,7 @@ SplineChar *SCBuildDummy(SplineChar *dummy,SplineFont *sf,EncMap *map,int i) {
 	}
     }
     dummy->width = dummy->vwidth = sf->ascent+sf->descent;
-    if ( dummy->unicodeenc>0 && dummy->unicodeenc<0x10000 &&
-	    iscombining(dummy->unicodeenc)) {
+    if (iscombining(dummy->unicodeenc)) {
 	/* Mark characters should be 0 width */
 	dummy->width = 0;
 	/* Except in monospaced fonts on windows, where they should be the */
@@ -244,12 +243,8 @@ return( NULL );
 return( _SFMakeChar(sf,map,enc));
 }
 
-struct unicoderange specialnames[] = {
-    UNICODERANGE_EMPTY
-};
-
 int NameToEncoding(SplineFont *sf,EncMap *map,const char *name) {
-    int enc, uni, i, ch;
+    int enc, uni, ch;
     char *end, *freeme=NULL;
     const char *upt = name;
 
@@ -298,13 +293,6 @@ return( enc );
     } else {
 	if ( enc==-1 ) {
 	    uni = UniFromName(name,sf->uni_interp,map->enc);
-	    if ( uni<0 ) {
-		for ( i=0; specialnames[i].name!=NULL; ++i )
-		    if ( strcmp(name,specialnames[i].name)==0 ) {
-			uni = specialnames[i].first;
-		break;
-		    }
-	    }
 	    if ( uni<0 && name[1]=='\0' )
 		uni = name[0];
 	}
@@ -320,21 +308,21 @@ return( enc );
 return( enc );
 }
 
-void SFRemoveUndoes(SplineFont *sf,uint8 *selected, EncMap *map) {
-    SplineFont *main = sf->cidmaster? sf->cidmaster : sf, *ssf;
+void SFRemoveUndoes(SplineFont *sf,uint8_t *selected, EncMap *map) {
+    SplineFont *mainfont = sf->cidmaster? sf->cidmaster : sf, *ssf;
     int i,k, max, layer, gid;
     SplineChar *sc;
     BDFFont *bdf;
 
-    if ( selected!=NULL || main->subfontcnt==0 )
+    if ( selected!=NULL || mainfont->subfontcnt==0 )
 	max = sf->glyphcnt;
     else {
 	max = 0;
-	for ( k=0; k<main->subfontcnt; ++k )
-	    if ( main->subfonts[k]->glyphcnt>max ) max = main->subfonts[k]->glyphcnt;
+	for ( k=0; k<mainfont->subfontcnt; ++k )
+	    if ( mainfont->subfonts[k]->glyphcnt>max ) max = mainfont->subfonts[k]->glyphcnt;
     }
     for ( i=0; ; ++i ) {
-	if ( selected==NULL || main->subfontcnt!=0 ) {
+	if ( selected==NULL || mainfont->subfontcnt!=0 ) {
 	    if ( i>=max )
     break;
 	    gid = i;
@@ -347,7 +335,7 @@ void SFRemoveUndoes(SplineFont *sf,uint8 *selected, EncMap *map) {
 	    if ( gid==-1 )
     continue;
 	}
-	for ( bdf=main->bitmaps; bdf!=NULL; bdf=bdf->next ) {
+	for ( bdf=mainfont->bitmaps; bdf!=NULL; bdf=bdf->next ) {
 	    if ( bdf->glyphs[gid]!=NULL ) {
 		UndoesFree(bdf->glyphs[gid]->undoes); bdf->glyphs[gid]->undoes = NULL;
 		UndoesFree(bdf->glyphs[gid]->redoes); bdf->glyphs[gid]->redoes = NULL;
@@ -355,7 +343,7 @@ void SFRemoveUndoes(SplineFont *sf,uint8 *selected, EncMap *map) {
 	}
 	k = 0;
 	do {
-	    ssf = main->subfontcnt==0? main: main->subfonts[k];
+	    ssf = mainfont->subfontcnt==0? mainfont: mainfont->subfonts[k];
 	    if ( gid<ssf->glyphcnt && ssf->glyphs[gid]!=NULL ) {
 		sc = ssf->glyphs[gid];
 		for ( layer = 0; layer<sc->layer_cnt; ++layer ) {
@@ -364,7 +352,7 @@ void SFRemoveUndoes(SplineFont *sf,uint8 *selected, EncMap *map) {
 		}
 	    }
 	    ++k;
-	} while ( k<main->subfontcnt );
+	} while ( k<mainfont->subfontcnt );
     }
 }
 
@@ -535,7 +523,7 @@ int SFScaleToEm(SplineFont *sf, int as, int des) {
     bigreal scale;
     real transform[6];
     BVTFunc bvts;
-    uint8 *oldselected = sf->fv->selected;
+    uint8_t *oldselected = sf->fv->selected;
     enum fvtrans_flags trans_flags =
 	fvt_alllayers|fvt_round_to_int|fvt_dontsetwidth|fvt_scalekernclasses|fvt_scalepstpos|fvt_dogrid;
 
@@ -1207,9 +1195,9 @@ SplineFont *_ReadSplineFont(FILE *file, const char *filename, enum openflags ope
 	    sf = SFReadTTF(fullname,0,openflags);
     } else if ( strmatch(fullname+strlen(strippedname)-4, ".svg")==0 && checked!='S' ) {
 	    sf = SFReadSVG(fullname,0);
-    } else if ( strmatch(fullname+strlen(fullname)-4, ".ufo")==0 && checked!='u' ||
-		 strmatch(fullname+strlen(fullname)-5, ".ufo2")==0 && checked!='u' ||
-		 strmatch(fullname+strlen(fullname)-5, ".ufo3")==0 && checked!='u' ) {
+    } else if (( strmatch(fullname+strlen(fullname)-4, ".ufo")==0 ||
+		 strmatch(fullname+strlen(fullname)-5, ".ufo2")==0  ||
+		 strmatch(fullname+strlen(fullname)-5, ".ufo3")==0 ) && checked!='u' ) {
 	    sf = SFReadUFO(fullname,0);
     } else if ( strmatch(fullname+strlen(fullname)-4, ".bdf")==0 && checked!='b' ) {
 	    sf = SFFromBDF(fullname,0,false);
@@ -1322,13 +1310,6 @@ SplineFont *ReadSplineFont(const char *filename,enum openflags openflags) {
 return( _ReadSplineFont(NULL,filename,openflags));
 }
 
-char *ToAbsolute(char *filename) {
-    char buffer[1025];
-
-    GFileGetAbsoluteName(filename,buffer,sizeof(buffer));
-return( copy(buffer));
-}
-
 SplineFont *LoadSplineFont(const char *filename,enum openflags openflags) {
     SplineFont *sf;
     const char *pt;
@@ -1375,7 +1356,7 @@ return( NULL );
     sf = NULL;
     sf = FontWithThisFilename(fname);
     if ( sf==NULL && *fname!='/' )
-	fname = tobefreed2 = ToAbsolute(fname);
+	fname = tobefreed2 = GFileGetAbsoluteName(fname);
     if ( sf==NULL )
 	sf = ReadSplineFont(fname,openflags);
 

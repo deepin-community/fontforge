@@ -30,7 +30,6 @@
 
 #include "lookups.h"
 
-#include "chardata.h"
 #include "fontforgevw.h"
 #include "fvfonts.h"
 #include "macenc.h"
@@ -63,6 +62,7 @@ struct opentype_feature_friendlynames friendlies[] = {
     { CHR('c','a','s','e'),	"case", N_("Case-Sensitive Forms"),	gsub_single_mask|gpos_single_mask },
     { CHR('c','c','m','p'),	"ccmp", N_("Glyph Composition/Decomposition"),	gsub_multiple_mask|gsub_ligature_mask },
     { CHR('c','f','a','r'),	"cfar", N_("Conjunct Form After Ro"),	gsub_single_mask },
+    { CHR('c','h','w','s'),	"chws", N_("Contextual Half-width Spacing"),	gpos_pair_mask|gpos_context_mask|gpos_contextchain_mask },
     { CHR('c','j','c','t'),	"cjct", N_("Conjunct Forms"),		gsub_ligature_mask },
     { CHR('c','l','i','g'),	"clig", N_("Contextual Ligatures"),	gsub_contextchain_mask|gsub_reversecchain_mask },
     { CHR('c','p','c','t'),	"cpct", N_("Centered CJK Punctuation"),	gpos_single_mask },
@@ -203,7 +203,7 @@ struct opentype_feature_friendlynames friendlies[] = {
     { CHR('k','e','r','n'),	"kern", N_("Horizontal Kerning"),	gpos_pair_mask|gpos_context_mask|gpos_contextchain_mask|kern_statemachine_mask },
     { CHR('l','f','b','d'),	"lfbd", N_("Left Bounds"),		gpos_single_mask },
     { CHR('l','i','g','a'),	"liga", N_("Standard Ligatures"),	gsub_ligature_mask },
-    { CHR('l','j','m','o'),	"ljmo", N_("Leading Jamo Forms"),	gsub_ligature_mask },
+    { CHR('l','j','m','o'),	"ljmo", N_("Leading Jamo Forms"),	gsub_single_mask|gsub_context_mask|gsub_contextchain_mask },
     { CHR('l','n','u','m'),	"lnum", N_("Lining Figures"),		gsub_single_mask },
     { CHR('l','o','c','l'),	"locl", N_("Localized Forms"),		gsub_single_mask },
     { CHR('l','t','r','a'),	"ltra", N_("Left to Right Alternates"),	gsub_single_mask },
@@ -272,7 +272,7 @@ struct opentype_feature_friendlynames friendlies[] = {
     { CHR('s','u','p','s'),	"sups", N_("Superscript"),		gsub_single_mask },
     { CHR('s','w','s','h'),	"swsh", N_("Swash"),			gsub_single_mask|gsub_alternate_mask },
     { CHR('t','i','t','l'),	"titl", N_("Titling"),			gsub_single_mask },
-    { CHR('t','j','m','o'),	"tjmo", N_("Trailing Jamo Forms"),	gsub_ligature_mask },
+    { CHR('t','j','m','o'),	"tjmo", N_("Trailing Jamo Forms"),	gsub_single_mask|gsub_context_mask|gsub_contextchain_mask },
     { CHR('t','n','a','m'),	"tnam", N_("Traditional Name Forms"),	gsub_single_mask },
     { CHR('t','n','u','m'),	"tnum", N_("Tabular Numbers"),		gsub_single_mask },
     { CHR('t','r','a','d'),	"trad", N_("Traditional Forms"),	gsub_single_mask|gsub_alternate_mask },
@@ -280,9 +280,10 @@ struct opentype_feature_friendlynames friendlies[] = {
     { CHR('u','n','i','c'),	"unic", N_("Unicase"),			gsub_single_mask },
     { CHR('v','a','l','t'),	"valt", N_("Alternate Vertical Metrics"),	gpos_single_mask },
     { CHR('v','a','t','u'),	"vatu", N_("Vattu Variants"),		gsub_ligature_mask },
+    { CHR('v','c','h','w'),	"vchw", N_("Vertical Contextual Half-width Spacing"),	gpos_pair_mask|gpos_context_mask|gpos_contextchain_mask },
     { CHR('v','e','r','t'),	"vert", N_("Vertical Alternates"),	gsub_single_mask },
     { CHR('v','h','a','l'),	"vhal", N_("Alternate Vertical Half Metrics"),	gpos_single_mask },
-    { CHR('v','j','m','o'),	"vjmo", N_("Vowel Jamo Forms"),		gsub_ligature_mask },
+    { CHR('v','j','m','o'),	"vjmo", N_("Vowel Jamo Forms"),		gsub_single_mask|gsub_context_mask|gsub_contextchain_mask },
     { CHR('v','k','n','a'),	"vkna", N_("Vertical Kana Alternates"),	gsub_single_mask },
     { CHR('v','k','r','n'),	"vkrn", N_("Vertical Kerning"),		gpos_pair_mask|gpos_context_mask|gpos_contextchain_mask|kern_statemachine_mask },
     { CHR('v','p','a','l'),	"vpal", N_("Proportional Alternate Vertical Metrics"),	gpos_single_mask },
@@ -295,9 +296,9 @@ struct opentype_feature_friendlynames friendlies[] = {
 };
 
 static int uint32_cmp(const void *_ui1, const void *_ui2) {
-    if ( *(uint32 *) _ui1 > *(uint32 *)_ui2 )
+    if ( *(uint32_t *) _ui1 > *(uint32_t *)_ui2 )
 return( 1 );
-    if ( *(uint32 *) _ui1 < *(uint32 *)_ui2 )
+    if ( *(uint32_t *) _ui1 < *(uint32_t *)_ui2 )
 return( -1 );
 
 return( 0 );
@@ -306,20 +307,20 @@ return( 0 );
 static int lang_cmp(const void *_ui1, const void *_ui2) {
     /* The default language is magic, and should come first in the list even */
     /*  if that is not true alphabetical order */
-    if ( *(uint32 *) _ui1 == DEFAULT_LANG )
+    if ( *(uint32_t *) _ui1 == DEFAULT_LANG )
 return( -1 );
-    if ( *(uint32 *) _ui2 == DEFAULT_LANG )
+    if ( *(uint32_t *) _ui2 == DEFAULT_LANG )
 return( 1 );
 
-    if ( *(uint32 *) _ui1 > *(uint32 *)_ui2 )
+    if ( *(uint32_t *) _ui1 > *(uint32_t *)_ui2 )
 return( 1 );
-    if ( *(uint32 *) _ui1 < *(uint32 *)_ui2 )
+    if ( *(uint32_t *) _ui1 < *(uint32_t *)_ui2 )
 return( -1 );
 
 return( 0 );
 }
 
-FeatureScriptLangList *FindFeatureTagInFeatureScriptList(uint32 tag, FeatureScriptLangList *fl) {
+FeatureScriptLangList *FindFeatureTagInFeatureScriptList(uint32_t tag, FeatureScriptLangList *fl) {
 
     while ( fl!=NULL ) {
 	if ( fl->featuretag==tag )
@@ -329,7 +330,7 @@ return( fl );
 return( NULL );
 }
 
-int FeatureTagInFeatureScriptList(uint32 tag, FeatureScriptLangList *fl) {
+int FeatureTagInFeatureScriptList(uint32_t tag, FeatureScriptLangList *fl) {
 
     while ( fl!=NULL ) {
 	if ( fl->featuretag==tag )
@@ -339,7 +340,7 @@ return( true );
 return( false );
 }
 
-int ScriptInFeatureScriptList(uint32 script, FeatureScriptLangList *fl) {
+int ScriptInFeatureScriptList(uint32_t script, FeatureScriptLangList *fl) {
     struct scriptlanglist *sl;
 
     if ( fl==NULL )		/* No features bound to lookup? (nested?) don't restrict by script */
@@ -355,7 +356,7 @@ return( true );
 return( false );
 }
 
-int FeatureScriptTagInFeatureScriptList(uint32 feature, uint32 script, FeatureScriptLangList *fl) {
+int FeatureScriptTagInFeatureScriptList(uint32_t feature, uint32_t script, FeatureScriptLangList *fl) {
     struct scriptlanglist *sl;
 
     while ( fl!=NULL ) {
@@ -374,7 +375,7 @@ int DefaultLangTagInOneScriptList(struct scriptlanglist *sl) {
     int l;
 
     for ( l=0; l<sl->lang_cnt; ++l ) {
-	uint32 lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
+	uint32_t lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
 	if ( lang==DEFAULT_LANG )
 return( true );
     }
@@ -393,7 +394,7 @@ return( sl );
 return( NULL );
 }
 
-uint32 *SFScriptsInLookups(SplineFont *sf,int gpos) {
+uint32_t *SFScriptsInLookups(SplineFont *sf,int gpos) {
     /* Presumes that either SFFindUnusedLookups or SFFindClearUnusedLookupBits */
     /*  has been called first */
     /* Since MS will sometimes ignore a script if it isn't found in both */
@@ -429,7 +430,7 @@ better make sure that both tables have the same script set.
 a GPOS, but he says the GPOS won't work without a GSUB.)
 */
     int cnt=0, tot=0, i;
-    uint32 *scripts = NULL;
+    uint32_t *scripts = NULL;
     OTLookup *test;
     FeatureScriptLangList *fl;
     struct scriptlanglist *sl;
@@ -450,7 +451,7 @@ a GPOS, but he says the GPOS won't work without a GSUB.)
 		    }
 		    if ( i==cnt ) {
 			if ( cnt>=tot )
-			    scripts = realloc(scripts,(tot+=10)*sizeof(uint32));
+			    scripts = realloc(scripts,(tot+=10)*sizeof(uint32_t));
 			scripts[cnt++] = sl->script;
 		    }
 		}
@@ -462,20 +463,20 @@ a GPOS, but he says the GPOS won't work without a GSUB.)
 return( NULL );
 
     /* We want our scripts in alphabetic order */
-    qsort(scripts,cnt,sizeof(uint32),uint32_cmp);
+    qsort(scripts,cnt,sizeof(uint32_t),uint32_cmp);
     /* add a 0 entry to mark the end of the list */
     if ( cnt>=tot )
-	scripts = realloc(scripts,(tot+1)*sizeof(uint32));
+	scripts = realloc(scripts,(tot+1)*sizeof(uint32_t));
     scripts[cnt] = 0;
 return( scripts );
 }
 
-uint32 *SFLangsInScript(SplineFont *sf,int gpos,uint32 script) {
+uint32_t *SFLangsInScript(SplineFont *sf,int gpos,uint32_t script) {
     /* However, the language lists (I think) are distinct */
     /* But giving a value of -1 for gpos will give us the set of languages in */
     /*  both tables (for this script) */
     int cnt=0, tot=0, i, g, l;
-    uint32 *langs = NULL;
+    uint32_t *langs = NULL;
     OTLookup *test;
     FeatureScriptLangList *fl;
     struct scriptlanglist *sl;
@@ -490,7 +491,7 @@ uint32 *SFLangsInScript(SplineFont *sf,int gpos,uint32 script) {
 		for ( sl=fl->scripts ; sl!=NULL; sl=sl->next ) {
 		    if ( sl->script==script ) {
 			for ( l=0; l<sl->lang_cnt; ++l ) {
-			    uint32 lang;
+			    uint32_t lang;
 			    if ( l<MAX_LANG )
 				lang = sl->langs[l];
 			    else
@@ -501,7 +502,7 @@ uint32 *SFLangsInScript(SplineFont *sf,int gpos,uint32 script) {
 			    }
 			    if ( i==cnt ) {
 				if ( cnt>=tot )
-				    langs = realloc(langs,(tot+=10)*sizeof(uint32));
+				    langs = realloc(langs,(tot+=10)*sizeof(uint32_t));
 				langs[cnt++] = lang;
 			    }
 			}
@@ -519,23 +520,23 @@ uint32 *SFLangsInScript(SplineFont *sf,int gpos,uint32 script) {
 	/*  and hence no languages. It seems that Uniscribe doesn't like */
 	/*  that either. So give each such script a dummy default language */
 	/*  entry. This is what VOLT does */
-	langs = calloc(2,sizeof(uint32));
+	langs = calloc(2,sizeof(uint32_t));
 	langs[0] = DEFAULT_LANG;
 return( langs );
     }
 
     /* We want our languages in alphabetic order */
-    qsort(langs,cnt,sizeof(uint32),lang_cmp);
+    qsort(langs,cnt,sizeof(uint32_t),lang_cmp);
     /* add a 0 entry to mark the end of the list */
     if ( cnt>=tot )
-	langs = realloc(langs,(tot+1)*sizeof(uint32));
+	langs = realloc(langs,(tot+1)*sizeof(uint32_t));
     langs[cnt] = 0;
 return( langs );
 }
 
-uint32 *SFFeaturesInScriptLang(SplineFont *sf,int gpos,uint32 script,uint32 lang) {
+uint32_t *SFFeaturesInScriptLang(SplineFont *sf,int gpos,uint32_t script,uint32_t lang) {
     int cnt=0, tot=0, i, l, isg;
-    uint32 *features = NULL;
+    uint32_t *features = NULL;
     OTLookup *test;
     FeatureScriptLangList *fl;
     struct scriptlanglist *sl;
@@ -558,7 +559,7 @@ uint32 *SFFeaturesInScriptLang(SplineFont *sf,int gpos,uint32 script,uint32 lang
 		    }
 		    if ( i==cnt ) {
 			if ( cnt>=tot )
-			    features = realloc(features,(tot+=10)*sizeof(uint32));
+			    features = realloc(features,(tot+=10)*sizeof(uint32_t));
 			features[cnt++] = fl->featuretag;
 		    }
 		} else for ( sl=fl->scripts ; sl!=NULL; sl=sl->next ) {
@@ -567,7 +568,7 @@ uint32 *SFFeaturesInScriptLang(SplineFont *sf,int gpos,uint32 script,uint32 lang
 			if ( fl->ismac && gpos==-2 )
 			    matched = true;
 			else for ( l=0; l<sl->lang_cnt; ++l ) {
-			    uint32 testlang;
+			    uint32_t testlang;
 			    if ( l<MAX_LANG )
 				testlang = sl->langs[l];
 			    else
@@ -584,7 +585,7 @@ uint32 *SFFeaturesInScriptLang(SplineFont *sf,int gpos,uint32 script,uint32 lang
 			    }
 			    if ( i==cnt ) {
 				if ( cnt>=tot )
-				    features = realloc(features,(tot+=10)*sizeof(uint32));
+				    features = realloc(features,(tot+=10)*sizeof(uint32_t));
 				features[cnt++] = fl->featuretag;
 			    }
 			}
@@ -601,26 +602,26 @@ uint32 *SFFeaturesInScriptLang(SplineFont *sf,int gpos,uint32 script,uint32 lang
 	/*  gets a 'size' feature which contains no lookups but feature */
 	/*  params */
 	if ( cnt>=tot )
-	    features = realloc(features,(tot+=2)*sizeof(uint32));
+	    features = realloc(features,(tot+=2)*sizeof(uint32_t));
 	features[cnt++] = CHR('s','i','z','e');
     }
 
     if ( cnt==0 )
-return( calloc(1,sizeof(uint32)) );
+return( calloc(1,sizeof(uint32_t)) );
 
     /* We don't care if our features are in alphabetical order here */
     /*  all that matters is whether the complete list of features is */
     /*  ordering here would be irrelevant */
-    /* qsort(features,cnt,sizeof(uint32),uint32_cmp); */
+    /* qsort(features,cnt,sizeof(uint32_t),uint32_cmp); */
 
     /* add a 0 entry to mark the end of the list */
     if ( cnt>=tot )
-	features = realloc(features,(tot+1)*sizeof(uint32));
+	features = realloc(features,(tot+1)*sizeof(uint32_t));
     features[cnt] = 0;
 return( features );
 }
 
-OTLookup **SFLookupsInScriptLangFeature(SplineFont *sf,int gpos,uint32 script,uint32 lang, uint32 feature) {
+OTLookup **SFLookupsInScriptLangFeature(SplineFont *sf,int gpos,uint32_t script,uint32_t lang, uint32_t feature) {
     int cnt=0, tot=0, l;
     OTLookup **lookups = NULL;
     OTLookup *test;
@@ -635,7 +636,7 @@ OTLookup **SFLookupsInScriptLangFeature(SplineFont *sf,int gpos,uint32 script,ui
 		for ( sl=fl->scripts ; sl!=NULL; sl=sl->next ) {
 		    if ( sl->script==script ) {
 			for ( l=0; l<sl->lang_cnt; ++l ) {
-			    uint32 testlang;
+			    uint32_t testlang;
 			    if ( l<MAX_LANG )
 				testlang = sl->langs[l];
 			    else
@@ -709,7 +710,7 @@ return( true );
 }
 
 SplineChar **SFGlyphsWithPSTinSubtable(SplineFont *sf,struct lookup_subtable *subtable) {
-    uint8 *used = calloc(sf->glyphcnt,sizeof(uint8));
+    uint8_t *used = calloc(sf->glyphcnt,sizeof(uint8_t));
     SplineChar **glyphs, *sc;
     int i, k, gid, cnt;
     KernPair *kp;
@@ -767,7 +768,7 @@ return( glyphs );
 }
 
 SplineChar **SFGlyphsWithLigatureinLookup(SplineFont *sf,struct lookup_subtable *subtable) {
-    uint8 *used = calloc(sf->glyphcnt,sizeof(uint8));
+    uint8_t *used = calloc(sf->glyphcnt,sizeof(uint8_t));
     SplineChar **glyphs, *sc;
     int i, cnt;
     PST *pst;
@@ -1093,7 +1094,7 @@ void SFRemoveUnusedLookupSubTables(SplineFont *sf,
     int gpos;
     struct lookup_subtable *sub, *subnext, *prev;
     AnchorClass *ac, *acprev, *acnext;
-    OTLookup *otl, *otlprev, *otlnext;
+    OTLookup *otl, *otlprev = NULL, *otlnext;
 
     /* Presumes someone has called SFFindUnusedLookups first */
 
@@ -1115,7 +1116,7 @@ void SFRemoveUnusedLookupSubTables(SplineFont *sf,
     }
 
     for ( gpos=0; gpos<2; ++gpos ) {
-	for ( otl = gpos ? sf->gpos_lookups : sf->gsub_lookups; otl!=NULL; otl = otlnext ) {
+	for ( otl = gpos ? sf->gpos_lookups : sf->gsub_lookups; otl!=NULL; otlprev = otl, otl = otlnext ) {
 	    otlnext = otl->next;
 	    if ( remove_unused_lookups && (otl->empty ||
 		    (otl->unused && remove_incomplete_anchorclasses)) ) {
@@ -1334,7 +1335,7 @@ return( otl );
 return( NULL );
 }
 
-void FListAppendScriptLang(FeatureScriptLangList *fl,uint32 script_tag,uint32 lang_tag) {
+void FListAppendScriptLang(FeatureScriptLangList *fl,uint32_t script_tag,uint32_t lang_tag) {
     struct scriptlanglist *sl;
     int l;
 
@@ -1355,7 +1356,7 @@ void FListAppendScriptLang(FeatureScriptLangList *fl,uint32 script_tag,uint32 la
 	    sl->langs[l] = lang_tag;
 	else {
 	    if ( l%MAX_LANG == 0 )
-		sl->morelangs = realloc(sl->morelangs,l*sizeof(uint32));
+		sl->morelangs = realloc(sl->morelangs,l*sizeof(uint32_t));
 		/* We've just allocated MAX_LANG-1 more than we need */
 		/*  so we don't do quite some many allocations */
 	    sl->morelangs[l-MAX_LANG] = lang_tag;
@@ -1364,7 +1365,7 @@ void FListAppendScriptLang(FeatureScriptLangList *fl,uint32 script_tag,uint32 la
     }
 }
 
-void FListsAppendScriptLang(FeatureScriptLangList *fl,uint32 script_tag,uint32 lang_tag) {
+void FListsAppendScriptLang(FeatureScriptLangList *fl,uint32_t script_tag,uint32_t lang_tag) {
     while ( fl!=NULL ) {
 	FListAppendScriptLang(fl,script_tag,lang_tag);
 	fl=fl->next;
@@ -1372,7 +1373,7 @@ void FListsAppendScriptLang(FeatureScriptLangList *fl,uint32 script_tag,uint32 l
 }
 
 char *SuffixFromTags(FeatureScriptLangList *fl) {
-    static struct { uint32 tag; const char *suffix; } tags2suffix[] = {
+    static struct { uint32_t tag; const char *suffix; } tags2suffix[] = {
         { CHR('v','r','t','2'), "vert" },	/* Will check for vrt2 later */
         { CHR('o','n','u','m'), "oldstyle" },
         { CHR('s','u','p','s'), "superior" },
@@ -1410,7 +1411,7 @@ const char *lookup_type_names[2][10] = {
 /* This is a non-ui based copy of a similar list in lookupui.c */
 static struct {
     const char *text;
-    uint32 tag;
+    uint32_t tag;
 } localscripts[] = {
     { N_("Adlam"), CHR('a','d','l','m') },
     { N_("Ahom"), CHR('a','h','o','m') },
@@ -1440,18 +1441,22 @@ static struct {
     { N_("Chakma"), CHR('c','a','k','m') },
     { N_("Script|Cham"), CHR('c','h','a','m') },
     { N_("Script|Cherokee"), CHR('c','h','e','r') },
+    { N_("Script|Chorasmian"), CHR('c','h','r','s') },
     { N_("CJK Ideographic"), CHR('h','a','n','i') },
     { N_("Script|Coptic"), CHR('c','o','p','t') },
     { N_("Cypriot syllabary"), CHR('c','p','r','t') },
+    { N_("Cypro-Minoan"), CHR('c','p','m','n') },
     { N_("Cyrillic"), CHR('c','y','r','l') },
     { N_("Script|Default"), CHR('D','F','L','T') },
     { N_("Deseret (Mormon)"), CHR('d','s','r','t') },
     { N_("Devanagari"), CHR('d','e','v','a') },
     { N_("Devanagari2"), CHR('d','e','v','2') },
+    { N_("Dives Akuru"), CHR('d','i','a','k') },
     { N_("Dogra"), CHR('d','o','g','r') },
     { N_("Duployan"), CHR('d','u','p','l') },
     { N_("Egyptian Hieroglyphs"), CHR('e','g','y','p') },
     { N_("Elbasan"), CHR('e','l','b','a') },
+    { N_("Elymaic"), CHR('e','l','y','m') },
     { N_("Script|Ethiopic"), CHR('e','t','h','i') },
     { N_("Script|Georgian"), CHR('g','e','o','r') },
     { N_("Glagolitic"), CHR('g','l','a','g') },
@@ -1477,8 +1482,10 @@ static struct {
     { N_("Kaithi"), CHR('k','t','h','i') },
     { N_("Script|Kannada"), CHR('k','n','d','a') },
     { N_("Script|Kannada2"), CHR('k','n','d','2') },
+    { N_("Script|Kawi"), CHR('k','a','w','i') },
     { N_("Kayah Li"), CHR('k','a','l','i') },
     { N_("Script|Kharosthi"), CHR('k','h','a','r') },
+    { N_("Khitan Small Script"), CHR('k','i','t','s') },
     { N_("Script|Khmer"), CHR('k','h','m','r') },
     { N_("Khojki"), CHR('k','h','o','j') },
     { N_("Khudawadi"), CHR('s','i','n','d') },
@@ -1499,7 +1506,7 @@ static struct {
     { N_("Manichaean"), CHR('m','a','n','i') },
     { N_("Marchen"), CHR('m','a','r','c') },
     { N_("Masaram Gondi"), CHR('g','o','n','m') },
-    { N_("Mathematical Alphanumeric Symbols"), CHR('m','a','t','h') },
+    { N_("Mathematical text layout"), CHR('m','a','t','h') },
     { N_("Medefaidrin"), CHR('m','e','d','f') },
     { N_("Meetei Mayek"), CHR('m','t','e','i') },
     { N_("Mende Kikakui"), CHR('m','e','n','d') },
@@ -1511,12 +1518,16 @@ static struct {
     { N_("Mro"), CHR('m','r','o','o') },
     { N_("Multani"), CHR('m','u','l','t') },
     { N_("Musical"), CHR('m','u','s','c') },
-    { N_("Script|Myanmar"), CHR('m','y','m','2') },
+    { N_("Script|Myanmar"), CHR('m','y','m','r') },
+    { N_("Script|Myanmar2"), CHR('m','y','m','2') },
     { N_("N'Ko"), CHR('n','k','o',' ') },
     { N_("Nabataean"), CHR('n','b','a','t') },
+    { N_("Nag Mundari"), CHR('n','a','g','m') },
+    { N_("Nandinagari"), CHR('n','a','n','d') },
     { N_("New Tai Lue"), CHR('t','a','l','u') },
     { N_("Newa"), CHR('n','e','w','a') },
     { N_("Nushu"), CHR('n','s','h','u') },
+    { N_("Nyiakeng Puachue Hmong"), CHR('h','m','n','p') },
     { N_("Ogham"), CHR('o','g','a','m') },
     { N_("Ol Chiki"), CHR('o','l','c','k') },
     { N_("Old Hungarian"), CHR('h','u','n','g') },
@@ -1527,6 +1538,7 @@ static struct {
     { N_("Old Sogdian"), CHR('s','o','g','o') },
     { N_("Old South Arabian"), CHR('s','a','r','b') },
     { N_("Old Turkic"), CHR('o','r','k','h') },
+    { N_("Old Uyghur"), CHR('o','u','g','r') },
     { N_("Script|Oriya"), CHR('o','r','y','a') },
     { N_("Script|Oriya2"), CHR('o','r','y','2') },
     { N_("Osage"), CHR('o','s','g','e') },
@@ -1536,7 +1548,6 @@ static struct {
     { N_("Pau Cin Hau"), CHR('p','a','u','c') },
     { N_("Script|Phags-pa"), CHR('p','h','a','g') },
     { N_("Script|Phoenician"), CHR('p','h','n','x') },
-    { N_("Pollard Phonetic"), CHR('p','l','r','d') },
     { N_("Psalter Pahlavi"), CHR('p','h','l','p') },
     { N_("Rejang"), CHR('r','j','n','g') },
     { N_("Runic"), CHR('r','u','n','r') },
@@ -1559,6 +1570,7 @@ static struct {
     { N_("Tai Tham"), CHR('l','a','n','a') },
     { N_("Tai Viet"), CHR('t','a','v','t') },
     { N_("Takri"), CHR('t','a','k','r') },
+    { N_("Tangsa"), CHR('t','n','s','a') },
     { N_("Script|Tamil"), CHR('t','a','m','l') },
     { N_("Script|Tamil2"), CHR('t','m','l','2') },
     { N_("Tangut"), CHR('t','a','n','g') },
@@ -1569,9 +1581,13 @@ static struct {
     { N_("Script|Tibetan"), CHR('t','i','b','t') },
     { N_("Tifinagh (Berber)"), CHR('t','f','n','g') },
     { N_("Tirhuta"), CHR('t','i','r','h') },
+    { N_("Toto"), CHR('t','o','t','o') },
     { N_("Script|Ugaritic"), CHR('u','g','a','r') },
     { N_("Script|Vai"), CHR('v','a','i',' ') },
+    { N_("Vithkuqi"), CHR('v','i','t','h') },
+    { N_("Script|Wancho"), CHR('w','c','h','o') },
     { N_("Warang Citi"), CHR('w','a','r','a') },
+    { N_("Script|Yezidi"), CHR('y','e','z','i') },
     { N_("Script|Yi"), CHR('y','i',' ',' ') },
     { N_("Zanabazar Square"), CHR('z','a','n','b') },
     { NULL, 0 }
@@ -1595,7 +1611,7 @@ return;
 	friendlies[i].friendlyname = S_(friendlies[i].friendlyname);
 }
 
-char *TagFullName(SplineFont *sf,uint32 tag, int ismac, int onlyifknown) {
+char *TagFullName(SplineFont *sf,uint32_t tag, int ismac, int onlyifknown) {
     char ubuf[200], *end = ubuf+sizeof(ubuf), *setname;
     int k;
 
@@ -1610,7 +1626,7 @@ char *TagFullName(SplineFont *sf,uint32 tag, int ismac, int onlyifknown) {
 	    free( setname );
 	}
     } else {
-	uint32 stag = tag;
+	uint32_t stag = tag;
 	if ( tag==CHR('n','u','t','f') )	/* early name that was standardize later as... */
 	    stag = CHR('a','f','r','c');	/*  Stood for nut fractions. "nut" meaning "fits in an en" in old typography-speak => vertical fractions rather than diagonal ones */
 	if ( tag==REQUIRED_FEATURE ) {
@@ -1688,7 +1704,7 @@ void NameOTLookup(OTLookup *otl,SplineFont *sf) {
 	    char buf[8];
 	    int j;
 	    struct scriptlanglist *sl, *found, *found2;
-	    uint32 script_tag = fl->scripts->script;
+	    uint32_t script_tag = fl->scripts->script;
 	    found = found2 = NULL;
 	    for ( sl = fl->scripts; sl!=NULL; sl=sl->next ) {
 		if ( sl->script == DEFAULT_SCRIPT )
@@ -1783,7 +1799,7 @@ void NameOTLookup(OTLookup *otl,SplineFont *sf) {
 
 static void LangOrder(struct scriptlanglist *sl) {
     int i,j;
-    uint32 lang, lang2;
+    uint32_t lang, lang2;
 
     for ( i=0; i<sl->lang_cnt; ++i ) {
 	lang = i<MAX_LANG ? sl->langs[i] : sl->morelangs[i-MAX_LANG];
@@ -1868,8 +1884,8 @@ struct scriptlanglist *SLCopy(struct scriptlanglist *sl) {
     newsl->next = NULL;
 
     if ( sl->lang_cnt>MAX_LANG ) {
-	newsl->morelangs = malloc((newsl->lang_cnt-MAX_LANG)*sizeof(uint32));
-	memcpy(newsl->morelangs,sl->morelangs,(newsl->lang_cnt-MAX_LANG)*sizeof(uint32));
+	newsl->morelangs = malloc((newsl->lang_cnt-MAX_LANG)*sizeof(uint32_t));
+	memcpy(newsl->morelangs,sl->morelangs,(newsl->lang_cnt-MAX_LANG)*sizeof(uint32_t));
     }
 return( newsl );
 }
@@ -1904,7 +1920,7 @@ return( newfl );
 
 static void LangMerge(struct scriptlanglist *into, struct scriptlanglist *from) {
     int i,j;
-    uint32 flang, tlang;
+    uint32_t flang, tlang;
 
     for ( i=0 ; i<from->lang_cnt; ++i ) {
 	flang = i<MAX_LANG ? from->langs[i] : from->morelangs[i-MAX_LANG];
@@ -1917,7 +1933,7 @@ static void LangMerge(struct scriptlanglist *into, struct scriptlanglist *from) 
 	    if ( into->lang_cnt<MAX_LANG )
 		into->langs[into->lang_cnt++] = flang;
 	    else {
-		into->morelangs = realloc(into->morelangs,(into->lang_cnt+1-MAX_LANG)*sizeof(uint32));
+		into->morelangs = realloc(into->morelangs,(into->lang_cnt+1-MAX_LANG)*sizeof(uint32_t));
 		into->morelangs[into->lang_cnt++-MAX_LANG] = flang;
 	    }
 	}
@@ -1965,7 +1981,7 @@ void FLMerge(OTLookup *into, OTLookup *from) {
 
 void SFSubTablesMerge(SplineFont *_sf,struct lookup_subtable *subfirst,
 	struct lookup_subtable *subsecond) {
-    uint16 lookup_type = subfirst->lookup->lookup_type;
+    uint16_t lookup_type = subfirst->lookup->lookup_type;
     int gid,k,isv;
     SplineChar *sc;
     SplineFont *sf = _sf;
@@ -2158,8 +2174,8 @@ static KernClass *SF_AddKernClass(struct sfmergecontext *mc,KernClass *kc,
 
     newkc->firsts = ClassCopy(newkc->first_cnt,newkc->firsts);
     newkc->seconds = ClassCopy(newkc->second_cnt,newkc->seconds);
-    newkc->offsets = malloc(newkc->first_cnt*newkc->second_cnt*sizeof(int16));
-    memcpy(newkc->offsets,kc->offsets,newkc->first_cnt*newkc->second_cnt*sizeof(int16));
+    newkc->offsets = malloc(newkc->first_cnt*newkc->second_cnt*sizeof(int16_t));
+    memcpy(newkc->offsets,kc->offsets,newkc->first_cnt*newkc->second_cnt*sizeof(int16_t));
     // We support group kerning as well.
     if (newkc->firsts_names) newkc->firsts_names = ClassCopy(newkc->first_cnt,newkc->firsts_names);
     if (newkc->seconds_names) newkc->seconds_names = ClassCopy(newkc->second_cnt,newkc->seconds_names);
@@ -2217,12 +2233,12 @@ static FPST *SF_AddFPST(struct sfmergecontext *mc,FPST *fpst,
 	    r->u.glyph.fore = copy( r->u.glyph.fore );
 	  break;
 	  case pst_class:
-	    r->u.class.nclasses = malloc( r->u.class.ncnt*sizeof(uint16));
-	    memcpy(r->u.class.nclasses,oldr->u.class.nclasses, r->u.class.ncnt*sizeof(uint16));
-	    r->u.class.bclasses = malloc( r->u.class.bcnt*sizeof(uint16));
-	    memcpy(r->u.class.bclasses,oldr->u.class.bclasses, r->u.class.bcnt*sizeof(uint16));
-	    r->u.class.fclasses = malloc( r->u.class.fcnt*sizeof(uint16));
-	    memcpy(r->u.class.fclasses,oldr->u.class.fclasses, r->u.class.fcnt*sizeof(uint16));
+	    r->u.class.nclasses = malloc( r->u.class.ncnt*sizeof(uint16_t));
+	    memcpy(r->u.class.nclasses,oldr->u.class.nclasses, r->u.class.ncnt*sizeof(uint16_t));
+	    r->u.class.bclasses = malloc( r->u.class.bcnt*sizeof(uint16_t));
+	    memcpy(r->u.class.bclasses,oldr->u.class.bclasses, r->u.class.bcnt*sizeof(uint16_t));
+	    r->u.class.fclasses = malloc( r->u.class.fcnt*sizeof(uint16_t));
+	    memcpy(r->u.class.fclasses,oldr->u.class.fclasses, r->u.class.fcnt*sizeof(uint16_t));
 	  break;
 	  case pst_coverage:
 	    r->u.coverage.ncovers = ClassCopy( r->u.coverage.ncnt, r->u.coverage.ncovers );
@@ -2258,8 +2274,8 @@ static ASM *SF_AddASM(struct sfmergecontext *mc,ASM *sm, struct lookup_subtable 
 	    newsm->class_cnt*newsm->state_cnt*sizeof(struct asm_state));
     if ( newsm->type == asm_kern ) {
 	for ( i=newsm->class_cnt*newsm->state_cnt-1; i>=0; --i ) {
-	    newsm->state[i].u.kern.kerns = malloc(newsm->state[i].u.kern.kcnt*sizeof(int16));
-	    memcpy(newsm->state[i].u.kern.kerns,sm->state[i].u.kern.kerns,newsm->state[i].u.kern.kcnt*sizeof(int16));
+	    newsm->state[i].u.kern.kerns = malloc(newsm->state[i].u.kern.kcnt*sizeof(int16_t));
+	    memcpy(newsm->state[i].u.kern.kerns,sm->state[i].u.kern.kerns,newsm->state[i].u.kern.kcnt*sizeof(int16_t));
 	}
     } else if ( newsm->type == asm_insert ) {
 	for ( i=0; i<newsm->class_cnt*newsm->state_cnt; ++i ) {
@@ -2430,7 +2446,7 @@ static void SF_AddPSTKern(struct sfmergecontext *mc,struct lookup_subtable *from
     } while ( k<mc->sf_from->subfontcnt );
 }
 
-int _FeatureOrderId( int isgpos,uint32 tag ) {
+int _FeatureOrderId( int isgpos,uint32_t tag ) {
     /* This is the order in which features should be executed */
 
     if ( !isgpos ) switch ( tag ) {
@@ -2748,7 +2764,7 @@ struct lookup_data {
     struct opentype_str *str;
     int cnt, max;
 
-    uint32 script;
+    uint32_t script;
     SplineFont *sf;
 
     struct lookup_subtable *lig_owner;
@@ -2759,7 +2775,7 @@ struct lookup_data {
     double scale;
 };
 
-static int ApplyLookupAtPos(uint32 tag, OTLookup *otl,struct lookup_data *data,int pos);
+static int ApplyLookupAtPos(uint32_t tag, OTLookup *otl,struct lookup_data *data,int pos);
 
 static int GlyphNameInClass(const char *name,const char *class) {
     const char *pt;
@@ -2980,7 +2996,7 @@ static void ApplyAppleStateMachine(OTLookup *otl,struct lookup_data *data) {
 		class = 0;
 	    else {
 		for ( class = sm->class_cnt-1; class>3; --class )
-		    if ( GlyphNameInClass(data->str[i].sc->name,sm->classes[class]) )
+		    if ( GlyphNameInClass(data->str[pos].sc->name,sm->classes[class]) )
 		break;
 		if ( class==3 )
 		    class = 1;		/* Glyph not in any class */;
@@ -3674,9 +3690,9 @@ return( 0 );		/* No match */
 return( pos+1 );
 }
 
-static int ConditionalTagOk(uint32 tag, OTLookup *otl,struct lookup_data *data,int pos) {
+static int ConditionalTagOk(uint32_t tag, OTLookup *otl,struct lookup_data *data,int pos) {
     int npos, bpos;
-    uint32 script;
+    uint32_t script;
     int before_in_script, after_in_script;
 
     if ( tag==CHR('i','n','i','t') || tag==CHR('i','s','o','l') ||
@@ -3699,7 +3715,7 @@ return( before_in_script && after_in_script );
 return( true );
 }
 
-static int ApplyLookupAtPos(uint32 tag, OTLookup *otl,struct lookup_data *data,int pos) {
+static int ApplyLookupAtPos(uint32_t tag, OTLookup *otl,struct lookup_data *data,int pos) {
     struct lookup_subtable *sub;
     int newpos;
     /* Need two passes for pair kerning lookups. At the second pass we accept */
@@ -3772,7 +3788,7 @@ return( 0 );
 return( 0 );
 }
 
-static void ApplyLookup(uint32 tag, OTLookup *otl,struct lookup_data *data) {
+static void ApplyLookup(uint32_t tag, OTLookup *otl,struct lookup_data *data) {
     int pos, npos;
     int lt = otl->lookup_type;
 
@@ -3790,7 +3806,7 @@ static void ApplyLookup(uint32 tag, OTLookup *otl,struct lookup_data *data) {
     }
 }
 
-static uint32 FSLLMatches(FeatureScriptLangList *fl,uint32 *flist,uint32 script,uint32 lang) {
+static uint32_t FSLLMatches(FeatureScriptLangList *fl,uint32_t *flist,uint32_t script,uint32_t lang) {
     int i,l;
     struct scriptlanglist *sl;
 
@@ -3823,12 +3839,12 @@ return( 0 );
 /*  indicated by the features (and script and language) we are passed, it returns */
 /*  a transformed string with substitutions applied and containing positioning */
 /*  info */
-struct opentype_str *ApplyTickedFeatures(SplineFont *sf,uint32 *flist, uint32 script, uint32 lang,
+struct opentype_str *ApplyTickedFeatures(SplineFont *sf,uint32_t *flist, uint32_t script, uint32_t lang,
 	int pixelsize, SplineChar **glyphs) {
     int isgpos, cnt;
     OTLookup *otl;
     struct lookup_data data;
-    uint32 *langs, templang;
+    uint32_t *langs, templang;
     int i;
 
     memset(&data,0,sizeof(data));
@@ -3858,7 +3874,7 @@ struct opentype_str *ApplyTickedFeatures(SplineFont *sf,uint32 *flist, uint32 sc
 	free(langs);
 
 	for ( otl = isgpos ? sf->gpos_lookups : sf->gsub_lookups; otl!=NULL ; otl = otl->next ) {
-	    uint32 tag;
+	    uint32_t tag;
 	    if ( (tag=FSLLMatches(otl->features,flist,script,templang))!=0 )
 		ApplyLookup(tag,otl,&data);
 	}
@@ -3895,7 +3911,7 @@ static void doreplace(char **haystack,char *start,const char *rpl,int slen) {
     }
 }
 
-static int rplstr(char **haystack,const char *search, const char *rpl,int multipleoccurances) {
+static int rplstr(char **haystack,const char *search, const char *rpl,int multipleoccurrences) {
     char *start, *pt, *base = *haystack;
     int ch, match, slen = strlen(search);
     int any = 0;
@@ -3918,7 +3934,7 @@ return( any );
 	}
 	if ( match==0 ) {
 	    doreplace(haystack,start,rpl,slen);
-	    if ( !multipleoccurances )
+	    if ( !multipleoccurrences )
 return( true );
 	    any = true;
 	    if ( base!=*haystack ) {
@@ -4023,7 +4039,7 @@ void SFGlyphRenameFixup(SplineFont *sf, const char *old, const char *new, int re
 	master = sf->cidmaster;
 
     /* Look through all substitutions (and pairwise psts) stored on the glyphs*/
-    /*  and change any occurances of the name */
+    /*  and change any occurrences of the name */
     /* (KernPairs have a reference to the SC rather than the name, and need no fixup) */
     /* Also if the name is "f" then look for glyph names like "f.sc" or "f_f_l"*/
     /*  and be ready to change them too */
@@ -4115,7 +4131,7 @@ void SFGlyphRenameFixup(SplineFont *sf, const char *old, const char *new, int re
     }
 }
 
-struct lookup_subtable *SFSubTableFindOrMake(SplineFont *sf,uint32 tag,uint32 script,
+struct lookup_subtable *SFSubTableFindOrMake(SplineFont *sf,uint32_t tag,uint32_t script,
 	int lookup_type ) {
     OTLookup **base;
     OTLookup *otl, *found=NULL;
@@ -4157,7 +4173,7 @@ return( sub );
 return( sub );
 }
 
-struct lookup_subtable *SFSubTableMake(SplineFont *sf,uint32 tag,uint32 script,
+struct lookup_subtable *SFSubTableMake(SplineFont *sf,uint32_t tag,uint32_t script,
 	int lookup_type ) {
     OTLookup **base;
     OTLookup *otl, *found=NULL;
@@ -4279,13 +4295,13 @@ static void AddOTLToSllk(struct sllk *sllk, OTLookup *otl, struct scriptlanglist
 		sllk->lookups = realloc(sllk->lookups,(sllk->max+=5)*sizeof(OTLookup *));
 	    sllk->lookups[sllk->cnt++] = otl;
 	    for ( l=0; l<sl->lang_cnt; ++l ) {
-		uint32 lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
+		uint32_t lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
 		for ( j=0; j<sllk->lcnt; ++j )
 		    if ( sllk->langs[j]==lang )
 		break;
 		if ( j==sllk->lcnt ) {
 		    if ( sllk->lcnt>=sllk->lmax )
-			sllk->langs = realloc(sllk->langs,(sllk->lmax+=sl->lang_cnt+MAX_LANG)*sizeof(uint32));
+			sllk->langs = realloc(sllk->langs,(sllk->lmax+=sl->lang_cnt+MAX_LANG)*sizeof(uint32_t));
 		    sllk->langs[sllk->lcnt++] = lang;
 		}
 	    }
@@ -4422,7 +4438,7 @@ OTLookup *NewAALTLookup(SplineFont *sf,struct sllk *sllk, int sllk_cnt, int i) {
 	    sl->script = sllk[j].script;
 	    sl->lang_cnt = sllk[j].lcnt;
 	    if ( sl->lang_cnt>MAX_LANG )
-		sl->morelangs = malloc((sl->lang_cnt-MAX_LANG)*sizeof(uint32));
+		sl->morelangs = malloc((sl->lang_cnt-MAX_LANG)*sizeof(uint32_t));
 	    for ( l=0; l<sl->lang_cnt; ++l )
 		if ( l<MAX_LANG )
 		    sl->langs[l] = sllk[j].langs[l];
@@ -4441,7 +4457,7 @@ OTLookup *NewAALTLookup(SplineFont *sf,struct sllk *sllk, int sllk_cnt, int i) {
 
     /* Now look at every glyph in the font, and see if it has any of the */
     /*  lookups we are interested in, and if it does, build a new pst */
-    /*  containing all posibilities listed on any of them */
+    /*  containing all possibilities listed on any of them */
     if ( sf->cidmaster ) sf = sf->cidmaster;
     psts = malloc(sllk[i].cnt*sizeof(PST *));
     k=0;
@@ -4741,7 +4757,7 @@ char *FPSTRule_To_Str(SplineFont *sf,FPST *fpst,struct fpst_rule *rule) {
     int seq=0;
     GrowBuf gb;
 
-    /* Note that nothing in the output distinquishes between back, match and forward */
+    /* Note that nothing in the output distinguishes between back, match and forward */
     /*  the thought being that to all intents and purposes, match starts at */
     /*  the first lookup and ends at the last. Anything before is back, */
     /*  anything after is for */ /* Adobe uses this convention in feature files*/
@@ -4834,7 +4850,7 @@ return( NULL );
     }
     if ( gb.pt>gb.base && gb.pt[-1]==' ' )
 	gb.pt[-1] = '\0';
-    ret = copy(gb.base);
+    ret = copy((char*)gb.base);
     free(gb.base);
 return( ret );
 }
@@ -4970,8 +4986,8 @@ return( smprintf( _("Unterminated lookup invocation, starting at: %.20s..."), st
 		*lpt = '>';
 return( ret );
 	    } else if ( (isgpos && lookup->lookup_type<gpos_start) || (!isgpos && lookup->lookup_type>gpos_start)) {
-		ret = smprintf( isgpos ? _("GSUB lookup refered to in this GPOS contextual lookup: %s"):
-			    _("GPOS lookup refered to in this GSUB contextual lookup: %s"),
+		ret = smprintf( isgpos ? _("GSUB lookup referred to in this GPOS contextual lookup: %s"):
+			    _("GPOS lookup referred to in this GSUB contextual lookup: %s"),
 			start );
 		*lpt = '>';
 return( ret );
@@ -5088,13 +5104,13 @@ return( copy( _("A reverse contextual chaining lookup can only match one coverag
       } break;
       case pst_class:
         rule->u.class.ncnt = last+1-first;
-	rule->u.class.nclasses = malloc(rule->u.class.ncnt*sizeof(uint16));
+	rule->u.class.nclasses = malloc(rule->u.class.ncnt*sizeof(uint16_t));
 	rule->u.class.bcnt = first;
 	if ( first!=0 )
-	    rule->u.class.bclasses = malloc(first*sizeof(uint16));
+	    rule->u.class.bclasses = malloc(first*sizeof(uint16_t));
 	rule->u.class.fcnt = cnt==last?0:cnt-last-1;
 	if ( rule->u.class.fcnt!=0 )
-	    rule->u.class.fclasses = malloc(rule->u.class.fcnt*sizeof(uint16));
+	    rule->u.class.fclasses = malloc(rule->u.class.fcnt*sizeof(uint16_t));
 	for ( i=0; i<cnt; ++i ) {
 	    char **classnames, *pend;
 	    int class_cnt, val;

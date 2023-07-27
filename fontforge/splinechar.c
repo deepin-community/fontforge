@@ -33,7 +33,6 @@
 #include "ffglib.h"
 #include "fontforgevw.h"
 #include "fvfonts.h"
-#include "gresource.h"
 #include "lookups.h"
 #include "mem.h"
 #include "parsettf.h"
@@ -45,6 +44,7 @@
 #include "tottf.h"
 #include "ttf.h"
 #include "ustring.h"
+#include "utanvec.h"
 #include "utype.h"
 
 #include <locale.h>
@@ -152,10 +152,7 @@ return;
     if ( !adjustwidth )
 return;
 
-    isprobablybase = true;
-    if ( sc->unicodeenc==-1 || sc->unicodeenc>=0x10000 ||
-	    !isalpha(sc->unicodeenc) || iscombining(sc->unicodeenc))
-	isprobablybase = false;
+    isprobablybase = isalpha(sc->unicodeenc) && !iscombining(sc->unicodeenc);
 
     for ( dlist=sc->dependents; dlist!=NULL; dlist=dlist->next ) {
 	RefChar *metrics = HasUseMyMetrics(dlist->sc,ly_fore);
@@ -179,7 +176,7 @@ return;
 /* If they change the left bearing of a character, then in all chars */
 /*  that depend on it should be adjusted too. */
 /* Also all vstem hints */
-/* I deliberately don't set undoes in the dependants. The change is not */
+/* I deliberately don't set undoes in the dependents. The change is not */
 /*  in them, after all */
 void SCSynchronizeLBearing(SplineChar *sc,real off,int layer) {
     struct splinecharlist *dlist;
@@ -204,10 +201,7 @@ void SCSynchronizeLBearing(SplineChar *sc,real off,int layer) {
     if ( !adjustlbearing )
 return;
 
-    isprobablybase = true;
-    if ( sc->unicodeenc==-1 || sc->unicodeenc>=0x10000 ||
-	    !isalpha(sc->unicodeenc) || iscombining(sc->unicodeenc))
-	isprobablybase = false;
+    isprobablybase = isalpha(sc->unicodeenc) && !iscombining(sc->unicodeenc);
 
     for ( dlist=sc->dependents; dlist!=NULL; dlist=dlist->next ) {
 	RefChar *metrics = HasUseMyMetrics(dlist->sc,layer);
@@ -604,11 +598,39 @@ return( false );
 return( len2>=0 && len2<=len );
 }
 
+/* This is a fast computable measure for linearity. */
+/* First, we norm the spline: Scale and rotate the spline such that */
+/* one end lies on (0,0) and the other on (100,0). */
+/* Then the maximal y coordinate of the horizontal extrema is returned. */
+static bigreal Linearity(Spline *s) {
+    if ( s->islinear ) return 0;  
+    BasePoint ftunit = BPSub(s->to->me, s->from->me);
+    bigreal ftlen = BPNorm(ftunit);
+    if ( ftlen==0 ) return -1; /* flag for error, no norming possible */
+    ftunit = BPScale(ftunit, 1/ftlen);
+    BasePoint nextcpscaled = BPScale(BPSub(s->from->nextcp, s->from->me),100./ftlen);
+    if ( s->order2 ) return .5*fabs(BPCross(ftunit, nextcpscaled));
+    BasePoint prevcpscaled = BPScale(BPSub(s->to->prevcp, s->from->me),100./ftlen);
+    /* we just look a the bezier coefficients of the polynomial in t */
+    /* in y dimension (divided by 3): */
+    Spline1D ys1d;
+    ys1d.d = 0;
+    ys1d.c = BPCross(ftunit, nextcpscaled); /* rotate it to horizontal*/
+    ys1d.b = BPCross(ftunit, prevcpscaled)-2*ys1d.c;
+    ys1d.a = -ys1d.b-ys1d.c;
+    extended te1, te2;
+    SplineFindExtrema(&ys1d, &te1, &te2);
+    if ( te1==-1 && te2==-1 ) return 0;
+    if ( te2==-1 ) return 3*fabs(((ys1d.a*te1+ys1d.b)*te1+ys1d.c)*te1);
+return 3*fmax(fabs(((ys1d.a*te1+ys1d.b)*te1+ys1d.c)*te1), 
+fabs(((ys1d.a*te2+ys1d.b)*te2+ys1d.c)*te2));
+}
+
 void SPChangePointType(SplinePoint *sp, int pointtype) {
     BasePoint unitnext, unitprev;
     bigreal nextlen, prevlen;
     int makedflt;
-    /*int oldpointtype = sp->pointtype;*/
+    int oldpointtype = sp->pointtype;
 
     if ( sp->pointtype==pointtype ) {
 	if ( pointtype==pt_curve || pointtype == pt_hvcurve ) {
@@ -626,25 +648,50 @@ return;
 	sp->nextcpdef = sp->nonextcp;
 	sp->prevcpdef = sp->noprevcp;
     } else if ( pointtype==pt_tangent ) {
-	if ( sp->next!=NULL && !sp->nonextcp && sp->next->knownlinear ) {
-	    sp->nonextcp = true;
-	    sp->nextcp = sp->me;
-	} else if ( sp->prev!=NULL && !sp->nonextcp &&
-		BpColinear(&sp->prev->from->me,&sp->me,&sp->nextcp) ) {
-	    /* The current control point is reasonable */
-	} else {
-	    SplineCharTangentNextCP(sp);
-	    if ( sp->next ) SplineRefigure(sp->next);
-	}
-	if ( sp->prev!=NULL && !sp->noprevcp && sp->prev->knownlinear ) {
-	    sp->noprevcp = true;
-	    sp->prevcp = sp->me;
-	} else if ( sp->next!=NULL && !sp->noprevcp &&
-		BpColinear(&sp->next->to->me,&sp->me,&sp->prevcp) ) {
-	    /* The current control point is reasonable */
-	} else {
-	    SplineCharTangentPrevCP(sp);
-	    if ( sp->prev ) SplineRefigure(sp->prev);
+	if ( sp->next!=NULL && sp->prev!=NULL ) {
+		bigreal prevlinearity = Linearity(sp->prev);
+		bigreal nextlinearity = Linearity(sp->next);
+		if ( prevlinearity>=0 && nextlinearity>=0 ) {
+			if ( nextlinearity >= prevlinearity ) { /* make prev linear */
+				sp->prev->islinear = true;
+				sp->prev->from->nextcp = sp->prev->from->me;
+				sp->prevcp = sp->me; 
+				if ( sp->prev->from->pointtype!=pt_tangent) 
+					sp->prev->from->pointtype = pt_corner;
+				SplineRefigure(sp->prev); /* display straight line */
+				if ( sp->next->order2 ) {
+					BasePoint inter;
+					if ( IntersectLines(&inter,&sp->me,&sp->prev->from->me,&sp->nextcp,&sp->next->to->me) ) {
+						sp->nextcp = inter;
+						sp->next->to->prevcp = inter;
+						SplineRefigure(sp->next); /* update curve */
+					} /* else just leave things as they are */
+				} else {
+					unitnext = NormVec(BPSub(sp->me,sp->prev->from->me));
+					sp->nextcp = BPAdd(sp->me, BPScale(unitnext,fabs(BPDot(BPSub(sp->nextcp, sp->me), unitnext))));
+					SplineRefigure(sp->next); /* update curve */
+				}
+			} else { /* make next linear */
+				sp->next->islinear = true;
+				sp->next->to->prevcp = sp->next->to->me;
+				sp->nextcp = sp->me; 
+				if ( sp->next->to->pointtype!=pt_tangent) 
+					sp->next->to->pointtype = pt_corner;
+				SplineRefigure(sp->next); /* display straight line */
+				if ( sp->prev->order2 ) {
+					BasePoint inter;
+					if ( IntersectLines(&inter,&sp->me,&sp->next->to->me,&sp->prevcp,&sp->prev->from->me) ) {
+						sp->prevcp = inter;
+						sp->prev->from->nextcp = inter;
+						SplineRefigure(sp->prev); /* update curve */
+					} /* else just leave things as they are */
+				} else {
+					unitprev = NormVec(BPSub(sp->me,sp->next->to->me));
+					sp->prevcp = BPAdd(sp->me, BPScale(unitprev,fabs(BPDot(BPSub(sp->prevcp, sp->me), unitprev))));
+					SplineRefigure(sp->prev); /* update curve */
+				}
+			}
+		} /* else do nothing - this would not make any sense */
 	}
     } else if ( pointtype!=pt_curve
 		&& ((BpColinear(&sp->prevcp,&sp->me,&sp->nextcp) ||
@@ -688,16 +735,63 @@ return;
 	    ncp.y = sp->me.y + unitnext.y*nextlen;
 	    sp->nextcp = ncp;
 	    if ( sp->next!=NULL && sp->next->order2 )
-		sp->next->to->prevcp = ncp;
+			sp->next->to->prevcp = ncp;
+		SplineRefigure(sp->next);
 	    pcp.x = sp->me.x + unitprev.x*prevlen;
 	    pcp.y = sp->me.y + unitprev.y*prevlen;
 	    sp->prevcp = pcp;
 	    if ( sp->prev!=NULL && sp->prev->order2 )
-		sp->prev->from->nextcp = pcp;
+			sp->prev->from->nextcp = pcp;
+		SplineRefigure(sp->prev);
 	    makedflt = false;
 	}
-	if( pointtype==pt_curve )
-	    makedflt = true;
+	if( pointtype==pt_curve ) { 
+		if ( oldpointtype==pt_corner ) { 
+			makedflt = false; 	
+			if ( sp->prev!=NULL && sp->next!=NULL) {
+				if ( prevlen!=0 && nextlen!=0 ) { /* take the average direction */
+					sp->nextcp = BPAdd(sp->me, BPScale(BPSub(unitnext, unitprev), .5*nextlen));
+					sp->prevcp = BPSub(sp->me, BPScale(BPSub(unitnext, unitprev), .5*prevlen));	
+					if ( sp->next->order2 ) { /* sp->nextcp and sp->next->to->prevcp are not necessary equal */
+						BasePoint inter; 
+						if ( IntersectLines(&inter,&sp->me,&sp->nextcp,&sp->next->to->prevcp,&sp->next->to->me) 
+						/* check if inter is on the same side of sp->me as sp->nextcp: */ 
+						&& BPDot( BPSub(inter, sp->me), BPSub(sp->nextcp, sp->me) ) >= 0 
+						/* check if inter is on the same side of sp->next->to->me as sp->nextcp: */ 
+						&& BPDot( BPSub(inter, sp->me), BPSub(sp->next->to->me, sp->me) ) >= 0 ) {
+							sp->nextcp = inter;
+							sp->next->to->prevcp = inter;
+							SplineRefigure(sp->next);
+						} else { /* undo things, the user has to interact (no clear solution) */
+							sp->nextcp = sp->next->to->prevcp;
+						}
+					}
+					if ( sp->prev->order2 ) { /* sp->prevcp and sp->prev->from->nextcp are not necessary equal */
+						BasePoint inter; /* this is suboptimal when the intersection is on the wrong side */
+						if ( IntersectLines(&inter,&sp->me,&sp->prevcp,&sp->prev->from->nextcp,&sp->prev->from->me) 
+						/* check if inter is on the same side of sp->me as sp->prevcp: */ 
+						&& BPDot( BPSub(inter, sp->me), BPSub(sp->prevcp, sp->me) ) >= 0 
+						/* check if inter is on the same side of sp->prev->from->me as sp->prevcp: */ 
+						&& BPDot( BPSub(inter, sp->me), BPSub(sp->prev->from->me, sp->me) ) >= 0 ) {
+							sp->prevcp = inter;
+							sp->prev->from->nextcp = inter;
+							SplineRefigure(sp->prev);
+						} else { /* undo things, the user has to interact (no clear solution) */
+							sp->prevcp = sp->prev->from->nextcp;
+						}
+					}
+				} else if ( prevlen!=0 && !sp->next->order2 ) { /* and therefore nextlen==0 */
+					sp->nextcp = BPSub(sp->me, BPScale(NormVec(unitprev), 
+					NICE_PROPORTION*BPNorm(BPSub(sp->next->to->me, sp->me))));
+				} else if ( nextlen!=0 && !sp->prev->order2 ) { /* and therefore prevlen==0 */
+					sp->prevcp = BPSub(sp->me, BPScale(NormVec(unitnext), 
+					NICE_PROPORTION*BPNorm(BPSub(sp->prev->from->me, sp->me))));
+				} else makedflt = true;
+			}
+		} else if ( oldpointtype==pt_tangent || oldpointtype==pt_hvcurve ) { 
+			makedflt = false; 	
+		} else makedflt = true; /* original behaviour */
+	}
 	
 	if ( makedflt ) {
 	    sp->nextcpdef = sp->prevcpdef = true;
@@ -754,10 +848,6 @@ void SplinePointRound(SplinePoint *sp,real factor) {
 	sp->next->to->prevcp = sp->nextcp;
     if ( sp->prev!=NULL && sp->prev->order2 )
 	sp->prev->from->nextcp = sp->prevcp;
-    if ( sp->nextcp.x==sp->me.x && sp->nextcp.y==sp->me.y )
-	sp->nonextcp = true;
-    if ( sp->prevcp.x==sp->me.x && sp->prevcp.y==sp->me.y )
-	sp->noprevcp = true;
 }
 
 static void SpiroRound2Int(spiro_cp *cp,real factor) {
@@ -1000,7 +1090,7 @@ return;
 
 void UnlinkThisReference(FontViewBase *fv,SplineChar *sc,int layer) {
     /* We are about to clear out sc. But somebody refers to it and that we */
-    /*  aren't going to delete. So (if the user asked us to) instanciate sc */
+    /*  aren't going to delete. So (if the user asked us to) instantiate sc */
     /*  into all characters which refer to it and which aren't about to be */
     /*  cleared out */
     struct splinecharlist *dep, *dnext;
@@ -1161,7 +1251,7 @@ void RevertedGlyphReferenceFixup(SplineChar *sc, SplineFont *sf) {
     /* Fixup kerning pairs as well */
     for ( isv=0; isv<2; ++isv ) {
 	for ( kprev = NULL, kp=isv?sc->vkerns : sc->kerns; kp!=NULL; kp=knext ) {
-	    int index = (intpt) (kp->sc);
+	    int index = (intptr_t) (kp->sc);
 	    knext = kp->next;
 	    kp->kcid = false;
 	    ksf = sf;
@@ -1710,7 +1800,7 @@ int SCValidate(SplineChar *sc, int layer, int force) {
 		first = s;
 	    if ( s->acceptableextrema )
 	continue;		/* If marked as good, don't check it */
-	    /* rough appoximation to spline's length */
+	    /* rough approximation to spline's length */
 	    x = (s->to->me.x-s->from->me.x);
 	    y = (s->to->me.y-s->from->me.y);
 	    len2 = x*x + y*y;
@@ -1727,13 +1817,13 @@ int SCValidate(SplineChar *sc, int layer, int force) {
 	/* If we have a maxp table then do some truetype checks */
 	/* these are only errors for fontlint, we'll fix them up when we */
 	/*  generate the font -- but fontlint needs to know this stuff */
-	int pt_max = memushort(tab->data,tab->len,3*sizeof(uint16));
-	int path_max = memushort(tab->data,tab->len,4*sizeof(uint16));
-	int composit_pt_max = memushort(tab->data,tab->len,5*sizeof(uint16));
-	int composit_path_max = memushort(tab->data,tab->len,6*sizeof(uint16));
-	int instr_len_max = memushort(tab->data,tab->len,13*sizeof(uint16));
-	int num_comp_max = memushort(tab->data,tab->len,14*sizeof(uint16));
-	int comp_depth_max  = memushort(tab->data,tab->len,15*sizeof(uint16));
+	int pt_max = memushort(tab->data,tab->len,3*sizeof(uint16_t));
+	int path_max = memushort(tab->data,tab->len,4*sizeof(uint16_t));
+	int composit_pt_max = memushort(tab->data,tab->len,5*sizeof(uint16_t));
+	int composit_path_max = memushort(tab->data,tab->len,6*sizeof(uint16_t));
+	int instr_len_max = memushort(tab->data,tab->len,13*sizeof(uint16_t));
+	int num_comp_max = memushort(tab->data,tab->len,14*sizeof(uint16_t));
+	int comp_depth_max  = memushort(tab->data,tab->len,15*sizeof(uint16_t));
 	int rd, rdtest;
 
 	/* Already figured out two of these */
@@ -1900,7 +1990,6 @@ static SplinePoint *CirclePoint(int which) {
     };
 
     sp = SplinePointCreate(ellipse3[which].me.x,ellipse3[which].me.y);
-    sp->nonextcp = sp->noprevcp = false;
     sp->nextcp = ellipse3[which].nextcp;
     sp->prevcp = ellipse3[which].prevcp;
 return( sp );
@@ -2038,7 +2127,6 @@ static int EllipseClockwise(SplinePoint *sp1,SplinePoint *sp2,BasePoint *slope1,
     e1 = SplinePointCreate(sp1->me.x,sp1->me.y);
     e2 = SplinePointCreate(sp2->me.x,sp2->me.y);
     SplineMake3(e2,e1);
-    e1->nonextcp = false; e2->noprevcp = false;
     len = sqrt((sp1->me.x-sp2->me.x) * (sp1->me.x-sp2->me.x)  +
 	  (sp1->me.y-sp2->me.y) * (sp1->me.y-sp2->me.y));
     e1->nextcp.x = e1->me.x + len*slope1->x;
@@ -2337,9 +2425,7 @@ static int MakeShape(CharViewBase *cv,SplinePointList *spl1,SplinePointList *spl
     if ( !do_arc || ( sp1->me.x==sp2->me.x && sp1->me.y==sp2->me.y )) {
 	if ( !changed )
 	    CVPreserveState(cv);
-	sp1->nonextcp = true;
 	sp1->nextcp = sp1->me;
-	sp2->noprevcp = true;
 	sp2->prevcp = sp2->me;
 	if ( sp1->next==NULL )
 	    SplineMake(sp1,sp2,order2);
@@ -2458,7 +2544,6 @@ void _CVMenuMakeLine(CharViewBase *cv,int do_arc,int ellipse_to_back) {
 		    }
 		    if (!do_arc) {
 			sp->nextcp = sp->me;
-			sp->nonextcp = true;
 			sp->next->to->prevcp = sp->next->to->me;
 			sp->next->to->noprevcp = true;
 		    }
@@ -2478,7 +2563,7 @@ void _CVMenuMakeLine(CharViewBase *cv,int do_arc,int ellipse_to_back) {
 }
 
 void SCClearInstrsOrMark(SplineChar *sc, int layer, int complain) {
-    uint8 *instrs = sc->ttf_instrs==NULL && sc->parent->mm!=NULL && sc->parent->mm->apple ?
+    uint8_t *instrs = sc->ttf_instrs==NULL && sc->parent->mm!=NULL && sc->parent->mm->apple ?
 		sc->parent->mm->normal->glyphs[sc->orig_pos]->ttf_instrs : sc->ttf_instrs;
     struct splinecharlist *dep;
     SplineSet *ss;
@@ -2593,7 +2678,7 @@ static void SCHintsChng(SplineChar *sc) {
 }
 
 void instrcheck(SplineChar *sc,int layer) {
-    uint8 *instrs = sc->ttf_instrs==NULL && sc->parent->mm!=NULL && sc->parent->mm->apple ?
+    uint8_t *instrs = sc->ttf_instrs==NULL && sc->parent->mm!=NULL && sc->parent->mm->apple ?
 		sc->parent->mm->normal->glyphs[sc->orig_pos]->ttf_instrs : sc->ttf_instrs;
 
     if ( !sc->layers[layer].order2 || sc->layers[layer].background )

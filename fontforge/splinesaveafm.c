@@ -30,7 +30,6 @@
 #include "splinesaveafm.h"
 
 #include "autohint.h"
-#include "chardata.h"
 #include "featurefile.h"
 #include "fontforgevw.h"		/* For Error */
 #include "fvcomposite.h"
@@ -88,7 +87,7 @@ return( buffer );
 /* ************************************************************************** */
 static void KPInsert( SplineChar *sc1, SplineChar *sc2, int off, int isv ) {
     KernPair *kp;
-    int32 script;
+    int32_t script;
 
     if ( sc1!=NULL && sc2!=NULL ) {
 	for ( kp=sc1->kerns; kp!=NULL && kp->sc!=sc2; kp = kp->next );
@@ -340,13 +339,13 @@ struct tfmdata {
     int esize;
     int param_size;
 
-    uint8 *kerntab;
-    uint8 *ligkerntab;
-    uint8 *ext;
-    uint8 *ictab;
-    uint8 *dptab;
-    uint8 *httab;
-    uint8 *widtab;
+    uint8_t *kerntab;
+    uint8_t *ligkerntab;
+    uint8_t *ext;
+    uint8_t *ictab;
+    uint8_t *dptab;
+    uint8_t *httab;
+    uint8_t *widtab;
 
     int *charlist;
 };
@@ -446,7 +445,7 @@ return;
 static void tfmDoExten(SplineFont *sf,int i,struct tfmdata *tfmd,int left,EncMap *map) {
     int j, k, gid, gid2, cnt;
     SplineChar *bits[4], *bats[5];
-    uint8 *ext;
+    uint8_t *ext;
     SplineChar *sc;
     struct glyphvariants **gvbase;
     int is_horiz;
@@ -506,7 +505,7 @@ return;
     }
 }
 
-#define BigEndianWord(pt) ((((uint8 *) pt)[0]<<24) | (((uint8 *) pt)[1]<<16) | (((uint8 *) pt)[2]<<8) | (((uint8 *) pt)[3]))
+#define BigEndianWord(pt) ((((uint8_t *) pt)[0]<<24) | (((uint8_t *) pt)[1]<<16) | (((uint8_t *) pt)[2]<<8) | (((uint8_t *) pt)[3]))
 
 int LoadKerningDataFromTfm(SplineFont *sf, char *filename,EncMap *map) {
     FILE *file = fopen(filename,"rb");
@@ -534,27 +533,27 @@ return( 0 );
 	fclose(file);
 return( 0 );
     }
-    tfmd.kerntab = calloc(tfmd.kern_size,4*sizeof(uint8));
-    tfmd.ligkerntab = calloc(tfmd.ligkern_size,4*sizeof(uint8));
-    tfmd.ext = calloc(tfmd.esize,4*sizeof(uint8));
-    tfmd.ictab = calloc(tfmd.italic_size,4*sizeof(uint8));
-    tfmd.dptab = calloc(tfmd.depth_size,4*sizeof(uint8));
-    tfmd.httab = calloc(tfmd.height_size,4*sizeof(uint8));
-    tfmd.widtab = calloc(tfmd.width_size,4*sizeof(uint8));
+    tfmd.kerntab = calloc(tfmd.kern_size,4*sizeof(uint8_t));
+    tfmd.ligkerntab = calloc(tfmd.ligkern_size,4*sizeof(uint8_t));
+    tfmd.ext = calloc(tfmd.esize,4*sizeof(uint8_t));
+    tfmd.ictab = calloc(tfmd.italic_size,4*sizeof(uint8_t));
+    tfmd.dptab = calloc(tfmd.depth_size,4*sizeof(uint8_t));
+    tfmd.httab = calloc(tfmd.height_size,4*sizeof(uint8_t));
+    tfmd.widtab = calloc(tfmd.width_size,4*sizeof(uint8_t));
     tfmd.charlist = charlist;
 
-    fseek( file,(6+1)*sizeof(int32),SEEK_SET);
+    fseek( file,(6+1)*sizeof(int32_t),SEEK_SET);
     sf->design_size = (5*getlong(file)+(1<<18))>>19;	/* TeX stores as <<20, adobe in decipoints */
     fseek( file,
-	    (6+tfmd.head_len+(tfmd.last-tfmd.first+1))*sizeof(int32),
+	    (6+tfmd.head_len+(tfmd.last-tfmd.first+1))*sizeof(int32_t),
 	    SEEK_SET);
-    fread( tfmd.widtab,1,tfmd.width_size*sizeof(int32),file);
-    fread( tfmd.httab,1,tfmd.height_size*sizeof(int32),file);
-    fread( tfmd.dptab,1,tfmd.depth_size*sizeof(int32),file);
-    fread( tfmd.ictab,1,tfmd.italic_size*sizeof(int32),file);
-    fread( tfmd.ligkerntab,1,tfmd.ligkern_size*sizeof(int32),file);
-    fread( tfmd.kerntab,1,tfmd.kern_size*sizeof(int32),file);
-    fread( tfmd.ext,1,tfmd.esize*sizeof(int32),file);
+    fread( tfmd.widtab,1,tfmd.width_size*sizeof(int32_t),file);
+    fread( tfmd.httab,1,tfmd.height_size*sizeof(int32_t),file);
+    fread( tfmd.dptab,1,tfmd.depth_size*sizeof(int32_t),file);
+    fread( tfmd.ictab,1,tfmd.italic_size*sizeof(int32_t),file);
+    fread( tfmd.ligkerntab,1,tfmd.ligkern_size*sizeof(int32_t),file);
+    fread( tfmd.kerntab,1,tfmd.kern_size*sizeof(int32_t),file);
+    fread( tfmd.ext,1,tfmd.esize*sizeof(int32_t),file);
     for ( i=0; i<22 && i<tfmd.param_size; ++i )
 	sf->texdata.params[i] = getlong(file);
     if ( tfmd.param_size==22 ) sf->texdata.type = tex_math;
@@ -563,7 +562,7 @@ return( 0 );
 
     memset(charlist,-1,sizeof(charlist));
 
-    fseek( file, (6+tfmd.head_len)*sizeof(int32), SEEK_SET);
+    fseek( file, (6+tfmd.head_len)*sizeof(int32_t), SEEK_SET);
     for ( i=tfmd.first; i<=tfmd.last; ++i ) {
 	/* width = */ getc(file);
 	height = getc(file);
@@ -665,7 +664,7 @@ return;
 /*  than bytes */
 static void ofmDoExten(SplineFont *sf,int i,struct tfmdata *tfmd,int left,EncMap *map) {
     int j, k, gid, gid2, cnt;
-    uint8 *ext;
+    uint8_t *ext;
     SplineChar *sc, *bits[4], *bats[4];
     struct glyphvariants **gvbase;
     int is_horiz;
@@ -787,35 +786,35 @@ return( 0 );
 return( 0 );
     }
 
-    tfmd.kerntab = calloc(tfmd.kern_size,4*sizeof(uint8));
-    tfmd.ligkerntab = calloc(tfmd.ligkern_size,4*2*sizeof(uint8));
-    tfmd.ext = calloc(tfmd.esize,4*2*sizeof(uint8));
-    tfmd.ictab = calloc(tfmd.italic_size,4*sizeof(uint8));
-    tfmd.dptab = calloc(tfmd.depth_size,4*sizeof(uint8));
-    tfmd.httab = calloc(tfmd.height_size,4*sizeof(uint8));
-    tfmd.widtab = calloc(tfmd.width_size,4*sizeof(uint8));
-    fseek( file,(14+1)*sizeof(int32),SEEK_SET);
+    tfmd.kerntab = calloc(tfmd.kern_size,4*sizeof(uint8_t));
+    tfmd.ligkerntab = calloc(tfmd.ligkern_size,4*2*sizeof(uint8_t));
+    tfmd.ext = calloc(tfmd.esize,4*2*sizeof(uint8_t));
+    tfmd.ictab = calloc(tfmd.italic_size,4*sizeof(uint8_t));
+    tfmd.dptab = calloc(tfmd.depth_size,4*sizeof(uint8_t));
+    tfmd.httab = calloc(tfmd.height_size,4*sizeof(uint8_t));
+    tfmd.widtab = calloc(tfmd.width_size,4*sizeof(uint8_t));
+    fseek( file,(14+1)*sizeof(int32_t),SEEK_SET);
     sf->design_size = (5*getlong(file)+(1<<18))>>19;	/* TeX stores as <<20, adobe in decipoints */
     fseek( file,
-	    (14+tfmd.head_len+2*(tfmd.last-tfmd.first+1))*sizeof(int32),
+	    (14+tfmd.head_len+2*(tfmd.last-tfmd.first+1))*sizeof(int32_t),
 	    SEEK_SET);
-    fread( tfmd.widtab,1,tfmd.width_size*sizeof(int32),file);
-    fread( tfmd.httab,1,tfmd.height_size*sizeof(int32),file);
-    fread( tfmd.dptab,1,tfmd.depth_size*sizeof(int32),file);
-    fread( tfmd.ictab,1,tfmd.italic_size*sizeof(int32),file);
-    fread( tfmd.ligkerntab,1,tfmd.ligkern_size*2*sizeof(int32),file);
-    fread( tfmd.kerntab,1,tfmd.kern_size*sizeof(int32),file);
-    fread( tfmd.ext,1,tfmd.esize*2*sizeof(int32),file);
+    fread( tfmd.widtab,1,tfmd.width_size*sizeof(int32_t),file);
+    fread( tfmd.httab,1,tfmd.height_size*sizeof(int32_t),file);
+    fread( tfmd.dptab,1,tfmd.depth_size*sizeof(int32_t),file);
+    fread( tfmd.ictab,1,tfmd.italic_size*sizeof(int32_t),file);
+    fread( tfmd.ligkerntab,1,tfmd.ligkern_size*2*sizeof(int32_t),file);
+    fread( tfmd.kerntab,1,tfmd.kern_size*sizeof(int32_t),file);
+    fread( tfmd.ext,1,tfmd.esize*2*sizeof(int32_t),file);
     for ( i=0; i<22 && i<tfmd.param_size; ++i )
 	sf->texdata.params[i] = getlong(file);
     if ( tfmd.param_size==22 ) sf->texdata.type = tex_math;
     else if ( tfmd.param_size==13 ) sf->texdata.type = tex_mathext;
     else if ( tfmd.param_size>=7 ) sf->texdata.type = tex_text;
 
-    tfmd.charlist = malloc(65536*sizeof(int32));
-    memset(tfmd.charlist,-1,65536*sizeof(int32));
+    tfmd.charlist = malloc(65536*sizeof(int32_t));
+    memset(tfmd.charlist,-1,65536*sizeof(int32_t));
 
-    fseek( file, (14+tfmd.head_len)*sizeof(int32), SEEK_SET);
+    fseek( file, (14+tfmd.head_len)*sizeof(int32_t), SEEK_SET);
     for ( i=tfmd.first; i<=tfmd.last; ++i ) {
 	/* width = */ getushort(file);
 	height = getc(file);
@@ -1097,7 +1096,7 @@ return( sc!=NULL &&
 }
 
 int SCHasData(SplineChar *sc) {
-    int layer,l;
+    int layer;
 
     if ( sc==NULL )
 return( false );
@@ -1257,7 +1256,7 @@ struct cc_data {
 
 struct cc_container {
     struct cc_data *ccs;
-    int cnt, max;	 /* total number of ccs used/alocated */
+    int cnt, max;	 /* total number of ccs used/allocated */
     SplineChar ***marks; /* For each ac this is a list of all mark glyphs in it */
     int *mcnt;		 /* Count of the above list */
     int *mpos;
@@ -1306,9 +1305,8 @@ static int FigureUnicodes(int *unicode,SplineChar *sc,int u) {
 return( -1 );
     if ( sc->unicodeenc==-1 )
 return( FigureName(unicode,sc->name,u));
-    if ( isdecompositionnormative(sc->unicodeenc) && sc->unicodeenc>=65536 &&
-	    unicode_alternates[sc->unicodeenc>>8]!=NULL &&
-	    (upt = unicode_alternates[sc->unicodeenc>>8][sc->unicodeenc&0xff])!=NULL ) {
+    if ( isdecompositionnormative(sc->unicodeenc) &&
+	    (upt = unialt(sc->unicodeenc))!=NULL ) {
 	while ( *upt!='\0' )
 	    unicode[u++] = *upt++;
     } else
@@ -1321,9 +1319,8 @@ static int FindDecomposition(int *unicode, int u) {
     const unichar_t *upt;
     int i;
 
-    for ( uni=0; uni<65536; ++uni ) {
-	if ( unicode_alternates[uni>>8]!=NULL &&
-		(upt = unicode_alternates[uni>>8][uni&0xff])!=NULL ) {
+    for ( uni=0; uni<0x10000; ++uni ) {
+	if ( (upt = unialt(uni))!=NULL ) {
 	    for ( i=0; *upt!='\0' && i<u && *upt==(unichar_t)unicode[i]; ++i, ++upt );
 	    if ( *upt=='\0' && i==u )
 return( uni );
@@ -2039,7 +2036,7 @@ return( scs );
 }
 
 static void AddTempKP(SplineChar *first,SplineChar *second,
-	int16 offset, struct lookup_subtable *sub,uint16 kcid,int isv) {
+	int16_t offset, struct lookup_subtable *sub,uint16_t kcid,int isv) {
     KernPair *kp;
 
     for ( kp=first->kerns; kp!=NULL; kp=kp->next )
@@ -2558,17 +2555,17 @@ return( true );
 /* ************************************************************************** */
 /* **************************** Writing TFM files *************************** */
 /* ************************************************************************** */
-typedef uint32 fix_word;
+typedef uint32_t fix_word;
 
 struct tfm_header {
-    uint32 checksum;	/* don't know how to calculate this, use 0 to ignore it */
+    uint32_t checksum;	/* don't know how to calculate this, use 0 to ignore it */
     fix_word design_size;	/* in points (10<<20 seems to be default) */
     char encoding[40];	/* first byte is length, rest are a string that names the encoding */
 	/* ASCII, TeX text, TeX math extension, XEROX, GRAPHIC, UNSPECIFIED */
     char family[20];	/* Font Family, preceded by a length byte */
-    uint8 seven_bit_safe_flag;
-    uint8 ignored[2];
-    uint8 face; 	/* 0=>roman, 1=>italic */
+    uint8_t seven_bit_safe_flag;
+    uint8_t ignored[2];
+    uint8_t face; 	/* 0=>roman, 1=>italic */
     			/* 4=>light, 0=>medium, 2=>bold */
 			/* 6=>condensed, 0=>regular, 12=>extended */
 };
@@ -2589,14 +2586,14 @@ struct tfm_params {
 };
 /* tfm files use uint8s, ofm files use uint16s */
 struct ligkern {
-    uint16 skip;
-    uint16 other_char;
-    uint16 op;
-    uint16 remainder;
+    uint16_t skip;
+    uint16_t other_char;
+    uint16_t op;
+    uint16_t remainder;
     struct ligkern *next;
 };
 struct extension {
-    uint16 extens[4];	/* top, mid, bottom & repeat */
+    uint16_t extens[4];	/* top, mid, bottom & repeat */
 };
 
 static struct ligkern *TfmAddKern(KernPair *kp,struct ligkern *last,double *kerns,
@@ -2681,7 +2678,7 @@ static int FindExtensions(SplineFont *sf,struct extension *extensions,int *exten
     int i;
     int j,k;
     char *foundnames[4];
-    int16 founds[4]; int ecnt=0;
+    int16_t founds[4]; int ecnt=0;
 
     memset(extenindex,-1,(maxc+1)*sizeof(int));
     for ( i=0; i<maxc && i<map->enccount; ++i ) if ( map->map[i]!=-1 && SCWorthOutputting(sf->glyphs[map->map[i]])) {
@@ -2921,8 +2918,8 @@ static int _OTfmSplineFont(FILE *tfm, SplineFont *sf,EncMap *map,int maxc,int la
     struct ligkern *_ligkerns[256], **ligkerns, *lk, *lknext;
     double _widths[257], _heights[257], _depths[257], _italics[257];
     double *widths, *heights, *depths, *italics;
-    uint8 _tags[256], *tags;
-    uint16 _lkindex[256], *lkindex;
+    uint8_t _tags[256], *tags;
+    uint16_t _lkindex[256], *lkindex;
     int _former[256], *former;
     struct extension _extensions[257], *extensions;
     int _charlistindex[257], _extenindex[257];
@@ -2935,7 +2932,7 @@ static int _OTfmSplineFont(FILE *tfm, SplineFont *sf,EncMap *map,int maxc,int la
     KernPair *kp;
     LigList *l;
     int style, any;
-    uint32 *lkarray;
+    uint32_t *lkarray;
     struct ligkern *o_lkarray=NULL;
     char *familyname;
     int anyITLC;
@@ -2964,8 +2961,8 @@ static int _OTfmSplineFont(FILE *tfm, SplineFont *sf,EncMap *map,int maxc,int la
 	heights = malloc((maxc+1)*sizeof(double));
 	depths = malloc((maxc+1)*sizeof(double));
 	italics = malloc((maxc+1)*sizeof(double));
-	tags = malloc(maxc*sizeof(uint8));
-	lkindex = malloc(maxc*sizeof(uint16));
+	tags = malloc(maxc*sizeof(uint8_t));
+	lkindex = malloc(maxc*sizeof(uint16_t));
 	former = malloc(maxc*sizeof(int));
 	charlistindex = malloc((maxc+1)*sizeof(int));
 	extensions = malloc((maxc+1)*sizeof(struct extension));
@@ -3039,7 +3036,7 @@ static int _OTfmSplineFont(FILE *tfm, SplineFont *sf,EncMap *map,int maxc,int la
     memset(heights,0,maxc*sizeof(double));
     memset(depths,0,maxc*sizeof(double));
     memset(italics,0,maxc*sizeof(double));
-    memset(tags,0,maxc*sizeof(uint8));
+    memset(tags,0,maxc*sizeof(uint8_t));
     first = last = -1;
     /* Note: Text fonts for TeX and math fonts use the italic correction & width */
     /*  fields to mean different things */
@@ -3065,7 +3062,7 @@ static int _OTfmSplineFont(FILE *tfm, SplineFont *sf,EncMap *map,int maxc,int la
 		depths[i] = sc->tex_depth*scale;
 	    if ( depths[i]<0 ) depths[i] = 0;		/* Werner says depth should never be negative. Something about how accents are positioned */
 	    if ( sc->width==0 )
-		widths[i] = 1;	/* TeX/Omega use a 0 width as a flag for non-existant character. Stupid. So zero width glyphs must be given the smallest posible non-zero width, to ensure they exists. GRRR. */
+		widths[i] = 1;	/* TeX/Omega use a 0 width as a flag for non-existant character. Stupid. So zero width glyphs must be given the smallest possible non-zero width, to ensure they exists. GRRR. */
 	    else if ( sc->width*scale >= (16<<20) ) {
 		LogError( _("The width of %s is too big to fit in a tfm fix_word, it shall be truncated to the largest size allowed."), sc->name );
 		widths[i] = (16<<20)-1;
@@ -3147,9 +3144,9 @@ static int _OTfmSplineFont(FILE *tfm, SplineFont *sf,EncMap *map,int maxc,int la
     if ( sccnt>=128 )	/* We need to use the special extension mechanism */
 	lkcnt += sccnt;
     memset(former,-1,maxc*sizeof(int));
-    memset(lkindex,0,maxc*sizeof(uint16));
+    memset(lkindex,0,maxc*sizeof(uint16_t));
     if ( maxc==256 ) {
-	lkarray = malloc(lkcnt*sizeof(uint32));
+	lkarray = malloc(lkcnt*sizeof(uint32_t));
 	if ( sccnt<128 ) {
 	    lkcnt = 0;
 	    do {
@@ -3494,7 +3491,7 @@ return( mf_ofm );
 	    (buffer[2]|(buffer[3]<<8)|(buffer[4]<<16)|(buffer[5]<<24))== sb.st_size )
 return( mf_pfm );
 
-    /* I don't see any distinquishing marks for a feature file */
+    /* I don't see any distinguishing marks for a feature file */
 
     if ( strstrmatch(filename,".afm")!=NULL )
 return( mf_afm );
@@ -3512,7 +3509,7 @@ return( mf_feat );
 return( mf_none );
 }
 
-int LoadKerningDataFromMetricsFile(SplineFont *sf,char *filename,EncMap *map) {
+int LoadKerningDataFromMetricsFile(SplineFont *sf,char *filename,EncMap *map, bool ignore_invalid_replacement) {
     int ret;
 
     switch ( MetricsFormatType(filename)) {
@@ -3532,7 +3529,7 @@ int LoadKerningDataFromMetricsFile(SplineFont *sf,char *filename,EncMap *map) {
 	ret = LoadKerningDataFromPfm(sf,filename,map);
       break;
       case mf_feat:
-	SFApplyFeatureFilename(sf,filename);
+	SFApplyFeatureFilename(sf,filename, ignore_invalid_replacement);
 	ret = true;
       break;
       case mf_none:

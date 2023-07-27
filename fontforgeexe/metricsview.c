@@ -39,7 +39,6 @@
 #include "gfile.h"
 #include "gkeysym.h"
 #include "gresedit.h"
-#include "gresource.h"
 #include "lookups.h"
 #include "mm.h"
 #include "splinefill.h"
@@ -67,9 +66,13 @@ static double mv_scales[] = { 8.0, 4.0, 2.0, 1.5, 1.0, 2.0/3.0, .5, 1.0/3.0, .25
 
 static Color widthcol = 0x808080;
 static Color italicwidthcol = 0x909090;
+static Color glyphcol = 0x000000;
+static Color dividercol = 0x000000;
 static Color selglyphcol = 0x909090;
 static Color kernlinecol = 0x008000;
 static Color rbearinglinecol = 0x000080;
+
+static GResFont mv_font = GRESFONT_INIT("400 12px " SANS_UI_FAMILIES);
 
 int pref_mv_shift_and_arrow_skip = 10;
 int pref_mv_control_shift_and_arrow_skip = 5;
@@ -202,21 +205,9 @@ static int MVGetSplineFontPieceMealFlags( MetricsView *mv )
     return ret;
 }
 
-
+extern GResInfo metricsview_ri;
 void MVColInit( void ) {
-    static int cinit=false;
-    GResStruct mvcolors[] = {
-	{ "AdvanceWidthColor", rt_color, &widthcol, NULL, 0 },
-	{ "ItalicAdvanceColor", rt_color, &italicwidthcol, NULL, 0 },
-	{ "SelectedGlyphColor", rt_color, &selglyphcol, NULL, 0 },
-	{ "KernLineColor", rt_color, &kernlinecol, NULL, 0 },
-	{ "SideBearingLineColor", rt_color, &rbearinglinecol, NULL, 0 },
-	GRESSTRUCT_EMPTY
-    };
-    if ( !cinit ) {
-	GResourceFind( mvcolors, "MetricsView.");
-	cinit = true;
-    }
+    GResEditDoInit(&metricsview_ri);
 }
 
 static int MVSetVSb(MetricsView *mv);
@@ -297,9 +288,8 @@ static void MVSubVExpose(MetricsView *mv, GWindow pixmap, GEvent *event) {
 	    if ( !bdfc->byte_data ) {
 		base.image_type = it_mono;
 		clut.clut_len = 2;
-		clut.clut[0] = 0xffffff;
-		if ( mv->perchar[i].selected )
-		    clut.clut[1] = selglyphcol;
+		clut.clut[0] = view_bgcol;
+		clut.clut[1] = mv->perchar[i].selected ? selglyphcol : glyphcol;
 	    } else {
 		int scale, l;
 		Color fg, bg;
@@ -310,7 +300,7 @@ static void MVSubVExpose(MetricsView *mv, GWindow pixmap, GEvent *event) {
 		base.image_type = it_index;
 		clut.clut_len = 1<<scale;
 		bg = view_bgcol;
-		fg = ( mv->perchar[i].selected ) ? selglyphcol : 0x000000;
+		fg = ( mv->perchar[i].selected ) ? selglyphcol : glyphcol;
 		for ( l=0; l<(1<<scale); ++l )
 		    clut.clut[l] =
 			COLOR_CREATE(
@@ -417,9 +407,8 @@ return;
 	    if ( !bdfc->byte_data ) {
 		base.image_type = it_mono;
 		clut.clut_len = 2;
-		clut.clut[0] = 0xffffff;
-		if ( mv->perchar[i].selected )
-		    clut.clut[1] = selglyphcol;
+		clut.clut[0] = view_bgcol;
+		clut.clut[1] = mv->perchar[i].selected ? selglyphcol : glyphcol;
 	    } else {
 		int lscale = 3000/mv->pixelsize, l;
 		Color fg, bg;
@@ -432,13 +421,13 @@ return;
 		scale = lscale==8?256:lscale==4?16:4;
 		clut.clut_len = scale;
 		bg = view_bgcol;
-		fg = ( mv->perchar[i].selected ) ? selglyphcol : 0x000000;
+		fg = ( mv->perchar[i].selected ) ? selglyphcol : glyphcol;
 		for ( l=0; l<scale; ++l )
 		    clut.clut[l] =
 			COLOR_CREATE(
-			 COLOR_RED(bg) + ((int32) (l*(COLOR_RED(fg)-COLOR_RED(bg))))/(scale-1),
-			 COLOR_GREEN(bg) + ((int32) (l*(COLOR_GREEN(fg)-COLOR_GREEN(bg))))/(scale-1),
-			 COLOR_BLUE(bg) + ((int32) (l*(COLOR_BLUE(fg)-COLOR_BLUE(bg))))/(scale-1) );
+			 COLOR_RED(bg) + ((int32_t) (l*(COLOR_RED(fg)-COLOR_RED(bg))))/(scale-1),
+			 COLOR_GREEN(bg) + ((int32_t) (l*(COLOR_GREEN(fg)-COLOR_GREEN(bg))))/(scale-1),
+			 COLOR_BLUE(bg) + ((int32_t) (l*(COLOR_BLUE(fg)-COLOR_BLUE(bg))))/(scale-1) );
 	    }
 	    base.data = bdfc->bitmap;
 	    base.bytes_per_line = bdfc->bytes_per_line;
@@ -479,16 +468,16 @@ return;
     GDrawPushClip(pixmap,clip,&old);
     GDrawSetLineWidth(pixmap,0);
     for ( x=mv->mwidth; x<mv->width; x+=mv->mwidth ) {
-	GDrawDrawLine(pixmap,x,mv->displayend,x,ke,0x000000);
-	GDrawDrawLine(pixmap,x+mv->mwidth/2,ke,x+mv->mwidth/2,mv->height-mv->sbh,0x000000);
+	GDrawDrawLine(pixmap,x,mv->displayend,x,ke,dividercol);
+	GDrawDrawLine(pixmap,x+mv->mwidth/2,ke,x+mv->mwidth/2,mv->height-mv->sbh,dividercol);
     }
-    GDrawDrawLine(pixmap,0,mv->topend,mv->width,mv->topend,0x000000);
-    GDrawDrawLine(pixmap,0,mv->displayend,mv->width,mv->displayend,0x000000);
-    GDrawDrawLine(pixmap,0,mv->displayend+mv->fh+4,mv->width,mv->displayend+mv->fh+4,0x000000);
-    GDrawDrawLine(pixmap,0,mv->displayend+2*(mv->fh+4),mv->width,mv->displayend+2*(mv->fh+4),0x000000);
-    GDrawDrawLine(pixmap,0,mv->displayend+3*(mv->fh+4),mv->width,mv->displayend+3*(mv->fh+4),0x000000);
-    GDrawDrawLine(pixmap,0,mv->displayend+4*(mv->fh+4),mv->width,mv->displayend+4*(mv->fh+4),0x000000);
-    GDrawDrawLine(pixmap,0,mv->displayend+5*(mv->fh+4),mv->width,mv->displayend+5*(mv->fh+4),0x000000);
+    GDrawDrawLine(pixmap,0,mv->topend,mv->width,mv->topend,dividercol);
+    GDrawDrawLine(pixmap,0,mv->displayend,mv->width,mv->displayend,dividercol);
+    GDrawDrawLine(pixmap,0,mv->displayend+mv->fh+4,mv->width,mv->displayend+mv->fh+4,dividercol);
+    GDrawDrawLine(pixmap,0,mv->displayend+2*(mv->fh+4),mv->width,mv->displayend+2*(mv->fh+4),dividercol);
+    GDrawDrawLine(pixmap,0,mv->displayend+3*(mv->fh+4),mv->width,mv->displayend+3*(mv->fh+4),dividercol);
+    GDrawDrawLine(pixmap,0,mv->displayend+4*(mv->fh+4),mv->width,mv->displayend+4*(mv->fh+4),dividercol);
+    GDrawDrawLine(pixmap,0,mv->displayend+5*(mv->fh+4),mv->width,mv->displayend+5*(mv->fh+4),dividercol);
     GDrawPopClip(pixmap,&old);
 }
 
@@ -554,9 +543,9 @@ static void MVSetFeatures(MetricsView *mv) {
     SplineFont *sf = mv->sf;
     int i, j, cnt;
     GTextInfo **ti=NULL;
-    uint32 *tags = NULL, script, lang;
+    uint32_t *tags = NULL, script, lang;
     char buf[16];
-    uint32 *stds;
+    uint32_t *stds;
     const unichar_t *pt = _GGadgetGetTitle(mv->script);
 
     if ( sf->cidmaster ) sf=sf->cidmaster;
@@ -567,14 +556,14 @@ static void MVSetFeatures(MetricsView *mv) {
 	script = (pt[0]<<24) | (pt[1]<<16) | (pt[2]<<8) | pt[3];
     if ( pt[4]=='{' && u_strlen(pt)>=9 )
 	lang = (pt[5]<<24) | (pt[6]<<16) | (pt[7]<<8) | pt[8];
-    if ( (uint32)mv->oldscript!=script || (uint32)mv->oldlang!=lang )
+    if ( (uint32_t)mv->oldscript!=script || (uint32_t)mv->oldlang!=lang )
 	stds = StdFeaturesOfScript(script);
     else {		/* features list may have changed, but retain those set */
-	int32 len, sc;
+	int32_t len, sc;
 	ti = GGadgetGetList(mv->features,&len);
-	stds = malloc((len+1)*sizeof(uint32));
+	stds = malloc((len+1)*sizeof(uint32_t));
 	for ( i=sc=0; i<len; ++i ) if ( ti[i]->selected )
-	    stds[sc++] = (uint32) (intpt) ti[i]->userdata;
+	    stds[sc++] = (uint32_t) (intptr_t) ti[i]->userdata;
 	stds[sc] = 0;
     }
 
@@ -582,7 +571,7 @@ static void MVSetFeatures(MetricsView *mv) {
     /* Never returns NULL */
     for ( cnt=0; tags[cnt]!=0; ++cnt );
 
-    /*qsort(tags,cnt,sizeof(uint32),tag_comp);*/ /* The glist will do this for us */
+    /*qsort(tags,cnt,sizeof(uint32_t),tag_comp);*/ /* The glist will do this for us */
 
     ti = malloc((cnt+2)*sizeof(GTextInfo *));
     for ( i=0; i<cnt; ++i ) {
@@ -594,7 +583,7 @@ static void MVSetFeatures(MetricsView *mv) {
 	    buf[0] = tags[i]>>24; buf[1] = tags[i]>>16; buf[2] = tags[i]>>8; buf[3] = tags[i]; buf[4] = 0;
 	}
 	ti[i]->text = uc_copy(buf);
-	ti[i]->userdata = (void *) (intpt) tags[i];
+	ti[i]->userdata = (void *) (intptr_t) tags[i];
 	for ( j=0; stds[j]!=0; ++j ) {
 	    if ( stds[j] == tags[i] ) {
 		ti[i]->selected = true;
@@ -608,7 +597,7 @@ static void MVSetFeatures(MetricsView *mv) {
 }
 
 static void MVSelectSubtable(MetricsView *mv, struct lookup_subtable *sub) {
-    int32 len; int i;
+    int32_t len; int i;
     GTextInfo **old = GGadgetGetList(mv->subtable_list,&len);
 
     for ( i=0; i<len && (old[i]->userdata!=sub || old[i]->line); ++i )
@@ -675,8 +664,8 @@ static void MVDeselectChar(MetricsView *mv, int i) {
     MVRedrawI(mv,i,0,0);
 }
 
-static void MVSelectSubtableForScript(MetricsView *mv,uint32 script) {
-    int32 len;
+static void MVSelectSubtableForScript(MetricsView *mv,uint32_t script) {
+    int32_t len;
     GTextInfo **ti = GGadgetGetList(mv->subtable_list,&len);
     struct lookup_subtable *sub;
     int i;
@@ -822,8 +811,9 @@ static void MVMakeLabels(MetricsView *mv) {
     gd.pos.y = mv->displayend+2;
     gd.pos.height = mv->fh;
     gd.label = &label;
-    gd.box = &small;
-    gd.flags = gg_visible | gg_enabled | gg_pos_in_pixels | gg_dontcopybox;
+    //gd.box = &small;
+    //gd.flags = gg_visible | gg_enabled | gg_pos_in_pixels | gg_dontcopybox;
+    gd.flags = gg_visible | gg_enabled | gg_pos_in_pixels;
     mv->namelab = GLabelCreate(mv->gw,&gd,NULL);
 
     label.text = (unichar_t *) (mv->vertical ? _("Height:") : _("Width:") );
@@ -880,30 +870,30 @@ static void MVCreateFields(MetricsView *mv,int i) {
     gd.flags = gg_visible | gg_pos_in_pixels | gg_dontcopybox;
     if ( mv->bdf==NULL )
 	gd.flags |= gg_enabled;
-    mv->perchar[i].name = GLabelCreate(mv->gw,&gd,(void *) (intpt) i);
+    mv->perchar[i].name = GLabelCreate(mv->gw,&gd,(void *) (intptr_t) i);
     if ( mv->perchar[i].selected )
 	GGadgetSetEnabled(mv->perchar[i].name,false);
 
     gd.pos.y += mv->fh+4;
     gd.handle_controlevent = MV_WidthChanged;
-    mv->perchar[i].width = GTextFieldCreate(mv->gw,&gd,(void *) (intpt) i);
+    mv->perchar[i].width = GTextFieldCreate(mv->gw,&gd,(void *) (intptr_t) i);
     mv->perchar[i].updownkparray[udaidx++] = mv->perchar[i].width;
 
     gd.pos.y += mv->fh+4;
     gd.handle_controlevent = MV_LBearingChanged;
-    mv->perchar[i].lbearing = GTextFieldCreate(mv->gw,&gd,(void *) (intpt) i);
+    mv->perchar[i].lbearing = GTextFieldCreate(mv->gw,&gd,(void *) (intptr_t) i);
     mv->perchar[i].updownkparray[udaidx++] = mv->perchar[i].lbearing;
 
     gd.pos.y += mv->fh+4;
     gd.handle_controlevent = MV_RBearingChanged;
-    mv->perchar[i].rbearing = GTextFieldCreate(mv->gw,&gd,(void *) (intpt) i);
+    mv->perchar[i].rbearing = GTextFieldCreate(mv->gw,&gd,(void *) (intptr_t) i);
     mv->perchar[i].updownkparray[udaidx++] = mv->perchar[i].rbearing;
 
     if ( i!=0 ) {
 	gd.pos.y += mv->fh+4;
 	gd.pos.x -= mv->mwidth/2;
 	gd.handle_controlevent = MV_KernChanged;
-	mv->perchar[i].kern = GTextFieldCreate(mv->gw,&gd,(void *) (intpt) i);
+	mv->perchar[i].kern = GTextFieldCreate(mv->gw,&gd,(void *) (intptr_t) i);
 	if( i==1 ) {
 	    mv->perchar[i-1].updownkparray[udaidx] = mv->perchar[i].kern;
 	}
@@ -925,7 +915,6 @@ static int MVSetVSb(MetricsView *mv);
 void MVRefreshMetric(MetricsView *mv) {
     double iscale = mv->pixelsize_set_by_window ? 1.0 : mv_scales[mv->scale_index];
     double scale = iscale*mv->pixelsize/(double) (mv->sf->ascent+mv->sf->descent);
-    SplineFont *sf = mv->sf;
     int cnt;
     // Count the valid glyphs and segfault if there is no null splinechar terminator.
     for ( cnt=0; mv->glyphs[cnt].sc!=NULL; ++cnt );
@@ -955,19 +944,15 @@ void MVRefreshMetric(MetricsView *mv) {
 
 static void MVRemetric(MetricsView *mv) {
     SplineChar *anysc, *goodsc;
-    int i, cnt, x, y, goodpos;
+    int i, cnt;
     const unichar_t *_script = _GGadgetGetTitle(mv->script);
-    uint32 script, lang, *feats;
+    uint32_t script, lang, *feats;
     char buf[20];
-    int32 len;
+    int32_t len;
     GTextInfo **ti;
-    SplineChar *sc;
-    BDFChar *bdfc;
-    double iscale = mv->pixelsize_set_by_window ? 1.0 : mv_scales[mv->scale_index];
-    double scale = iscale*mv->pixelsize/(double) (mv->sf->ascent+mv->sf->descent);
     SplineFont *sf;
 
-    anysc = goodsc = NULL; goodpos = -1;
+    anysc = goodsc = NULL;
     // We recurse through all of the characters in the metrics view.
     for ( i=0; i<mv->clen && mv->chars[i] ; ++i ) {
         // We assign the first splinechar to anysc.
@@ -975,7 +960,6 @@ static void MVRemetric(MetricsView *mv) {
         // We assign the first splinechar of a non-default script to goodsc.
 	if ( SCScriptFromUnicode(mv->chars[i])!=DEFAULT_SCRIPT ) {
 	    goodsc = mv->chars[i];
-	    goodpos = i;
     break;
 	}
     }
@@ -1014,10 +998,10 @@ static void MVRemetric(MetricsView *mv) {
     ti = GGadgetGetList(mv->features,&len);
     for ( i=cnt=0; i<len; ++i )
 	if ( ti[i]->selected ) ++cnt;
-    feats = calloc(cnt+1,sizeof(uint32));
+    feats = calloc(cnt+1,sizeof(uint32_t));
     for ( i=cnt=0; i<len; ++i )
 	if ( ti[i]->selected )
-	    feats[cnt++] = (intpt) ti[i]->userdata;
+	    feats[cnt++] = (intptr_t) ti[i]->userdata;
 
     // Regenerate glyphs for the selected characters according to features, script, and resolution.
     free(mv->glyphs); mv->glyphs = NULL;
@@ -1145,7 +1129,7 @@ static int MV_WidthChanged(GGadget *g, GEvent *e) {
 /* This routines called during "Advanced Width Metrics" viewing */
 /* any time "Width" changed or screen is updated		*/
     MetricsView *mv = GDrawGetUserData(GGadgetGetWindow(g));
-    int which = (intpt) GGadgetGetUserData(g);
+    int which = (intptr_t) GGadgetGetUserData(g);
     int i;
 
     if ( e->type!=et_controlevent )
@@ -1202,7 +1186,7 @@ static int MV_LBearingChanged(GGadget *g, GEvent *e)
 /* This routines called during "Advanced Width Metrics" viewing */
 /* any time "LBrearing" changed or screen is updated		*/
     MetricsView *mv = GDrawGetUserData(GGadgetGetWindow(g));
-    int which = (intpt) GGadgetGetUserData(g);
+    int which = (intptr_t) GGadgetGetUserData(g);
     int i;
 
     if ( e->type!=et_controlevent )
@@ -1245,7 +1229,7 @@ static int MV_RBearingChanged(GGadget *g, GEvent *e) {
 /* This routines called during "Advanced Width Metrics" viewing */
 /* any time "RBrearing" changed or screen is updated		*/
     MetricsView *mv = GDrawGetUserData(GGadgetGetWindow(g));
-    int which = (intpt) GGadgetGetUserData(g);
+    int which = (intptr_t) GGadgetGetUserData(g);
     int i;
 
     if ( e->type!=et_controlevent )
@@ -1387,7 +1371,7 @@ return( false );
 		}
 	    }
 
-	    // avoid dangling refrences to kp
+	    // avoid dangling references to kp
 	    int i = 0;
 	    for( i=0; mv->glyphs[i].sc; i++ ) {
 		if( i!=which && mv->glyphs[i].kp == kp ) {
@@ -1415,7 +1399,7 @@ return( false );
 		MMKern(sc->parent,psc,sc,is_diff?offset:offset-kp->off,sub,kp);
 	}
     }
-    int16 newkernafter = iscale * (offset*mv->pixelsize)/
+    int16_t newkernafter = iscale * (offset*mv->pixelsize)/
 	(mv->sf->ascent+mv->sf->descent);
     mv->perchar[which-1].kernafter = newkernafter;
 
@@ -1440,7 +1424,7 @@ return( false );
      * on the right indexes to update the kern value entry boxes. On
      * the other hand, we have to make sure the guide and glyph
      * display is adjusted accordingly too otherwise the user will not
-     * see the currect kerning for all other digraphs in the same
+     * see the correct kerning for all other digraphs in the same
      * class even thuogh the kerning entry box is updated.
      */
     if( kc && psc && sc )
@@ -1515,11 +1499,9 @@ return( false );
 	    {
 		
 		GGadget *g = mv->perchar[i].kern;
-		unichar_t *end;
-		int val = u_strtol(_GGadgetGetTitle(g),&end,10);
 
 		MV_ChangeKerning_Nested = 1;
-		int which = (intpt) GGadgetGetUserData(g);
+		int which = (intptr_t) GGadgetGetUserData(g);
 		MV_ChangeKerning( mv, which, offset, is_diff );
 		GGadgetSetTitle8( g, tostr(offset) );
 		MV_ChangeKerning_Nested = 0;
@@ -1537,7 +1519,7 @@ static int MV_KernChanged(GGadget *g, GEvent *e) {
 /* This routines called during "Advanced Width Metrics" viewing */
 /* any time "Kern:" changed or screen is updated		*/
     MetricsView *mv = GDrawGetUserData(GGadgetGetWindow(g));
-    int which = (intpt) GGadgetGetUserData(g);
+    int which = (intptr_t) GGadgetGetUserData(g);
     int i;
 
     if ( e->type!=et_controlevent )
@@ -1739,6 +1721,7 @@ static void MVHScroll(MetricsView *mv,struct sbevent *sb) {
       case et_sb_thumbrelease:
         newpos = sb->pos;
       break;
+      case et_sb_halfup: case et_sb_halfdown: break;
     }
     if ( newpos>mv->glyphcnt-cnt )
         newpos = mv->glyphcnt-cnt;
@@ -1768,7 +1751,7 @@ static void MVHScroll(MetricsView *mv,struct sbevent *sb) {
 
 static void MVVScroll(MetricsView *mv,struct sbevent *sb) {
     int newpos = mv->yoff;
-    int32 min, max, page;
+    int32_t min, max, page;
 
     GScrollBarGetBounds(mv->vsb,&min,&max,&page);
     switch( sb->type ) {
@@ -1794,6 +1777,7 @@ static void MVVScroll(MetricsView *mv,struct sbevent *sb) {
       case et_sb_thumbrelease:
         newpos = sb->pos;
       break;
+      case et_sb_halfup: case et_sb_halfdown: break;
     }
     if ( newpos>max-page )
         newpos = max-page;
@@ -1920,21 +1904,19 @@ static void MVTextChanged(MetricsView *mv) {
     const unichar_t *ret = 0, *pt, *ept, *tpt;
     int i,ei, j, start=0, end=0;
     int missing;
-    int direction_change = false;
     SplineChar **hold = NULL;
 
     ret = _GGadgetGetTitle(mv->text);
 
-    // convert the slash escpae codes and the like to the real string we will use
+    // convert the slash escape codes and the like to the real string we will use
     // for the metrics window
     WordListLine wll = WordlistEscapedInputStringToParsedDataComplex(
     	mv->sf, _GGadgetGetTitle(mv->text),
     	WordlistEscapedInputStringToRealString_getFakeUnicodeAs_MVFakeUnicodeOfSc, mv );
     ret = WordListLine_toustr( wll );
 
-    if (( ret[0]<0x10000 && isrighttoleft(ret[0]) && !mv->right_to_left ) ||
-	    ( ret[0]<0x10000 && !isrighttoleft(ret[0]) && mv->right_to_left )) {
-	direction_change = true;
+    if (( isrighttoleft(ret[0]) && !mv->right_to_left ) ||
+	    ( !isrighttoleft(ret[0]) && mv->right_to_left )) {
 	mv->right_to_left = !mv->right_to_left;
     }
     for ( pt=ret, i=0; i<mv->clen && *pt!='\0'; ++i, ++pt )
@@ -2009,7 +1991,7 @@ return;					/* Nothing changed */
     if( !gt )
     {
 	GTextInfo **ti=NULL;
-	int32 len;
+	int32_t len;
 	ti = GGadgetGetList(mv->text,&len);
 	if( len )
 	    gt = ti[0];
@@ -2096,10 +2078,10 @@ static int MV_TextChanged(GGadget *g, GEvent *e) {
 	MetricsView *mv = GGadgetGetUserData(g);
 	int pos = e->u.control.u.tf_changed.from_pulldown;
 	if ( pos!=-1 ) {
-	    int32 len;
+	    int32_t len;
 	    GTextInfo **ti = GGadgetGetList(g,&len);
 	    GTextInfo *cur = ti[pos];
-	    int type = (intpt) cur->userdata;
+	    int type = (intptr_t) cur->userdata;
 	    if ( type < 0 )
 		MVLoadWordList(mv,type);
 	    else if ( cur->text!=NULL ) {
@@ -2149,14 +2131,14 @@ return( true );
 }
 
 void MV_FriendlyFeatures(GGadget *g, int pos) {
-    int32 len;
+    int32_t len;
     GTextInfo **ti = GGadgetGetList(g,&len);
 
     if ( pos<0 || pos>=len )
 	GGadgetEndPopup();
     else {
 	const unichar_t *pt = ti[pos]->text;
-	uint32 tag;
+	uint32_t tag;
 	int i;
 	tag = (pt[0]<<24) | (pt[1]<<16) | (pt[2]<<8) | pt[3];
 	LookupUIInit();
@@ -2172,7 +2154,7 @@ static int MV_SubtableChanged(GGadget *g, GEvent *e) {
 
     if ( e->type==et_controlevent && e->u.control.subtype == et_listselected ) {
 	MetricsView *mv = GGadgetGetUserData(g);
-	int32 len;
+	int32_t len;
 	GTextInfo **ti = GGadgetGetList(g,&len);
 	int i;
 	KernPair *kp;
@@ -2255,6 +2237,7 @@ return( true );
 #define MID_FindInter	2230
 #define MID_Effects	2231
 #define MID_SimplifyMore	2232
+#define MID_AddInflections	2256
 #define MID_Center	2600
 #define MID_OpenBitmap	2700
 #define MID_OpenOutline	2701
@@ -2539,7 +2522,7 @@ return;
 return;
     SCPreserveLayer(mv->glyphs[i].sc, mv->layer, false);
     mv->glyphs[i].sc->layers[mv->layer].splines =
-        SplineSetJoin(mv->glyphs[i].sc->layers[mv->layer].splines, true, joinsnap, &changed);
+        SplineSetJoin(mv->glyphs[i].sc->layers[mv->layer].splines, true, joinsnap, &changed, true);
     if ( changed )
         SCCharChangedUpdate(mv->glyphs[i].sc, mv->layer);
 }
@@ -2802,6 +2785,20 @@ static void MVMenuAddExtrema(GWindow gw, struct gmenuitem *UNUSED(mi), GEvent *U
         SplineChar *sc = mv->glyphs[i].sc;
         SCPreserveLayer(sc, mv->layer, false);
         SplineCharAddExtrema(sc, sc->layers[mv->layer].splines, ae_only_good, emsize);
+        SCCharChangedUpdate(sc, mv->layer);
+    }
+}
+
+static void MVMenuAddInflections(GWindow gw, struct gmenuitem *UNUSED(mi), GEvent *UNUSED(e)) {
+    MetricsView *mv = (MetricsView *) GDrawGetUserData(gw);
+    int i;
+    for ( i=mv->glyphcnt-1; i>=0; --i )
+        if ( mv->perchar[i].selected )
+    break;
+    if ( i!=-1 ) {
+        SplineChar *sc = mv->glyphs[i].sc;
+        SCPreserveLayer(sc, mv->layer, false);
+        SplineCharAddInflections(sc, sc->layers[mv->layer].splines, false);
         SCCharChangedUpdate(sc, mv->layer);
     }
 }
@@ -3157,8 +3154,8 @@ static void MVMenuShowBitmap(GWindow gw, struct gmenuitem *mi, GEvent *UNUSED(e)
 static void MVMoveInWordListByOffset( MetricsView *mv, int offset )
 {
     if ( mv->word_index!=-1 ) {
-	int32 len;
-	GTextInfo **ti = GGadgetGetList(mv->text,&len);
+	int32_t len;
+	GGadgetGetList(mv->text,&len);
 	/* We subtract 3 because: There are two lines saying "load * list" */
 	/*  and then a line with a rule on it which we don't want access to */
 	if ( mv->word_index+offset >=0 && mv->word_index+offset<len-3 ) {
@@ -3170,7 +3167,6 @@ static void MVMoveInWordListByOffset( MetricsView *mv, int offset )
 		MVFigureGlyphNames(mv,tit+1);
 	    else
 		MVTextChanged(mv);
-	    ti = NULL;
 	}
     }
 }
@@ -3244,6 +3240,7 @@ return( false );
       case et_close:
 	pxsz->done = true;
       break;
+      default: break;
     }
 return( true );
 }
@@ -3523,7 +3520,10 @@ static GMenuItem2 fllist[] = {
     { { (unichar_t *) N_("_Print..."), (GImage *) "fileprint.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'P' }, H_("Print...|No Shortcut"), NULL, NULL, MVMenuPrint, 0 },
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, 0, '\0' }, NULL, NULL, NULL, NULL, 0 }, /* line */
     { { (unichar_t *) N_("Pr_eferences..."), (GImage *) "fileprefs.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("Preferences...|No Shortcut"), NULL, NULL, MenuPrefs, 0 },
-    { { (unichar_t *) N_("_X Resource Editor..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("X Resource Editor...|No Shortcut"), NULL, NULL, MenuXRes, 0 },
+    { { (unichar_t *) N_("Appea_rance Editor..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("Appearance Editor...|No Shortcut"), NULL, NULL, MenuXRes, 0 },
+#ifndef _NO_PYTHON
+    { { (unichar_t *) N_("Config_ure Plugins..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'u' }, H_("Configure Plugins...|No Shortcut"), NULL, NULL, MenuPlug, 0 },
+#endif
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, 0, '\0' }, NULL, NULL, NULL, NULL, 0 }, /* line */
     { { (unichar_t *) N_("_Quit"), (GImage *) "filequit.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'Q' }, H_("Quit|No Shortcut"), NULL, NULL, MenuExit, 0 },
     GMENUITEM2_EMPTY
@@ -3617,6 +3617,7 @@ static GMenuItem2 ellist[] = {
     { { (unichar_t *) N_("_Remove Overlap"), (GImage *) "rmoverlap.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'O' }, H_("Remove Overlap|No Shortcut"), rmlist, NULL, NULL, MID_RmOverlap },
     { { (unichar_t *) N_("_Simplify"), (GImage *) "elementsimplify.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'S' }, H_("Simplify|No Shortcut"), smlist, NULL, NULL, MID_Simplify },
     { { (unichar_t *) N_("Add E_xtrema"), (GImage *) "elementaddextrema.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'x' }, H_("Add Extrema|No Shortcut"), NULL, NULL, MVMenuAddExtrema, MID_AddExtrema },
+    { { (unichar_t *) N_("Add Points Of I_nflection"), (GImage *) "elementaddinflections.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'n' }, H_("Add Points Of Inflection|No Shortcut"), NULL, NULL, MVMenuAddInflections, MID_AddInflections },
     { { (unichar_t *) N_("To _Int"), (GImage *) "elementround.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'I' }, H_("To Int|No Shortcut"), NULL, NULL, MVMenuRound2Int, MID_Round },
     { { (unichar_t *) N_("Effects"), (GImage *) "elementstyles.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, '\0' }, H_("Effects|No Shortcut"), eflist, NULL, NULL, MID_Effects },
     { { (unichar_t *) N_("Autot_race"), (GImage *) "elementautotrace.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'r' }, H_("Autotrace|No Shortcut"), NULL, NULL, MVMenuAutotrace, MID_Autotrace },
@@ -3940,8 +3941,7 @@ static void ellistcheck(GWindow gw, struct gmenuitem *mi, GEvent *UNUSED(e)) {
 	  case MID_RmOverlap: case MID_Stroke:
 	    mi->ti.disabled = sc==NULL || mv->sf->onlybitmaps;
 	  break;
-	  case MID_AddExtrema:
-	  case MID_Round: case MID_Correct:
+	  case MID_AddExtrema: case MID_AddInflections: case MID_Round: case MID_Correct:
 	    mi->ti.disabled = sc==NULL || mv->sf->onlybitmaps;
 	  break;
 #ifdef FONTFORGE_CONFIG_TILEPATH
@@ -4823,7 +4823,7 @@ static void MVDrop(MetricsView *mv,GEvent *event) {
     int x,ex = event->u.drag_drop.x + mv->xoff;
     int y,ey = event->u.drag_drop.y + mv->yoff;
     int within, i, cnt, ch;
-    int32 len;
+    int32_t len;
     char *cnames, *start, *pt;
     unichar_t *newtext;
     const unichar_t *oldtext;
@@ -4955,6 +4955,7 @@ return( true );
       case et_drop:
 	MVDrop(mv,event);
       break;
+      default: break;
     }
 return( true );
 }
@@ -4962,7 +4963,6 @@ return( true );
 static int mv_e_h(GWindow gw, GEvent *event) {
     MetricsView *mv = (MetricsView *) GDrawGetUserData(gw);
     SplineFont *sf;
-    GGadget *active = 0;
 //    printf("mv_e_h()  event->type:%d\n", event->type );
 
     switch ( event->type ) {
@@ -5010,7 +5010,6 @@ static int mv_e_h(GWindow gw, GEvent *event) {
 #endif // 0
       break;
       case et_mouseup: case et_mousemove: case et_mousedown:
-          active = GWindowGetFocusGadgetOfWindow(mv->gw);
           if( GGadgetContainsEventLocation( mv->textPrev, event ))
           {
               GGadgetPreparePopup(mv->gw,c_to_u("Show the previous word in the current word list\n"
@@ -5065,6 +5064,7 @@ return( true );
 	    else
 		MVVScroll(mv,&event->u.control.u.sb);
 	  break;
+	  default: break;
 	}
       break;
       case et_close:
@@ -5085,12 +5085,13 @@ return( true );
       break;
       case et_focus:
       break;
+      default: break;
     }
 return( true );
 }
 
 GTextInfo *SLOfFont(SplineFont *sf) {
-    uint32 *scripttags, *langtags;
+    uint32_t *scripttags, *langtags;
     int s, l, i, k, cnt;
     extern GTextInfo scripts[], languages[];
     GTextInfo *ret = NULL;
@@ -5107,7 +5108,7 @@ return( NULL );
 	for ( s=0; scripttags[s]!=0; ++s ) {
 	    if ( k ) {
 		for ( i=0; scripts[i].text!=NULL; ++i )
-		    if ( scripttags[s] == (intpt) (scripts[i].userdata))
+		    if ( scripttags[s] == (intptr_t) (scripts[i].userdata))
 		break;
 		sname = (char *) (scripts[i].text);
 		sbuf[0] = scripttags[s]>>24;
@@ -5123,7 +5124,7 @@ return( NULL );
 	    for ( l=0; langtags[l]!=0; ++l ) {
 		if ( k ) {
 		    for ( i=0; languages[i].text!=NULL; ++i )
-			if ( langtags[l] == (intpt) (languages[i].userdata))
+			if ( langtags[l] == (intptr_t) (languages[i].userdata))
 		    break;
 		    lname = (char *) (languages[i].text);
 		    lbuf[0] = langtags[l]>>24;
@@ -5186,7 +5187,6 @@ MetricsView *MetricsViewCreate(FontView *fv,SplineChar *sc,BDFFont *bdf) {
     GGadgetData gd;
     GRect gsize;
     MetricsView *mv = calloc(1,sizeof(MetricsView));
-    FontRequest rq;
     static GWindow icon = NULL;
     extern int _GScrollBar_Width;
     // The maximum length of a glyph's name is 31 chars:
@@ -5198,7 +5198,6 @@ MetricsView *MetricsViewCreate(FontView *fv,SplineChar *sc,BDFFont *bdf) {
     GTextInfo label;
     int i,j,cnt;
     int as,ds,ld;
-    static GFont *mvfont=NULL;
     SplineFont *master = fv->b.sf->cidmaster ? fv->b.sf->cidmaster : fv->b.sf;
 
     MetricsViewInit();
@@ -5259,15 +5258,7 @@ MetricsView *MetricsViewCreate(FontView *fv,SplineChar *sc,BDFFont *bdf) {
     gd.flags = gg_visible|gg_enabled|gg_pos_in_pixels|gg_sb_vert;
     mv->vsb = GScrollBarCreate(gw,&gd,mv);
 
-    if ( mvfont==NULL ) {
-	memset(&rq,0,sizeof(rq));
-	rq.utf8_family_name = SANS_UI_FAMILIES;
-	rq.point_size = -12;
-	rq.weight = 400;
-	mvfont = GDrawInstanciateFont(gw,&rq);
-	mvfont = GResourceFindFont("MetricsView.Font",mvfont);
-    }
-    mv->font = mvfont;
+    mv->font = mv_font.fi;
     GDrawWindowFontMetrics(gw,mv->font,&as,&ds,&ld);
     mv->fh = as+ds; mv->as = as;
 
@@ -5291,7 +5282,8 @@ MetricsView *MetricsViewCreate(FontView *fv,SplineChar *sc,BDFFont *bdf) {
 
     for ( cnt=0; cnt<mv->clen; ++cnt ) {
         int cp = mv->chars[cnt]->unicodeenc;
-        if ( cp != -1 && strchr("#[]/\\", cp) == NULL)
+        static const unichar_t metricsview_tokens[] = {'#', '[', ']', '/', '\\', '\0'};
+        if ( cp != -1 && u_strchr(metricsview_tokens, cp) == NULL )
 	    pt = utf8_idpb(pt,cp,0);
         else {
             *pt = '/'; pt++;
@@ -5385,7 +5377,6 @@ MetricsView *MetricsViewCreate(FontView *fv,SplineChar *sc,BDFFont *bdf) {
 
     GDrawSetVisible(mv->v,true);
     GDrawSetVisible(gw,true);
-    /*GWidgetHidePalettes();*/
     free(buf);
 return( mv );
 }
@@ -5459,31 +5450,45 @@ struct mv_interface gdraw_mv_interface = {
     MV_CloseAll
 };
 
+static int MetricsViewRIInit(GResInfo *ri) {
+    extern GResInfo fontview_ri;
+    extern Color fvfgcol;
+    if ( ri->is_initialized )
+        return false;
+    GResEditDoInit(&fontview_ri);
+    glyphcol = fvfgcol;
+    dividercol = GDrawGetDefaultForeground(NULL);
+    return _GResEditInitialize(ri);
+}
+
 static struct resed metricsview_re[] = {
+    {N_("Glyph Color"), "GlyphColor", rt_color, &glyphcol, N_("Foreground color of glyph area"), NULL, { 0 }, 0, 0 },
+    {N_("Selected Glyph Col"), "SelectedGlyphColor", rt_color, &selglyphcol, N_("Color used to mark the selected glyph"), NULL, { 0 }, 0, 0 },
+    {N_("Divider Color"), "DividerColor", rt_color, &dividercol, N_("Color of field divider lines"), NULL, { 0 }, 0, 0 },
     {N_("Advance Width Col"), "AdvanceWidthColor", rt_color, &widthcol, N_("Color used to draw the advance width line of a glyph"), NULL, { 0 }, 0, 0 },
     {N_("Italic Advance Col"), "ItalicAdvanceColor", rt_color, &widthcol, N_("Color used to draw the italic advance width line of a glyph"), NULL, { 0 }, 0, 0 },
     {N_("Kern Line Color"), "KernLineColor", rt_color, &kernlinecol, N_("Color used to draw the kerning line"), NULL, { 0 }, 0, 0 },
     {N_("Side Bearing Color"), "SideBearingLineColor", rt_color, &rbearinglinecol, N_("Color used to draw the left side bearing"), NULL, { 0 }, 0, 0 },
-    {N_("Selected Glyph Col"), "SelectedGlyphColor", rt_color, &selglyphcol, N_("Color used to mark the selected glyph"), NULL, { 0 }, 0, 0 },
     RESED_EMPTY
 };
-extern GResInfo view_ri;
+extern GResInfo miscwin_ri;
 GResInfo metricsview_ri = {
-    &view_ri, NULL,NULL, NULL,
+    &miscwin_ri, NULL,NULL, NULL,
     NULL,
-    NULL,
+    &mv_font,
     NULL,
     metricsview_re,
-    N_("MetricsView"),
+    N_("Metrics View"),
     N_("This window displays metrics information about a font"),
     "MetricsView",
     "fontforge",
     false,
+    false,
     0,
-    NULL,
+    GBOX_EMPTY,
     GBOX_EMPTY,
     NULL,
-    NULL,
+    MetricsViewRIInit,
     NULL
 };
 
@@ -5506,9 +5511,6 @@ void MVSelectFirstKerningTable(struct metricsview *mv)
 	return;
     }
 
-    GTextInfo **ti=NULL;
-    int32 len;
-    ti = GGadgetGetList(mv->features,&len);
     GGadgetSelectOneListItem(mv->features,0);
     MVRemetric(mv);
     GDrawRequestExpose(mv->v,NULL,false);

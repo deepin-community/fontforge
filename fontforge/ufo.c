@@ -28,7 +28,6 @@
 #include <fontforge-config.h>
 
 #include "autohint.h"
-#include "chardata.h"
 #include "dumppfa.h"
 #include "featurefile.h"
 #include "fontforgevw.h"
@@ -60,13 +59,6 @@
 
 #undef extended			/* used in xlink.h */
 #include <libxml/tree.h>
-
-#ifndef HAVE_ICONV_H
-# undef iconv
-# undef iconv_t
-# undef iconv_open
-# undef iconv_close
-#endif
 #include <libxml/parser.h>
 
 /* The UFO (Unified Font Object) format ( http://unifiedfontobject.org/ ) */
@@ -163,7 +155,6 @@ char * ufo_name_mangle(const char * input, const char * prefix, const char * suf
   size_t prefix_length = strlen(prefix);
   size_t max_length = 255 - prefix_length - strlen(suffix);
   size_t input_length = strlen(input);
-  size_t stop_pos = ((max_length < input_length) ? max_length : input_length); // Minimum.
   size_t output_length_1 = input_length;
   if (flags & 1) output_length_1 += count_caps(input); // Add space for underscore pads on caps.
   off_t output_pos = 0;
@@ -291,29 +282,6 @@ static xmlNodePtr xmlNewNodeInteger(xmlNsPtr ns, const xmlChar * name, long int 
   }
   return childtmp;
 }
-static xmlNodePtr xmlNewChildFloat(xmlNodePtr parent, xmlNsPtr ns, const xmlChar * name, double value) {
-  char * valtmp = smprintf("%g", value);
-  // Textify the value to be enclosed.
-  if (valtmp != NULL) {
-    xmlNodePtr childtmp = xmlNewChild(parent, NULL, BAD_CAST name, BAD_CAST valtmp); // Make a text node for the value.
-    free(valtmp); valtmp = NULL; // Free the temporary text store.
-    return childtmp;
-  }
-  return NULL;
-}
-static xmlNodePtr xmlNewNodeFloat(xmlNsPtr ns, const xmlChar * name, double value) {
-  char * valtmp = smprintf("%g", value);
-  xmlNodePtr childtmp = xmlNewNode(NULL, BAD_CAST name); // Create a named node.
-  // Textify the value to be enclosed.
-  if (valtmp != NULL) {
-    xmlNodePtr valtmpxml = xmlNewText(BAD_CAST valtmp); // Make a text node for the value.
-    xmlAddChild(childtmp, valtmpxml); // Attach the text node as content of the named node.
-    free(valtmp); valtmp = NULL; // Free the temporary text store.
-  } else {
-    xmlFreeNode(childtmp); childtmp = NULL;
-  }
-  return NULL;
-}
 static xmlNodePtr xmlNewChildString(xmlNodePtr parent, xmlNsPtr ns, const xmlChar * name, char * value) {
   xmlNodePtr childtmp = xmlNewTextChild(parent, ns, BAD_CAST name, BAD_CAST value); // Make a text node for the value.
   return childtmp;
@@ -335,13 +303,6 @@ static xmlNodePtr xmlNewNodeVPrintf(xmlNsPtr ns, const xmlChar * name, char * fo
   free(valtmp); valtmp = NULL; // Free the temporary text store.
   return childtmp;
 }
-static xmlNodePtr xmlNewNodePrintf(xmlNsPtr ns, const xmlChar * name, char * format, ...) {
-  va_list arguments;
-  va_start(arguments, format);
-  xmlNodePtr output = xmlNewNodeVPrintf(ns, name, format, arguments);
-  va_end(arguments);
-  return output;
-}
 static xmlNodePtr xmlNewChildVPrintf(xmlNodePtr parent, xmlNsPtr ns, const xmlChar * name, char * format, va_list arguments) {
   xmlNodePtr output = xmlNewNodeVPrintf(ns, name, format, arguments);
   xmlAddChild(parent, output);
@@ -360,7 +321,7 @@ static void xmlSetPropVPrintf(xmlNodePtr target, const xmlChar * name, char * fo
   if (valtmp == NULL) {
     return;
   }
-  xmlSetProp(target, name, valtmp); // Set the property.
+  xmlSetProp(target, name, BAD_CAST valtmp); // Set the property.
   free(valtmp); valtmp = NULL; // Free the temporary text store.
   return;
 }
@@ -393,16 +354,13 @@ static char* normalizeToASCII(char *str) {
 xmlDocPtr PlistInit() {
     // Some of this code is pasted from libxml2 samples.
     xmlDocPtr doc = NULL;
-    xmlNodePtr root_node = NULL, dict_node = NULL;
-    xmlDtdPtr dtd = NULL;
+    xmlNodePtr root_node = NULL;
     
-    char buff[256];
-    int i, j;
 
     LIBXML_TEST_VERSION;
 
     doc = xmlNewDoc(BAD_CAST "1.0");
-    dtd = xmlCreateIntSubset(doc, BAD_CAST "plist", BAD_CAST "-//Apple Computer//DTD PLIST 1.0//EN", BAD_CAST "http://www.apple.com/DTDs/PropertyList-1.0.dtd");
+    xmlCreateIntSubset(doc, BAD_CAST "plist", BAD_CAST "-//Apple Computer//DTD PLIST 1.0//EN", BAD_CAST "http://www.apple.com/DTDs/PropertyList-1.0.dtd");
     root_node = xmlNewNode(NULL, BAD_CAST "plist");
     xmlSetProp(root_node, BAD_CAST "version", BAD_CAST "1.0");
     xmlDocSetRootElement(doc, root_node);
@@ -444,7 +402,7 @@ static void PListAddDate(xmlNodePtr parent, const char *key, time_t timestamp) {
 
 void PListAddString(xmlNodePtr parent, const char *key, const char *value) {
     if ( value==NULL ) value = "";
-    xmlNodePtr keynode = xmlNewChild(parent, NULL, BAD_CAST "key", BAD_CAST key); // "<key>%s</key>" key
+    xmlNewChild(parent, NULL, BAD_CAST "key", BAD_CAST key); // "<key>%s</key>" key
 #ifdef ESCAPE_LIBXML_STRINGS
     size_t main_size = strlen(value) +
                        (count_occurrence(value, "<") * (strlen("&lt")-strlen("<"))) +
@@ -468,9 +426,9 @@ void PListAddString(xmlNodePtr parent, const char *key, const char *value) {
         }
 	++value;
     }
-    xmlNodePtr valnode = xmlNewChild(parent, NULL, BAD_CAST "string", tmpstring); // "<string>%s</string>" tmpstring
+    xmlNewChild(parent, NULL, BAD_CAST "string", BAD_CAST tmpstring); // "<string>%s</string>" tmpstring
 #else
-    xmlNodePtr valnode = xmlNewTextChild(parent, NULL, BAD_CAST "string", value); // "<string>%s</string>" tmpstring
+  xmlNewTextChild(parent, NULL, BAD_CAST "string", BAD_CAST value); // "<string>%s</string>" tmpstring
 #endif
 }
 
@@ -542,9 +500,9 @@ return;
         tmp[tmppos] = '\0';
         if (tmp != NULL) {
           if (havedot)
-            xmlNewChildString(arrayxml, NULL, BAD_CAST "real", BAD_CAST tmp); // "<real>%s</real>" tmp
+            xmlNewChildString(arrayxml, NULL, BAD_CAST "real", tmp); // "<real>%s</real>" tmp
           else
-            xmlNewChildString(arrayxml, NULL, BAD_CAST "integer", BAD_CAST tmp); // "<integer>%s</integer>" tmp
+            xmlNewChildString(arrayxml, NULL, BAD_CAST "integer", tmp); // "<integer>%s</integer>" tmp
           free(tmp); tmp = NULL;
         }
 	while ( *value==' ' ) ++value;
@@ -585,9 +543,9 @@ static void PListAddPrivateThing(xmlNodePtr parent, const char *key, struct psdi
         tmp[tmppos] = '\0';
         if (tmp != NULL) {
           if (havedot)
-            xmlNewChildString(parent, NULL, BAD_CAST "real", BAD_CAST tmp); // "<real>%s</real>" tmp
+            xmlNewChildString(parent, NULL, BAD_CAST "real", tmp); // "<real>%s</real>" tmp
           else
-            xmlNewChildString(parent, NULL, BAD_CAST "integer", BAD_CAST tmp); // "<integer>%s</integer>" tmp
+            xmlNewChildString(parent, NULL, BAD_CAST "integer", tmp); // "<integer>%s</integer>" tmp
           free(tmp); tmp = NULL;
         }
 	while ( *value==' ' ) ++value;
@@ -614,7 +572,7 @@ int stringInStrings(const char *target, const char **reference) {
 
 xmlNodePtr PythonLibToXML(void *python_persistent, const SplineChar *sc, int has_lists) {
     int has_hints = (sc!=NULL && (sc->hstem!=NULL || sc->vstem!=NULL ));
-    xmlNodePtr retval = NULL, dictnode = NULL, keynode = NULL, valnode = NULL;
+    xmlNodePtr retval = NULL, dictnode = NULL;
     // retval = xmlNewNode(NULL, BAD_CAST "lib"); //     "<lib>"
     dictnode = xmlNewNode(NULL, BAD_CAST "dict"); //     "  <dict>"
     if ( has_hints 
@@ -639,14 +597,13 @@ xmlNodePtr PythonLibToXML(void *python_persistent, const SplineChar *sc, int has
                     //                                   "      <array>"
                     xmlNodePtr hintarray = xmlNewChild(hintdict, NULL, BAD_CAST "array", NULL);
                     for ( h = sc->hstem; h!=NULL; h=h->next ) {
-                        char * valtmp = NULL;
                         xmlNodePtr stemdict = xmlNewChild(hintarray, NULL, BAD_CAST "dict", NULL);
 		        //                               "        <dict>"
-                        xmlNewChild(stemdict, NULL, BAD_CAST "key", "position");
+                        xmlNewChild(stemdict, NULL, BAD_CAST "key", BAD_CAST "position");
 		        //                               "          <key>position</key>"
                         xmlNewChildInteger(stemdict, NULL, BAD_CAST "integer", (int) rint(h->start));
 		        //                               "          <integer>%d</integer>\n" ((int) rint(h->start))
-                        xmlNewChild(stemdict, NULL, BAD_CAST "key", "width");
+                        xmlNewChild(stemdict, NULL, BAD_CAST "key", BAD_CAST "width");
 		        //                               "          <key>width</key>"
                         xmlNewChildInteger(stemdict, NULL, BAD_CAST "integer", (int) rint(h->width));
 		        //                               "          <integer>%d</integer>\n" ((int) rint(h->width))
@@ -661,14 +618,13 @@ xmlNodePtr PythonLibToXML(void *python_persistent, const SplineChar *sc, int has
                     //                                   "      <array>"
                     xmlNodePtr hintarray = xmlNewChild(hintdict, NULL, BAD_CAST "array", NULL);
                     for ( h = sc->vstem; h!=NULL; h=h->next ) {
-                        char * valtmp = NULL;
                         xmlNodePtr stemdict = xmlNewChild(hintarray, NULL, BAD_CAST "dict", NULL);
                         //                               "        <dict>"
-                        xmlNewChild(stemdict, NULL, BAD_CAST "key", "position");
+                        xmlNewChild(stemdict, NULL, BAD_CAST "key", BAD_CAST "position");
                         //                               "          <key>position</key>"
                         xmlNewChildInteger(stemdict, NULL, BAD_CAST "integer", (int) rint(h->start));
                         //                               "          <integer>%d</integer>\n" ((int) rint(h->start))
-                        xmlNewChild(stemdict, NULL, BAD_CAST "key", "width");
+                        xmlNewChild(stemdict, NULL, BAD_CAST "key", BAD_CAST "width");
                         //                               "          <key>width</key>"
                         xmlNewChildInteger(stemdict, NULL, BAD_CAST "integer", (int) rint(h->width));
                         //                               "          <integer>%d</integer>\n" ((int) rint(h->width))
@@ -736,7 +692,7 @@ xmlNodePtr PyObjectToXML( PyObject *value, int has_lists ) {
       // So we miss foreign data in old S. F. D. versions.
       // childtmp = xmlNewNode(NULL, (xmlChar*)(PyBytes_AsString(PyTuple_GetItem(value,0)))); // Set name.
       // xmlNodeSetContent(childtmp, (xmlChar*)(PyBytes_AsString(PyTuple_GetItem(value,1)))); // Set contents.
-      xmlDocPtr innerdoc = xmlReadMemory((xmlChar*)(PyBytes_AsString(PyTuple_GetItem(value,1))),
+      xmlDocPtr innerdoc = xmlReadMemory(PyBytes_AsString(PyTuple_GetItem(value,1)),
                                          PyBytes_Size(PyTuple_GetItem(value,1)), "noname.xml", NULL, 0);
       childtmp = xmlCopyNode(xmlDocGetRootElement(innerdoc), 1);
       xmlFreeDoc(innerdoc); innerdoc = NULL;
@@ -816,7 +772,7 @@ xmlNodePtr PythonDictToXML(PyObject *dict, xmlNodePtr target, const char **exclu
 		if ( !value || !PyObjDumpable(value, has_lists))
 			{ Py_DECREF(item); item = NULL; continue; }
 		// "<key>%s</key>" str
-		xmlNewChild(target, NULL, BAD_CAST "key", str);
+		xmlNewChild(target, NULL, BAD_CAST "key", BAD_CAST str);
 		xmlNodePtr tmpNode = PyObjectToXML(value, has_lists);
 		xmlAddChild(target, tmpNode);
 		// "<...>...</...>"
@@ -830,12 +786,6 @@ xmlNodePtr PythonDictToXML(PyObject *dict, xmlNodePtr target, const char **exclu
 /* ****************************   GLIF Output    **************************** */
 /* ************************************************************************** */
 
-static int refcomp(const void *_r1, const void *_r2) {
-    const RefChar *ref1 = *(RefChar * const *)_r1;
-    const RefChar *ref2 = *(RefChar * const *)_r2;
-return( strcmp( ref1->sc->name, ref2->sc->name) );
-}
-
 xmlNodePtr _GlifToXML(const SplineChar *sc, int layer, int version) {
     if (layer > sc->layer_cnt) return NULL;
     const struct altuni *altuni;
@@ -844,7 +794,6 @@ xmlNodePtr _GlifToXML(const SplineChar *sc, int layer, int version) {
     const SplinePoint *sp;
     const AnchorPoint *ap;
     const RefChar *ref;
-    int err;
     char * stringtmp = NULL;
     char numstring[32];
     memset(numstring, 0, sizeof(numstring));
@@ -855,11 +804,11 @@ xmlNodePtr _GlifToXML(const SplineChar *sc, int layer, int version) {
     // Perhaps we need to make one.
 
     xmlNodePtr topglyphxml = xmlNewNode(NULL, BAD_CAST "glyph"); // Create the glyph node.
-    xmlSetProp(topglyphxml, "name", sc->name); // Set the name for the glyph.
+    xmlSetProp(topglyphxml, BAD_CAST "name", BAD_CAST sc->name); // Set the name for the glyph.
     char *formatString = "1";
     // If UFO is version 1 or 2, use "1" for format. Otherwise, use "2".
     if (version >= 3) formatString = "2";
-    xmlSetProp(topglyphxml, "format", formatString); // Set the format of the glyph.
+    xmlSetProp(topglyphxml, BAD_CAST "format", BAD_CAST formatString); // Set the format of the glyph.
     // "<glyph name=\"%s\" format=\"1\">" sc->name
 
     xmlNodePtr tmpxml2 = xmlNewChild(topglyphxml, NULL, BAD_CAST "advance", NULL); // Create the advance node.
@@ -867,7 +816,7 @@ xmlNodePtr _GlifToXML(const SplineChar *sc, int layer, int version) {
     if ( sc->parent->hasvmetrics ) {
       stringtmp = smprintf("%d", sc->width);
       if (stringtmp != NULL) {
-        xmlSetProp(tmpxml2, BAD_CAST "height", stringtmp);
+        xmlSetProp(tmpxml2, BAD_CAST "height", BAD_CAST stringtmp);
         free(stringtmp); stringtmp = NULL;
       }
     }
@@ -900,7 +849,7 @@ xmlNodePtr _GlifToXML(const SplineChar *sc, int layer, int version) {
 		        xmlSetPropPrintf(guidelinexml, BAD_CAST "angle", "%g", fmod(gl->angle + 360, 360));
 		    if (gl->name != NULL)
 		        xmlSetPropPrintf(guidelinexml, BAD_CAST "name", "%s", gl->name);
-		    if (gl->flags & 0x20) // color is set. Repack RGBA from a uint32 to a string with 0-1 scaled values comma-joined.
+		    if (gl->flags & 0x20) // color is set. Repack RGBA from a uint32_t to a string with 0-1 scaled values comma-joined.
 		        xmlSetPropPrintf(guidelinexml, BAD_CAST "color", "%g,%g,%g,%g",
 		        (((double)((gl->color >> 24) & 0xFF)) / 255),
 		        (((double)((gl->color >> 16) & 0xFF)) / 255),
@@ -971,7 +920,7 @@ xmlNodePtr _GlifToXML(const SplineChar *sc, int layer, int version) {
 		  xmlNodePtr pointxml = xmlNewChild(contourxml, NULL, BAD_CAST "point", NULL);
 		  xmlSetPropPrintf(pointxml, BAD_CAST "x", "%g", (double)sp->me.x);
 		  xmlSetPropPrintf(pointxml, BAD_CAST "y", "%g", (double)sp->me.y);
-		  xmlSetPropPrintf(pointxml, BAD_CAST "type", BAD_CAST (
+		  xmlSetPropPrintf(pointxml, BAD_CAST "type", (
 		  sp->prev==NULL        ? "move"   :
 					sp->noprevcp ? "line"   :
 					isquad 		      ? "qcurve" :
@@ -1017,17 +966,11 @@ xmlNodePtr _GlifToXML(const SplineChar *sc, int layer, int version) {
 	    refs = malloc(cnt*sizeof(RefChar *));
 	    for ( cnt=0, ref = sc->layers[layer].refs; ref!=NULL; ref=ref->next ) if ((SCWorthOutputting(ref->sc) || SCHasData(ref->sc) || ref->sc->glif_name != NULL))
 		refs[cnt++] = ref;
-	    // It seems that sorting these breaks something.
-#if 0
-	    if ( cnt>1 )
-		qsort(refs,cnt,sizeof(RefChar *),refcomp);
-#endif // 0
 	    for ( i=0; i<cnt; ++i ) {
 		ref = refs[i];
     xmlNodePtr componentxml = xmlNewChild(outlinexml, NULL, BAD_CAST "component", NULL);
     xmlSetPropPrintf(componentxml, BAD_CAST "base", "%s", ref->sc->name);
 		// "<component base=\"%s\"" ref->sc->name
-    char *floattmp = NULL;
 		if ( ref->transform[0]!=1 ) {
                   xmlSetPropPrintf(componentxml, BAD_CAST "xScale", "%g", (double) ref->transform[0]);
 		    // "xScale=\"%g\"" (double)ref->transform[0]
@@ -1188,16 +1131,11 @@ static int UFOOutputMetaInfo(const char *basedir, SplineFont *sf, int version) {
     return true;
 }
 
-static real PointsDistance(BasePoint p0, BasePoint p1) {
-	return sqrt(pow((p1.x - p0.x), 2) + pow((p1.y - p0.y), 2));
-}
-
 static real AngleFromPoints(BasePoint p0, BasePoint p1) {
 	return atan2(p1.y - p0.y, p1.x - p0.x);
 }
 
 static GuidelineSet *SplineToGuideline(SplineFont *sf, SplineSet *ss) {
-	SplinePoint *sp1, *sp2;
 	if (ss == NULL) return NULL;
 	if (ss->first == NULL || ss->last == NULL || ss->first == ss->last)
 	return NULL;
@@ -1218,7 +1156,6 @@ static int UFOOutputFontInfo(const char *basedir, SplineFont *sf, int layer, int
     xmlNodePtr dictnode = xmlNewChild(rootnode, NULL, BAD_CAST "dict", NULL); if (dictnode == NULL) { xmlFreeDoc(plistdoc); return false; } // Add the dict.
 
     DBounds bb;
-    double test;
 
 /* Same keys in both formats */
     PListAddString(dictnode,"familyName",sf->familyname_with_timestamp ? sf->familyname_with_timestamp : sf->familyname);
@@ -1431,7 +1368,7 @@ static int UFOOutputFontInfo(const char *basedir, SplineFont *sf, int layer, int
     PListAddString(dictnode,"macintoshFONDName",sf->fondname);
     // If the version is 3 and the grid layer exists, emit a guidelines group.
     if (version > 2) {
-        xmlNodePtr glkeynode = xmlNewChild(dictnode, NULL, BAD_CAST "key", "guidelines");
+        xmlNewChild(dictnode, NULL, BAD_CAST "key", BAD_CAST "guidelines");
         xmlNodePtr gllistnode = xmlNewChild(dictnode, NULL, BAD_CAST "array", NULL);
         SplineSet *ss = NULL;
         for (ss = sf->grid.splines; ss != NULL; ss = ss->next) {
@@ -1478,7 +1415,7 @@ void ClassKerningAddExtensions(struct kernclass * target) {
   if (target->seconds_names == NULL && target->second_cnt) target->seconds_names = calloc(target->second_cnt, sizeof(char *));
   if (target->firsts_flags == NULL && target->first_cnt) target->firsts_flags = calloc(target->first_cnt, sizeof(int));
   if (target->seconds_flags == NULL && target->second_cnt) target->seconds_flags = calloc(target->second_cnt, sizeof(int));
-  if (target->offsets_flags == NULL && (target->first_cnt * target->second_cnt)) target->offsets_flags = calloc(target->first_cnt * target->second_cnt, sizeof(int));
+  if (target->offsets_flags == NULL && (target->first_cnt * target->second_cnt)>0) target->offsets_flags = calloc(target->first_cnt * target->second_cnt, sizeof(int));
 }
 
 void UFONameKerningClasses(SplineFont *sf, int version) {
@@ -1549,7 +1486,6 @@ void UFONameKerningClasses(SplineFont *sf, int version) {
 }
 
 static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
-    SplineChar *sc;
     int has_content = 0;
 
     xmlDocPtr plistdoc = PlistInit(); if (plistdoc == NULL) return false; // Make the document.
@@ -1586,11 +1522,10 @@ static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
               struct kernclass *kc;
               int isv;
               int isr;
-              int i;
               int offset;
               if (KerningClassSeekByAbsoluteIndex(sf, absolute_index, &kc, &isv, &isr, &offset)) {
                 // The group still exists.
-                xmlNewChild(dictnode, NULL, BAD_CAST "key", current_group->classname);
+                xmlNewChild(dictnode, NULL, BAD_CAST "key", BAD_CAST current_group->classname);
                 xmlNodePtr grouparray = xmlNewChild(dictnode, NULL, BAD_CAST "array", NULL);
                 // We use the results of the preceding search in order to get the list.
                 char *rawglyphlist = (
@@ -1602,7 +1537,7 @@ static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
                 int index = 0;
                 while (glyphlist[index] != NULL) {
                   if (SFGetChar(sf, -1, glyphlist[index]))
-                    xmlNewChild(grouparray, NULL, BAD_CAST "string", glyphlist[index]);
+                    xmlNewChild(grouparray, NULL, BAD_CAST "string", BAD_CAST glyphlist[index]);
                   index++;
                 }
                 ExplodedStringFree(glyphlist);
@@ -1614,7 +1549,7 @@ static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
           }
         } else {
           // If the group is not a kerning group, we just output it raw (for now).
-          xmlNewChild(dictnode, NULL, BAD_CAST "key", current_group->classname);
+          xmlNewChild(dictnode, NULL, BAD_CAST "key", BAD_CAST current_group->classname);
           xmlNodePtr grouparray = xmlNewChild(dictnode, NULL, BAD_CAST "array", NULL);
           // We need to convert from the space-delimited string to something more easily accessed on a per-item basis.
           char **glyphlist = StringExplode(current_group->glyphs, ' ');
@@ -1622,7 +1557,7 @@ static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
           int index = 0;
           while (glyphlist[index] != NULL) {
             if (SFGetChar(sf, -1, glyphlist[index]))
-              xmlNewChild(grouparray, NULL, BAD_CAST "string", glyphlist[index]);
+              xmlNewChild(grouparray, NULL, BAD_CAST "string", BAD_CAST glyphlist[index]);
             index++;
           }
           ExplodedStringFree(glyphlist);
@@ -1648,7 +1583,7 @@ static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
           // Note that we only output if the kernclass is destined for U. F. O. and has not already met said fate.
           if (classname != NULL && rawglyphlist != NULL &&
               !(output_done[absolute_index + i]) && kernclass_for_groups_plist(sf, current_kernclass, classflags)) {
-                xmlNewChild(dictnode, NULL, BAD_CAST "key", classname);
+                xmlNewChild(dictnode, NULL, BAD_CAST "key", BAD_CAST classname);
                 xmlNodePtr grouparray = xmlNewChild(dictnode, NULL, BAD_CAST "array", NULL);
                 // We need to convert from the space-delimited string to something more easily accessed on a per-item basis.
                 char **glyphlist = StringExplode(rawglyphlist, ' ');
@@ -1656,7 +1591,7 @@ static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
                 int index = 0;
                 while (glyphlist[index] != NULL) {
                   if (SFGetChar(sf, -1, glyphlist[index]))
-                    xmlNewChild(grouparray, NULL, BAD_CAST "string", glyphlist[index]);
+                    xmlNewChild(grouparray, NULL, BAD_CAST "string", BAD_CAST glyphlist[index]);
                   index++;
                 }
                 ExplodedStringFree(glyphlist);
@@ -1679,15 +1614,6 @@ static int UFOOutputGroups(const char *basedir, SplineFont *sf, int version) {
     xmlFreeDoc(plistdoc); // Free the memory.
     xmlCleanupParser();
     return true;
-}
-
-static void KerningPListAddGlyph(xmlNodePtr parent, const char *key, const KernPair *kp) {
-    xmlNewChild(parent, NULL, BAD_CAST "key", BAD_CAST key); // "<key>%s</key>" key
-    xmlNodePtr dictxml = xmlNewChild(parent, NULL, BAD_CAST "dict", NULL); // "<dict>"
-    while ( kp!=NULL ) {
-      PListAddInteger(dictxml, kp->sc->name, kp->off); // "<key>%s</key><integer>%d</integer>" kp->sc->name kp->off
-      kp = kp->next;
-    }
 }
 
 struct ufo_kerning_tree_left;
@@ -1734,8 +1660,6 @@ void ufo_kerning_tree_destroy_contents(struct ufo_kerning_tree_session *session)
 
 int ufo_kerning_tree_attempt_insert(struct ufo_kerning_tree_session *session, const char *left_name, const char *right_name, int value) {
   char *tmppairname = smprintf("%s %s", left_name, right_name);
-  struct ufo_kerning_tree_left *first_left = NULL;
-  struct ufo_kerning_tree_left *last_left = NULL;
   if (!glif_name_search_glif_name(session->class_pair_hash, tmppairname)) {
     struct ufo_kerning_tree_left *current_left;
     // We look for a tree node matching the left side of the pair.
@@ -1882,8 +1806,6 @@ static int UFOOutputKerning2(const char *basedir, SplineFont *sf, int isv, int v
     {
       // Oh. But we've not finished yet. New class kerns may not be in the original list.
       struct kernclass *kc;
-      char *left_name;
-      char *right_name;
       for (kc = isv ? sf->vkerns : sf->kerns; kc != NULL; kc = kc->next)
       if (kc->firsts_names && kc->seconds_names && kc->firsts_flags && kc->seconds_flags &&
         kc->offsets_flags)
@@ -2001,9 +1923,8 @@ int WriteUFOLayer(const char * glyphdir, SplineFont * sf, int layer, int version
 
 int WriteUFOFontFlex(const char *basedir, SplineFont *sf, enum fontformat ff, int flags,
 	const EncMap *map, int layer, int all_layers, int version) {
-    char *glyphdir, *gfname;
+    char *glyphdir;
     int err;
-    FILE *plist;
     int i;
     SplineChar *sc;
 
@@ -2101,8 +2022,8 @@ int WriteUFOFontFlex(const char *basedir, SplineFont *sf, enum fontformat ff, in
         err |= name_err;
       } else {
         // We write to the layer contents.
-        xmlNewTextChild(layernode, NULL, BAD_CAST "string", numberedlayername);
-        xmlNewTextChild(layernode, NULL, BAD_CAST "string", numberedlayerpathwithglyphs);
+        xmlNewTextChild(layernode, NULL, BAD_CAST "string", BAD_CAST numberedlayername);
+        xmlNewTextChild(layernode, NULL, BAD_CAST "string", BAD_CAST numberedlayerpathwithglyphs);
         glyphdir = buildname(basedir, numberedlayerpathwithglyphs);
         // We write the glyph directory.
         err |= WriteUFOLayer(glyphdir, sf, layer_pos, version);
@@ -2223,7 +2144,7 @@ static PyObject *LibToPython(xmlDocPtr doc, xmlNodePtr dict, int has_lists) {
 		// See that the item is in fact a key.
 		if ( xmlStrcmp(keys->name,(const xmlChar *) "key")== 0 ) {
 			// Fetch the key name, which, according to the libxml specification, is the first child of the key entry.
-			char *keyname = (char *) xmlNodeListGetString(doc,keys->children,true);
+			char *keyname = (char *) xmlNodeListGetString(doc, keys->children, true);
 			// In a property list, the value entry is a sibling of the key entry. The value itself is a child.
 			// Iterate through the following siblings (including keys (!)) until we find a text entry.
 			for ( temp=keys->next; temp!=NULL; temp=temp->next ) {
@@ -2336,7 +2257,7 @@ static StemInfo *GlifParseHints(xmlDocPtr doc,xmlNodePtr dict,char *hinttype) {
 
     for ( keys=dict->children; keys!=NULL; keys=keys->next ) {
 	if ( xmlStrcmp(keys->name,(const xmlChar *) "key")== 0 ) {
-	    char *keyname = (char *) xmlNodeListGetString(doc,keys->children,true);
+	    char *keyname = (char *) xmlNodeListGetString(doc, keys->children, true);
 	    int found = strcmp(keyname,hinttype)==0;
 	    free(keyname);
 	    if ( found ) {
@@ -2350,7 +2271,7 @@ static StemInfo *GlifParseHints(xmlDocPtr doc,xmlNodePtr dict,char *hinttype) {
 			    pos = -88888888; width = 0;
 			    for ( poswidth=kids->children; poswidth!=NULL; poswidth=poswidth->next ) {
 				if ( xmlStrcmp(poswidth->name,(const xmlChar *) "key")==0 ) {
-				    char *keyname2 = (char *) xmlNodeListGetString(doc,poswidth->children,true);
+				    char *keyname2 = (char *) xmlNodeListGetString(doc, poswidth->children, true);
 				    int ispos = strcmp(keyname2,"position")==0, iswidth = strcmp(keyname2,"width")==0;
 				    double value;
 				    free(keyname2);
@@ -2359,7 +2280,7 @@ static StemInfo *GlifParseHints(xmlDocPtr doc,xmlNodePtr dict,char *hinttype) {
 				    break;
 				    }
 				    if ( temp!=NULL ) {
-					char *valname = (char *) xmlNodeListGetString(doc,temp->children,true);
+					char *valname = (char *) xmlNodeListGetString(doc, temp->children, true);
 					if ( xmlStrcmp(temp->name,(const xmlChar *) "integer")==0 )
 					    value = strtol(valname,NULL,10);
 					else if ( xmlStrcmp(temp->name,(const xmlChar *) "real")==0 )
@@ -2435,12 +2356,6 @@ static AnchorPoint *UFOLoadAnchor(SplineFont *sf, SplineChar *sc, xmlNodePtr xml
         return NULL;
 }
 
-static real PointsSame(BasePoint p0, BasePoint p1) {
-	if (p0.x == p1.x && p0.y == p1.y)
-		return 1;
-	return 0;
-}
-
 static SplineSet *GuidelineToSpline(SplineFont *sf, GuidelineSet *gl) {
 	SplinePoint *sp1, *sp2;
 	SplineSet *ss;
@@ -2485,7 +2400,7 @@ static void *UFOLoadGuideline(SplineFont *sf, SplineChar *sc, int layer, xmlDocP
 		    for (keynode=dictnode->children; keynode!=NULL; keynode=keynode->next ) {
 			if (xmlStrcmp(keynode->name, (const xmlChar *)"key") == 0) {
 			    // fprintf(stderr, "Got key.\n");
-			    char *keyname2 = (char *) xmlNodeListGetString(doc,keynode->children,true);
+			    char *keyname2 = (char *) xmlNodeListGetString(doc, keynode->children, true);
 			    if (keyname2 != NULL) {
 				    // Skip unstructured data.
 				    xmlNodePtr valnode = NULL;
@@ -2494,7 +2409,7 @@ static void *UFOLoadGuideline(SplineFont *sf, SplineChar *sc, int layer, xmlDocP
 				    break;
 				    }
 				    char *valtext = valnode->children ?
-					(char *) xmlNodeListGetString(doc,valnode->children,true) : NULL;
+					(char *) xmlNodeListGetString(doc, valnode->children, true) : NULL;
 				    if (valtext != NULL) {
 					if (xmlStrcmp(valnode->name, (const xmlChar *)"string") == 0) {
 						// Parse strings.
@@ -2559,7 +2474,7 @@ static void *UFOLoadGuideline(SplineFont *sf, SplineChar *sc, int layer, xmlDocP
 				colorv = strtod(colors + colorps, &after_color);
 				if (after_color != colors + colorp)
 					LogError(_("Error parsing color component.\n"));
-				gl->color |= (((uint32)(colorv * 255.0)) << (8 * (4 - colori)));
+				gl->color |= (((uint32_t)(colorv * 255.0)) << (8 * (4 - colori)));
 			} else {
 				LogError(_("Missing color component.\n"));
 			}
@@ -2744,7 +2659,7 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 			free(u);
 		}
 	} else if ( xmlStrcmp(kids->name,(const xmlChar *) "note")==0 ) {
-		char *tval = xmlNodeListGetString(doc,kids->children,true);
+		char *tval = (char*) xmlNodeListGetString(doc, kids->children, true);
 		if (tval != NULL) {
 			sc->comment = copy(tval);
 			free(tval);
@@ -2802,7 +2717,6 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 		    xmlNodePtr npoints;
 
 			// We now look for anchor points.
-            char *sname;
 
             for ( points=contour->children; points!=NULL; points=points->next )
                 if ( xmlStrcmp(points->name,(const xmlChar *) "point")==0 )
@@ -2899,9 +2813,7 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 				}
 				if ( precnt==2 && ss->first != sp ) {
 				    ss->last->nextcp = pre[0];
-				    ss->last->nonextcp = false;
 				    sp->prevcp = pre[1];
-				    sp->noprevcp = false;
 				    SplineMake(ss->last,sp,false);
 				}
 			        ss->last = sp;
@@ -2909,23 +2821,22 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 					wasquad = true;
 				if (ss->first == sp) {
 				  firstpointsaidquad = true;
-				}
+				} else {
 					if ( precnt>0 && precnt<=2 ) {
 						if ( precnt==2 ) {
 							// If we have two cached control points and the end point is quadratic, we need an implied point between the two control points.
 							sp2 = SplinePointCreate((pre[1].x+pre[0].x)/2,(pre[1].y+pre[0].y)/2);
 							sp2->prevcp = ss->last->nextcp = pre[0];
-							sp2->noprevcp = ss->last->nonextcp = false;
 							sp2->ttfindex = 0xffff;
 							SplineMake(ss->last,sp2,true);
 							ss->last = sp2;
 						}
 						// Now we connect the real point.
 						sp->prevcp = ss->last->nextcp = pre[precnt-1];
-						sp->noprevcp = ss->last->nonextcp = false;
 					}
 					SplineMake(ss->last,sp,true);
 					ss->last = sp;
+				}
 			    } else {
 			        SplinePointFree(sp); sp = NULL;
 			    }
@@ -2945,7 +2856,6 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 						sp->name = copy(pname);
 					}
 			        sp->nextcp = pre[1];
-			        sp->nonextcp = false;
 			        if ( ss->first==NULL ) {
 				    // This is indeed possible if the first three points are control points.
 				    ss->first = sp;
@@ -2953,7 +2863,6 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 				    initcnt = 1;
 				} else {
 				    ss->last->nextcp = sp->prevcp = pre[0];
-				    ss->last->nonextcp = sp->noprevcp = false;
 				    initcnt = 0;
 				    SplineMake(ss->last,sp,true);
 				}
@@ -2963,7 +2872,6 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 			        // We have decided that the curve is quadratic, so we can make the next implied point as well.
 			        sp = SplinePointCreate((x+pre[1].x)/2,(y+pre[1].y)/2);
 			        sp->prevcp = pre[1];
-			        sp->noprevcp = false;
 					sp->ttfindex = 0xffff;
 			        SplineMake(ss->last,sp,true);
 			        ss->last = sp;
@@ -2984,7 +2892,6 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 						sp->name = copy(pname);
 					}
 			        sp->prevcp = pre[0];
-			        sp->noprevcp = false;
 					sp->ttfindex = 0xffff;
 			        if ( ss->first==NULL ) {
 				    	ss->first = sp;
@@ -2992,8 +2899,7 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 			            initcnt = 1;
 					} else {
 					    ss->last->nextcp = sp->prevcp;
-			            ss->last->nonextcp = false;
-				    	SplineMake(ss->last,sp,true);
+					    SplineMake(ss->last,sp,true);
 					}
 					ss->last = sp;
 			        pre[0].x = x; pre[0].y = y;
@@ -3027,18 +2933,15 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 					// If the final curve is declared quadratic but has more than one control point, we add implied points.
 					sp = SplinePointCreate((init[i+1].x+init[i].x)/2,(init[i+1].y+init[i].y)/2);
 			        sp->prevcp = ss->last->nextcp = init[i];
-			        sp->noprevcp = ss->last->nonextcp = false;
 					sp->ttfindex = 0xffff;
 			        SplineMake(ss->last,sp,true);
 			        ss->last = sp;
 			    }
 			    ss->last->nextcp = ss->first->prevcp = init[initcnt-1];
-			    ss->last->nonextcp = ss->first->noprevcp = false;
 			    wasquad = true;
 			} else if ( initcnt==2 ) {
 			    ss->last->nextcp = init[0];
 			    ss->first->prevcp = init[1];
-			    ss->last->nonextcp = ss->first->noprevcp = false;
 				wasquad = false;
 			}
 			SplineMake(ss->last, ss->first, (firstpointsaidquad==true || (firstpointsaidquad == -1 && wasquad == true)));
@@ -3064,7 +2967,7 @@ static SplineChar *_UFOLoadGlyph(SplineFont *sf, xmlDocPtr doc, char *glifname, 
 	    if ( dict!=NULL ) {
 		for ( keys=dict->children; keys!=NULL; keys=keys->next ) {
 		    if ( xmlStrcmp(keys->name,(const xmlChar *) "key")== 0 ) {
-				char *keyname = (char *) xmlNodeListGetString(doc,keys->children,true);
+				char *keyname = (char *) xmlNodeListGetString(doc, keys->children, true);
 				if ( strcmp(keyname,"com.fontlab.hintData")==0 ) {
 			    	for ( temp=keys->next; temp!=NULL; temp=temp->next ) {
 						if ( xmlStrcmp(temp->name,(const xmlChar *) "dict")==0 )
@@ -3195,13 +3098,13 @@ return;
 		if ( value==NULL )
 			break;
 		if ( xmlStrcmp(keys->name,(const xmlChar *) "key")==0 ) {
-			char * glyphname = (char *) xmlNodeListGetString(doc,keys->children,true);
+			char * glyphname = (char *) xmlNodeListGetString(doc, keys->children, true);
 			int newsc = 0;
 			SplineChar* existingglyph = NULL;
 			if (glyphname != NULL) {
 				existingglyph = SFGetChar(sf,-1,glyphname);
 				if (existingglyph == NULL) newsc = 1;
-				valname = (char *) xmlNodeListGetString(doc,value->children,true);
+				valname = (char *) xmlNodeListGetString(doc, value->children, true);
 				glyphfname = buildname(glyphdir,valname);
 				sc = UFOLoadGlyph(sf, glyphfname, glyphname, existingglyph, layerdest);
 				// We want to stash the glif name (minus the extension) for future use.
@@ -3260,8 +3163,9 @@ static struct ff_glyphclasses *GlyphGroupDeduplicate(struct ff_glyphclasses *gro
   return group_base;
 }
 
-static uint32 script_from_glyph_list(SplineFont *sf, const char *glyph_names) {
-  uint32 script = DEFAULT_SCRIPT;
+#ifdef UFO_GUESS_SCRIPTS
+static uint32_t script_from_glyph_list(SplineFont *sf, const char *glyph_names) {
+  uint32_t script = DEFAULT_SCRIPT;
   char *delimited_names;
   off_t name_char_pos;
   name_char_pos = 0;
@@ -3275,6 +3179,7 @@ static uint32 script_from_glyph_list(SplineFont *sf, const char *glyph_names) {
   free(delimited_names); delimited_names = NULL;
   return script;
 }
+#endif
 
 #define GROUP_NAME_KERNING_UFO 1
 #define GROUP_NAME_KERNING_FEATURE 2
@@ -3316,7 +3221,7 @@ static void MakeKerningClasses(SplineFont *sf, struct ff_glyphclasses *group_bas
     sf->kerns->seconds = calloc(1, sizeof(char *));
     sf->kerns->seconds_names = calloc(1, sizeof(char *));
     sf->kerns->seconds_flags = calloc(1, sizeof(int));
-    sf->kerns->offsets = calloc(1, sizeof(int16));
+    sf->kerns->offsets = calloc(1, sizeof(int16_t));
     sf->kerns->offsets_flags = calloc(1, sizeof(int));
     sf->kerns->first_cnt = 1;
     sf->kerns->second_cnt = 1;
@@ -3330,7 +3235,7 @@ static void MakeKerningClasses(SplineFont *sf, struct ff_glyphclasses *group_bas
     sf->vkerns->seconds = calloc(1, sizeof(char *));
     sf->vkerns->seconds_names = calloc(1, sizeof(char *));
     sf->vkerns->seconds_flags = calloc(1, sizeof(int));
-    sf->vkerns->offsets = calloc(1, sizeof(int16));
+    sf->vkerns->offsets = calloc(1, sizeof(int16_t));
     sf->vkerns->offsets_flags = calloc(1, sizeof(int));
     sf->vkerns->first_cnt = 1;
     sf->vkerns->second_cnt = 1;
@@ -3342,11 +3247,11 @@ static void MakeKerningClasses(SplineFont *sf, struct ff_glyphclasses *group_bas
   // We start by allocating space for the offsets and offsets flags. We then copy the old contents, row-by-row.
   if ((left_count > 0 || right_count > 0) && ((sf->kerns->first_cnt + left_count) * (sf->kerns->second_cnt + right_count) > 0)) {
     // Offsets.
-    int16 *tmp_offsets = calloc((sf->kerns->first_cnt + left_count) * (sf->kerns->second_cnt + right_count), sizeof(int16));
+    int16_t *tmp_offsets = calloc((sf->kerns->first_cnt + left_count) * (sf->kerns->second_cnt + right_count), sizeof(int16_t));
     if (sf->kerns->offsets) {
       int rowpos;
       for (rowpos = 0; rowpos < sf->kerns->first_cnt; rowpos ++) {
-        memcpy((void *)tmp_offsets + (rowpos * (sf->kerns->second_cnt + right_count)) * sizeof(int16), (void *)(sf->kerns->offsets) + (rowpos * sf->kerns->second_cnt) * sizeof(int16), sf->kerns->second_cnt * sizeof(int16));
+        memcpy((void *)tmp_offsets + (rowpos * (sf->kerns->second_cnt + right_count)) * sizeof(int16_t), (void *)(sf->kerns->offsets) + (rowpos * sf->kerns->second_cnt) * sizeof(int16_t), sf->kerns->second_cnt * sizeof(int16_t));
       }
       free(sf->kerns->offsets);
     }
@@ -3374,11 +3279,11 @@ static void MakeKerningClasses(SplineFont *sf, struct ff_glyphclasses *group_bas
   }
   if ((above_count > 0 || below_count > 0) && ((sf->vkerns->first_cnt + above_count) * (sf->vkerns->second_cnt + below_count) > 0)) {
     // Offsets.
-    int16 *tmp_offsets = calloc((sf->vkerns->first_cnt + above_count) * (sf->vkerns->second_cnt + below_count), sizeof(int16));
+    int16_t *tmp_offsets = calloc((sf->vkerns->first_cnt + above_count) * (sf->vkerns->second_cnt + below_count), sizeof(int16_t));
     if (sf->vkerns->offsets) {
       int rowpos;
       for (rowpos = 0; rowpos < sf->vkerns->first_cnt; rowpos ++) {
-        memcpy((void *)tmp_offsets + (rowpos * (sf->vkerns->second_cnt + below_count)) * sizeof(int16), (void *)(sf->vkerns->offsets) + (rowpos * sf->vkerns->second_cnt) * sizeof(int16), sf->vkerns->second_cnt * sizeof(int16));
+        memcpy((void *)tmp_offsets + (rowpos * (sf->vkerns->second_cnt + below_count)) * sizeof(int16_t), (void *)(sf->vkerns->offsets) + (rowpos * sf->vkerns->second_cnt) * sizeof(int16_t), sf->vkerns->second_cnt * sizeof(int16_t));
       }
       free(sf->vkerns->offsets);
     }
@@ -3477,7 +3382,7 @@ static void MakeKerningClasses(SplineFont *sf, struct ff_glyphclasses *group_bas
 #ifdef UFO_GUESS_SCRIPTS
   // Check the script in each element of each group (for each polarity) until a character is of a script other than DFLT.
   if (sf->kerns != NULL) {
-    uint32 script = DEFAULT_SCRIPT;
+    uint32_t script = DEFAULT_SCRIPT;
     int class_index;
     class_index = 0;
     while (script == DEFAULT_SCRIPT && class_index < sf->kerns->first_cnt) {
@@ -3492,7 +3397,7 @@ static void MakeKerningClasses(SplineFont *sf, struct ff_glyphclasses *group_bas
     sf->kerns->subtable = SFSubTableFindOrMake(sf, CHR('k','e','r','n'), script, gpos_pair);
   }
   if (sf->vkerns != NULL) {
-    uint32 script = DEFAULT_SCRIPT;
+    uint32_t script = DEFAULT_SCRIPT;
     int class_index;
     class_index = 0;
     while (script == DEFAULT_SCRIPT && class_index < sf->vkerns->first_cnt) {
@@ -3508,7 +3413,7 @@ static void MakeKerningClasses(SplineFont *sf, struct ff_glyphclasses *group_bas
   }
 #else
   // Some test cases have proven that FontForge would do best to avoid classifying these.
-  uint32 script = DEFAULT_SCRIPT;
+  uint32_t script = DEFAULT_SCRIPT;
   if (sf->kerns != NULL) {
     sf->kerns->subtable = SFSubTableFindOrMake(sf, CHR('k','e','r','n'), script, gpos_pair);
   }
@@ -3523,11 +3428,10 @@ static void UFOHandleGroups(SplineFont *sf, char *basedir) {
     char *fname = buildname(basedir, "groups.plist");
     xmlDocPtr doc=NULL;
     xmlNodePtr plist,dict,keys,value,subkeys;
-    char *keyname, *valname;
+    char *keyname;
     struct ff_glyphclasses *current_group = NULL;
     // We want to start at the end of the list of groups already in the SplineFont (probably not any right now).
     for (current_group = sf->groups; current_group != NULL && current_group->next != NULL; current_group = current_group->next);
-    int group_count;
 
     if ( GFileExists(fname))
 	doc = xmlParseFile(fname);
@@ -3548,7 +3452,7 @@ return;
 	if ( value==NULL )
     break;
 	if ( xmlStrcmp(keys->name,(const xmlChar *) "key")==0 ) {
-	    keyname = (char *) xmlNodeListGetString(doc,keys->children,true);
+	    keyname = (char *) xmlNodeListGetString(doc, keys->children, true);
 	    SplineChar *sc = SFGetChar(sf,-1,keyname);
 	    if ( sc!=NULL ) { LogError(_("Skipping group %s with same name as a glyph.\n"), keyname); free(keyname); keyname = NULL; continue; }
             struct ff_glyphclasses *sfg = SFGetGroup(sf,-1,keyname);
@@ -3596,93 +3500,6 @@ return;
     xmlFreeDoc(doc);
 }
 
-static void UFOHandleKern(SplineFont *sf,char *basedir,int isv) {
-    char *fname = buildname(basedir,isv ? "vkerning.plist" : "kerning.plist");
-    xmlDocPtr doc=NULL;
-    xmlNodePtr plist,dict,keys,value,subkeys;
-    char *keyname, *valname;
-    int offset;
-    SplineChar *sc, *ssc;
-    KernPair *kp;
-    char *end;
-    uint32 script;
-
-    if ( GFileExists(fname))
-	doc = xmlParseFile(fname);
-    free(fname);
-    if ( doc==NULL )
-return;
-
-    // If there is native kerning (as we would expect if the function has not returned), set the SplineFont flag to prefer it on output.
-    sf->preferred_kerning = 1;
-
-    plist = xmlDocGetRootElement(doc);
-    dict = FindNode(plist->children,"dict");
-    if ( xmlStrcmp(plist->name,(const xmlChar *) "plist")!=0 || dict==NULL ) {
-	LogError(_("Expected property list file"));
-	xmlFreeDoc(doc);
-return;
-    }
-    for ( keys=dict->children; keys!=NULL; keys=keys->next ) {
-	for ( value = keys->next; value!=NULL && xmlStrcmp(value->name,(const xmlChar *) "text")==0;
-		value = value->next );
-	if ( value==NULL )
-    break;
-	if ( xmlStrcmp(keys->name,(const xmlChar *) "key")==0 ) {
-	    keyname = (char *) xmlNodeListGetString(doc,keys->children,true);
-	    sc = SFGetChar(sf,-1,keyname);
-	    free(keyname);
-	    if ( sc==NULL )
-	continue;
-	    keys = value;
-	    for ( subkeys = value->children; subkeys!=NULL; subkeys = subkeys->next ) {
-		for ( value = subkeys->next; value!=NULL && xmlStrcmp(value->name,(const xmlChar *) "text")==0;
-			value = value->next );
-		if ( value==NULL )
-	    break;
-		if ( xmlStrcmp(subkeys->name,(const xmlChar *) "key")==0 ) {
-		    keyname = (char *) xmlNodeListGetString(doc,subkeys->children,true);
-		    ssc = SFGetChar(sf,-1,keyname);
-		    free(keyname);
-		    if ( ssc==NULL )
-		continue;
-		    for ( kp=isv?sc->vkerns:sc->kerns; kp!=NULL && kp->sc!=ssc; kp=kp->next );
-		    if ( kp!=NULL )
-		continue;
-		    subkeys = value;
-		    valname = (char *) xmlNodeListGetString(doc,value->children,true);
-		    offset = strtol(valname,&end,10);
-		    if ( *end=='\0' ) {
-			kp = chunkalloc(sizeof(KernPair));
-			kp->off = offset;
-			kp->sc = ssc;
-			if ( isv ) {
-			    kp->next = sc->vkerns;
-			    sc->vkerns = kp;
-			} else {
-			    kp->next = sc->kerns;
-			    sc->kerns = kp;
-			}
-#ifdef UFO_GUESS_SCRIPTS
-			script = SCScriptFromUnicode(sc);
-			if ( script==DEFAULT_SCRIPT )
-			    script = SCScriptFromUnicode(ssc);
-#else
-			// Some test cases have proven that FontForge would do best to avoid classifying these.
-			script = DEFAULT_SCRIPT;
-#endif // UFO_GUESS_SCRIPTS
-			kp->subtable = SFSubTableFindOrMake(sf,
-				isv?CHR('v','k','r','n'):CHR('k','e','r','n'),
-				script, gpos_pair);
-		    }
-		    free(valname);
-		}
-	    }
-	}
-    }
-    xmlFreeDoc(doc);
-}
-
 int TryAddRawGroupKern(struct splinefont *sf, int isv, struct glif_name_index *class_name_pair_hash, int *current_groupkern_index_p, struct ff_rawoffsets **current_groupkern_p, const char *left, const char *right, int offset) {
   char *pairtext;
   int success = 0;
@@ -3714,7 +3531,7 @@ static void UFOHandleKern3(SplineFont *sf,char *basedir,int isv) {
     SplineChar *sc, *ssc;
     KernPair *kp;
     char *end;
-    uint32 script;
+    uint32_t script;
 
     if ( GFileExists(fname))
 	doc = xmlParseFile(fname);
@@ -3760,7 +3577,7 @@ return;
 	if ( value==NULL )
     break;
 	if ( xmlStrcmp(keys->name,(const xmlChar *) "key")==0 ) {
-	    keyname = (char *) xmlNodeListGetString(doc,keys->children,true);
+	    keyname = (char *) xmlNodeListGetString(doc, keys->children, true);
             // Search for a glyph first.
 	    sc = SFGetChar(sf,-1,keyname);
             // Search for a group.
@@ -3836,10 +3653,11 @@ return;
 		      LogError(_("kerning.plist defines kerning between two glyphs that are already partially kerned.")); continue;
 		    }
 		  } else if (left_class_name_record && right_class_name_record) {
-		    struct kernclass *left_kc, *right_kc;
+		    struct kernclass *left_kc = NULL, *right_kc = NULL;
 		    int left_isv, right_isv, left_isr, right_isr, left_offset, right_offset;
-		    int left_exists = KerningClassSeekByAbsoluteIndex(sf, left_class_name_record->gid, &left_kc, &left_isv, &left_isr, &left_offset);
-		    int right_exists = KerningClassSeekByAbsoluteIndex(sf, right_class_name_record->gid, &right_kc, &right_isv, &right_isr, &right_offset);
+		    KerningClassSeekByAbsoluteIndex(sf, left_class_name_record->gid, &left_kc, &left_isv, &left_isr, &left_offset);
+		    KerningClassSeekByAbsoluteIndex(sf, right_class_name_record->gid, &right_kc, &right_isv, &right_isr, &right_offset);
+
 		    if ((left_kc == NULL) || (right_kc == NULL)) { LogError(_("kerning.plist references a missing kerning class.")); continue; } // I don't know how this would happen, at least as the code is now, but we do need to throw an error.
 		    if ((left_kc != right_kc)) { LogError(_("kerning.plist defines an offset between classes in different lookups.")); continue; }
 		    if ((left_offset > left_kc->first_cnt) || (right_offset > right_kc->second_cnt)) { LogError(_("There is a kerning class index error.")); continue; }
@@ -3951,7 +3769,7 @@ return( 0 );
 return( mask );
 }
 
-static void UFOGetBitArray(xmlDocPtr doc,xmlNodePtr value,uint32 *res,int len) {
+static void UFOGetBitArray(xmlDocPtr doc,xmlNodePtr value,uint32_t *res,int len) {
     xmlNodePtr kid;
     int index;
 
@@ -4006,7 +3824,7 @@ SplineFont *SFReadUFO(char *basedir, int flags) {
 	if ( value==NULL )
           break;
 	if ( xmlStrcmp(keys->name,(const xmlChar *) "key")==0 ) {
-	    keyname = xmlNodeListGetString(doc,keys->children,true);
+	    keyname = xmlNodeListGetString(doc, keys->children, true);
 	    valname = xmlNodeListGetString(doc,value->children,true);
 	    keys = value;
 	    if ( xmlStrcmp(keyname,(xmlChar *) "familyName")==0 ) {
@@ -4129,10 +3947,10 @@ SplineFont *SFReadUFO(char *basedir, int flags) {
 		else if ( xmlStrcmp(keyname+11,(xmlChar *) "VendorID")==0 )
 		{
 		    const int os2_vendor_sz = sizeof(sf->pfminfo.os2_vendor);
-		    const int valname_len = c_strlen(valname);
+		    const int valname_len = c_strlen((char *)valname);
 
 		    if( valname && valname_len <= os2_vendor_sz )
-			strncpy(sf->pfminfo.os2_vendor,valname,valname_len);
+			strncpy(sf->pfminfo.os2_vendor,(char *)valname,valname_len);
 
 		    char *temp = sf->pfminfo.os2_vendor + os2_vendor_sz - 1;
 		    while ( *temp == 0 && temp >= sf->pfminfo.os2_vendor )
@@ -4507,7 +4325,7 @@ SplineFont *SFReadUFO(char *basedir, int flags) {
     /* Might as well check for feature files even if version 1 */
     temp = buildname(basedir,"features.fea");
     if ( GFileExists(temp))
-	SFApplyFeatureFilename(sf,temp);
+    SFApplyFeatureFilename(sf,temp, FALSE);
     free(temp);
 
 #ifndef _NO_PYTHON

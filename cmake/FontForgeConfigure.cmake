@@ -22,7 +22,7 @@ configured, or if they are defined locally in source only:
 BIGICONS, CHUNKDEBUG, DEBUG, DEBUG_FREEHAND, ESCAPE_LIBXML_STRINGS,
 FF_OVERLAP_VERBOSE, FF_RELATIONAL_GEOM, FLAG, GLYPH_DATA_DEBUG,
 HANYANG, KNIFE_CONTINUOUS, KOREAN, MEMORY_MASK, MyMemory,
-NATIVE_CALLBACKS, NEED_WIDE_CHAR, OPTIMIZE_TTF_INSTRS, THIRDS_IN_WIDTH,
+NEED_WIDE_CHAR, OPTIMIZE_TTF_INSTRS, THIRDS_IN_WIDTH,
 UsingPThreads, _COMPOSITE_BROKEN, _DEBUGCRASHFONTFORGE, _WACOM_DRV_BROKEN
 
 #]=======================================================================]
@@ -44,7 +44,6 @@ function(fontforge_generate_config template destination)
   test_big_endian(WORDS_BIGENDIAN)
   if(APPLE)
     set(_CursorsMustBe16x16 1)
-    set(_Keyboard 1)
     set(__Mac 1)
   elseif(CYGWIN)
     set(__CygWin 1)
@@ -54,13 +53,17 @@ function(fontforge_generate_config template destination)
   # Header checks
   check_include_file(execinfo.h HAVE_EXECINFO_H)
   check_include_file(ieeefp.h HAVE_IEEEFP_H)
-  check_include_file(langinfo.h HAVE_LANGINFO_H)
-  check_symbol_exists(nl_langinfo "langinfo.h" HAVE_NL_LANGINFO)
+
+  # Function checks
+  include(CheckFunctionExists)
+  include(CMakePushCheckState)
+  cmake_push_check_state(RESET)
+  set(CMAKE_REQUIRED_INCLUDES stdlib.h)
+  check_function_exists(realpath HAVE_REALPATH)
+  cmake_pop_check_state()
 
   # These are hard requirements/unsupported, should get rid of these
-  set(HAVE_ICONV_H 1)
   set(HAVE_LIBINTL_H 1)
-  set(_NO_LIBUNICODENAMES 1)
 
   # Configurable settings
   set(FONTFORGE_CONFIG_SHOW_RAW_POINTS ${ENABLE_DEBUG_RAW_POINTS})
@@ -93,15 +96,11 @@ function(fontforge_generate_config template destination)
   _set_negated(_NO_LIBSPIRO "${ENABLE_LIBSPIRO_RESULT}")
   _set_negated(_NO_LIBTIFF "${ENABLE_LIBTIFF_RESULT}")
   _set_negated(_NO_LIBUNGIF "${ENABLE_LIBGIF_RESULT}")
-  _set_negated(_NO_LIBUNINAMESLIST "${ENABLE_LIBUNINAMESLIST_RESULT}")
   _set_negated(_NO_PYTHON "${ENABLE_PYTHON_SCRIPTING_RESULT}")
   _set_negated(_NO_LIBREADLINE "${ENABLE_LIBREADLINE_RESULT}")
 
   if(ENABLE_LIBSPIRO_RESULT)
     set(_LIBSPIRO_FUN ${Libspiro_FEATURE_LEVEL})
-  endif()
-  if(ENABLE_LIBUNINAMESLIST_RESULT)
-    set(_LIBUNINAMESLIST_FUN ${Libuninameslist_FEATURE_LEVEL})
   endif()
 
   configure_file(${template} ${destination} ESCAPE_QUOTES @ONLY)

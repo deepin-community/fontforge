@@ -11,6 +11,7 @@ Technical References
    techref/autotrace
    techref/accented
    techref/bezier
+   techref/askmulti
    techref/ref-caveats
    techref/sfdchangelog
    techref/cidmapformat
@@ -18,6 +19,7 @@ Technical References
    techref/splinefont
    techref/SuggestDeltas
    techref/stroke
+   techref/pyextend
    techref/BDFGrey
    techref/PfaEdit-TeX
    techref/pfaeditmath
@@ -26,6 +28,7 @@ Technical References
    techref/featurefile
    techref/non-standard
    techref/palmfonts
+   techref/plugins
    techref/bitmaponlysfnt
    techref/sfdformat
    techref/pcf-format

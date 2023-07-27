@@ -58,8 +58,10 @@ if(ENABLE_GUI)
     math.c
     metricsview.c
     mmdlg.c
+    multidialog.c
     nonlineartransui.c
     openfontdlg.c
+    pluginui.c
     prefs.c
     problems.c
     pythonui.c
@@ -102,6 +104,17 @@ if(ENABLE_GUI)
   target_link_libraries(fontforgeexe PRIVATE gdraw)
 else()
   target_sources(fontforgeexe PRIVATE startnoui.c)
+endif()
+
+if(WIN32)
+  string(SUBSTRING ${PROJECT_VERSION} 0 4 FF_RC_YEAR)
+  string(SUBSTRING ${PROJECT_VERSION} 4 2 FF_RC_MONTH)
+  string(SUBSTRING ${PROJECT_VERSION} 6 2 FF_RC_DAY)
+  string(REGEX REPLACE "^0+" "" FF_RC_MONTH "${FF_RC_MONTH}")
+  string(REGEX REPLACE "^0+" "" FF_RC_DAY "${FF_RC_DAY}")
+  configure_file(fontforge.exe.manifest.in fontforge.exe.manifest @ONLY)
+  configure_file(fontforge.rc.in fontforge.rc @ONLY)
+  target_sources(fontforgeexe PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/fontforge.rc" "${CMAKE_CURRENT_BINARY_DIR}/fontforge.exe.manifest")
 endif()
 
 if(ENABLE_PYTHON_SCRIPTING_RESULT)

@@ -62,7 +62,6 @@ typedef struct gwidgetcreatordata {
 
 extern GWindow GWidgetCreateTopWindow(GDisplay *gdisp, GRect *pos, int (*eh)(GWindow,GEvent *), void *user_data, GWindowAttrs *wattrs);
 extern GWindow GWidgetCreateSubWindow(GWindow w, GRect *pos, int (*eh)(GWindow,GEvent *), void *user_data, GWindowAttrs *wattrs);
-extern GWindow GWidgetCreatePalette(GWindow w, GRect *pos, int (*eh)(GWindow,GEvent *), void *user_data, GWindowAttrs *wattrs);
 
 GWindow GWindowGetCurrentFocusTopWindow(void);
 GWindow GWidgetGetCurrentFocusWindow(void);
@@ -73,8 +72,6 @@ void GWindowClearFocusGadgetOfWindow(GWindow gw);
 void GWidgetIndicateFocusGadget(struct ggadget *g);
 void GWidgetNextFocus(GWindow);
 void GWidgetPrevFocus(GWindow);
-void GWidgetRequestVisiblePalette(GWindow palette,int visible);
-void GWidgetHidePalettes(void);
 
 struct ggadget *GWidgetGetControl(GWindow gw, int cid);
 struct ggadget *_GWidgetGetGadgets(GWindow gw);
@@ -86,15 +83,6 @@ extern void GWidgetFlowGadgets(GWindow gw);
 extern void GWidgetToDesiredSize(GWindow gw);
 
 	/* Built in dialogs */
-unichar_t *GWidgetOpenFile(const unichar_t *title, const unichar_t *defaultfile,
-	const unichar_t *initial_filter, unichar_t **mimetypes,GFileChooserFilterType filter);
-unichar_t *GWidgetSaveAsFile(const unichar_t *title, const unichar_t *defaultfile,
-	const unichar_t *initial_filter, unichar_t **mimetypes,GFileChooserFilterType filter );
-unichar_t *GWidgetSaveAsFileWithGadget(const unichar_t *title, const unichar_t *defaultfile,
-				       const unichar_t *initial_filter, unichar_t **mimetypes,
-				       GFileChooserFilterType filter,
-				       GFileChooserInputFilenameFuncType filenamefunc,
-				       GGadgetCreateData *optional_gcd);
 char *GWidgetOpenFile8(const char *title, const char *defaultfile,
 	const char *initial_filter, char **mimetypes,GFileChooserFilterType filter);
 char *GWidgetOpenFileWPath8(const char *title, const char *defaultfile,
@@ -106,10 +94,6 @@ char *GWidgetSaveAsFileWithGadget8(const char *title, const char *defaultfile,
 				   GGadgetCreateData *optional_gcd);
 char *GWidgetSaveAsFile8(const char *title, const char *defaultfile,
 	const char *initial_filter, char **mimetypes,GFileChooserFilterType filter );
-int GWidgetAsk(const unichar_t *title, const unichar_t **answers, const unichar_t *mn,
-	int def, int cancel,const unichar_t *question,...);
-void GWidgetError(const unichar_t *title,const unichar_t *statement,...);
-unichar_t *GWidgetAskStringR(int title, const unichar_t *def,int question,...);
 int GWidgetAsk8(const char *title, const char **answers,
 	int def, int cancel,const char *question,...);
 int GWidgetAskCentered8(const char *title,
@@ -131,8 +115,8 @@ int GWidgetChoicesB8(char *title, const char **choices, int cnt, int def,
 int GWidgetChoicesBM8(const char *title, const char **choices, char *sel,
 	int cnt, char *buts[2], const char *question,...);
 
-extern struct hslrgb GWidgetColor(const char *title,struct hslrgb *defcol,struct hslrgb fontcols[6]);
-extern struct hslrgba GWidgetColorA(const char *title,struct hslrgba *defcol,struct hslrgba fontcols[6]);
+extern struct hslrgb GWidgetColor(const char *title,struct hslrgb *defcol,struct hslrgb *fontcols);
+extern struct hslrgba GWidgetColorA(const char *title,struct hslrgba *defcol,struct hslrgba *fontcols);
 
 #define gwwv_choose_multiple	GWidgetChoicesBM8
 #define gwwv_choose_with_buttons	GWidgetChoicesB8
@@ -148,10 +132,6 @@ extern struct hslrgba GWidgetColorA(const char *title,struct hslrgba *defcol,str
 #define gwwv_open_filename_with_path(tit,def,filter,filtfunc,path)	GWidgetOpenFileWPath8(tit,def,filter,NULL,filtfunc,path)
 #define gwwv_save_filename(tit,def,filter)		GWidgetSaveAsFile8(tit,def,filter,NULL,NULL)
 #define gwwv_save_filename_with_gadget(tit,def,filter,gcd)		GWidgetSaveAsFileWithGadget8(tit,def,filter,NULL,NULL,NULL,gcd)
-
-void GWidgetCreateInsChar(void);	/* takes input even when a modal dlg is active */
-		/* but is not modal itself */
-void GInsCharSetChar(unichar_t ch);	/* Sets current selection in ins char dlg */
 
 extern GIC *GWidgetCreateInputContext(GWindow w,enum gic_style def_style);
 extern GIC *GWidgetGetInputContext(GWindow w);

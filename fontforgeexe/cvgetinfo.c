@@ -641,7 +641,6 @@ static void RefGetInfo(CharView *cv, RefChar *ref) {
     GHVBoxSetExpandableCol(boxes[6].ret,gb_expandgluesame);
     GHVBoxFitWindow(boxes[0].ret);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gi.gw,true);
     while ( !gi.done )
 	GDrawProcessOneEvent(NULL);
@@ -737,7 +736,6 @@ static void ImgGetInfo(CharView *cv, ImageList *img) {
 	GHVBoxSetExpandableCol(boxes[2].ret,gb_expandglue);
 	GHVBoxFitWindow(boxes[0].ret);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gi.gw,true);
     while ( !gi.done )
 	GDrawProcessOneEvent(NULL);
@@ -756,7 +754,7 @@ static AnchorClass *_AnchorClassUnused(SplineChar *sc,int *waslig, int classmatc
     /*  or 'mkmk' anchors, which allow a mark to be both a base and an attach */
 
     ismarkglyph = (sc->width==0) || sc->glyph_class==(3+1) ||
-	    ( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 && iscombining(sc->unicodeenc)) ||
+	    ( sc->unicodeenc!=-1 && iscombining(sc->unicodeenc)) ||
 	    ( sc->anchor!=NULL && (sc->anchor->type == at_mark || sc->anchor->type == at_basemark));
     for ( pst = sc->possub; pst!=NULL && pst->type!=pst_ligature; pst=pst->next );
     isligatureglyph = (pst!=NULL) || sc->glyph_class==2+1;
@@ -816,8 +814,8 @@ return(NULL);
 	ap->type = at_cexit;
     else if ( waslig==-3 || an->type==act_curs )
 	ap->type = at_centry;
-    else if (( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 &&
-	    iscombining(sc->unicodeenc)) || sc->width==0 || sc->glyph_class==(3+1) /* mark class+1 */)
+    else if (( sc->unicodeenc!=-1 && iscombining(sc->unicodeenc)) ||
+	    sc->width==0 || sc->glyph_class==(3+1) /* mark class+1 */)
 	ap->type = at_mark;
     else if ( an->type==act_mkmk )
 	ap->type = at_basemark;
@@ -910,6 +908,7 @@ static void AI_DisplayRadio(GIData *ci,enum anchor_type type) {
       case at_cexit:
 	GGadgetSetChecked(GWidgetGetControl(ci->gw,CID_CursExit),true);
       break;
+      case at_max: break;
     }
 }
 
@@ -1192,8 +1191,7 @@ return( true );			/* No op */
 	    PST *pst;
 	    for ( pst = ci->sc->possub; pst!=NULL && pst->type!=pst_ligature; pst=pst->next );
 	    if (ci->sc->glyph_class==3+1 ||
-		    (ci->sc->unicodeenc!=-1 && ci->sc->unicodeenc<0x10000 &&
-		    iscombining(ci->sc->unicodeenc)))
+		    (ci->sc->unicodeenc!=-1 && iscombining(ci->sc->unicodeenc)))
 		ntype = at_mark;
 	    else if (( pst!=NULL || ci->sc->glyph_class==2+1 ) && an->type==act_mklg )
 		ntype = at_baselig;
@@ -1711,7 +1709,6 @@ return;
 	AI_Display(&gi,ap);
 	GWidgetIndicateFocusGadget(GWidgetGetControl(gi.gw,CID_X));
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gi.gw,true);
     while ( !gi.done )
 	GDrawProcessOneEvent(NULL);
@@ -1721,7 +1718,7 @@ return;
 
 void PI_ShowHints(SplineChar *sc, GGadget *list, int set) {
     StemInfo *h;
-    int32 i, len;
+    int32_t i, len;
 
     if ( !set ) {
 	for ( h = sc->hstem; h!=NULL; h=h->next )
@@ -1805,7 +1802,7 @@ static void PI_FigurePrev(GIData *ci) {
 }
 
 static void PI_FigureHintMask(GIData *ci) {
-    int32 i, len;
+    int32_t i, len;
     GTextInfo **ti = GGadgetGetList(GWidgetGetControl(ci->gw,CID_HintMask),&len);
 
     for ( i=0; i<len; ++i )
@@ -2069,7 +2066,7 @@ static void PIShowHide(GIData *ci) {
 void PIChangePoint(GIData *ci) {
     int aspect = GTabSetGetSel(GWidgetGetControl(ci->gw,CID_TabSet));
     GGadget *list = GWidgetGetControl(ci->gw,CID_HintMask);
-    int32 i, len;
+    int32_t i, len;
     HintMask *hm;
     SplinePoint *sp;
     SplineSet *spl;
@@ -2200,14 +2197,12 @@ static int PI_InterpChanged(GGadget *g, GEvent *e) {
 		    cursp->nextcp.x = rint((n->me.x+cursp->me.x)/2);
 		    cursp->nextcp.y = rint((n->me.y+cursp->me.y)/2);
 		    n->prevcp = cursp->nextcp;
-		    cursp->nonextcp = n->noprevcp = false;
 		}
 		if ( cursp->noprevcp && cursp->prev ) {
 		    SplinePoint *p = cursp->prev->from;
 		    cursp->prevcp.x = rint((p->me.x+cursp->me.x)/2);
 		    cursp->prevcp.y = rint((p->me.y+cursp->me.y)/2);
 		    p->nextcp = cursp->prevcp;
-		    cursp->noprevcp = p->nonextcp = false;
 		}
 		cursp->me.x = (cursp->nextcp.x + cursp->prevcp.x)/2;
 		cursp->me.y = (cursp->nextcp.y + cursp->prevcp.y)/2;
@@ -2326,7 +2321,6 @@ return( true );
 	}
 	cursp->nextcp.x += dx;
 	cursp->nextcp.y += dy;
-	cursp->nonextcp = false;
 	SplineSetSpirosClear(ci->curspl);
 	ci->nextchanged = true;
 	if (( dx>.1 || dx<-.1 || dy>.1 || dy<-.1 ) && cursp->nextcpdef ) {
@@ -2403,7 +2397,6 @@ return( true );
 	}
 	cursp->prevcp.x += dx;
 	cursp->prevcp.y += dy;
-	cursp->noprevcp = false;
 	ci->prevchanged = true;
 	SplineSetSpirosClear(ci->curspl);
 	if (( dx>.1 || dx<-.1 || dy>.1 || dy<-.1 ) && cursp->prevcpdef ) {
@@ -3339,7 +3332,6 @@ static void PointGetInfo(CharView *cv, SplinePoint *sp, SplinePointList *spl) {
 	GHVBoxFitWindow(mb[0].ret);
 
 	dlist_pushfront( &cv->pointInfoDialogs, (struct dlistnode *)gi );
-	GWidgetHidePalettes();
 	GDrawResize(gi->gw,
 		    GGadgetScale(GDrawPointsToPixels(NULL,PI_Width)),
 		    GDrawPointsToPixels(NULL,PI_Height));
@@ -3767,7 +3759,6 @@ static void SpiroPointGetInfo(CharView *cv, spiro_cp *scp, SplinePointList *spl)
 
 	GHVBoxFitWindow(pb[0].ret);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gip->gw,true);
     while ( !gip->done )
 	GDrawProcessOneEvent(NULL);

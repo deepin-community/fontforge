@@ -48,6 +48,7 @@
 #include "splinefill.h"
 #include "splineorder2.h"
 #include "splinerefigure.h"
+#include "splineutil.h"
 #include "splineutil2.h"
 #include "tottf.h"
 #include "ustring.h"
@@ -62,10 +63,6 @@
 #endif
 
 /*#define DEBUG 1*/
-
-typedef struct quartic {
-    bigreal a,b,c,d,e;
-} Quartic;
 
 /* In an attempt to make allocation more efficient I just keep preallocated */
 /*  lists of certain common sizes. It doesn't seem to make much difference */
@@ -1336,7 +1333,7 @@ SplinePointList *SplinePointListCopy1(const SplinePointList *spl) {
 return( cur );
 }
 
-/* If this routine is called we are guarenteed that:
+/* If this routine is called we are guaranteed that:
     at least one point on the splineset is selected
     not all points on the splineset are selected
 */
@@ -1403,7 +1400,7 @@ static SplinePointList *SplinePointListCopySelected1(SplinePointList *spl) {
 return( head );
 }
 
-/* If this routine is called we are guarenteed that:
+/* If this routine is called we are guaranteed that:
     at least one point on the splineset is selected
     not all points on the splineset are selected
 */
@@ -1503,7 +1500,6 @@ return( head );
 
 SplinePointList *SplinePointListCopySelected(SplinePointList *base) {
     SplinePointList *head=NULL, *last=NULL, *cur=NULL;
-    SplinePoint *pt, *first;
     bool anysel, allsel;
 
     for ( ; base!=NULL; base = base->next ) {
@@ -1526,7 +1522,6 @@ return( head );
 SplinePointList *SplinePointListCopySpiroSelected(SplinePointList *base) {
     SplinePointList *head=NULL, *last=NULL, *cur=NULL;
     bool anysel, allsel;
-    int i;
 
     for ( ; base!=NULL; base = base->next ) {
 	anysel = SplinePointListCheckSelected1(base, true, &allsel, true);
@@ -1656,7 +1651,6 @@ return( last );
 
 SplinePointList *SplinePointListRemoveSelected(SplineChar *sc,SplinePointList *base) {
     SplinePointList *head=NULL, *last=NULL, *next;
-    SplinePoint *pt, *first;
     bool anysel, allsel;
 
     for ( ; base!=NULL; base = next ) {
@@ -2656,7 +2650,7 @@ static void _SplineFontFromType1(SplineFont *sf, FontDict *fd, struct pscontext 
 	}
     }
     /* sometimes (some apple oblique fonts) the fontmatrix is not just a */
-    /*  formality, it acutally contains a skew. So be ready */
+    /*  formality, it actually contains a skew. So be ready */
     if ( fd->fontmatrix[0]!=0 )
 	TransByFontMatrix(sf,fd->fontmatrix);
     AltUniFigure(sf,sf->map,true);
@@ -3357,7 +3351,7 @@ int _CubicSolve(const Spline1D *sp,bigreal sought, extended ts[3]) {
 	}
     } else if ( sa!=0 ) {
     /* http://www.m-a.org.uk/eb/mg/mg077ch.pdf */
-    /* this nifty solution to the cubic neatly avoids complex arithmatic */
+    /* this nifty solution to the cubic neatly avoids complex arithmetic */
 	xN = -sb/(3*(extended) sa);
 	yN = ((sa*xN + sb)*xN+sc)*xN + sd;
 
@@ -3447,7 +3441,7 @@ return( false );
 return( true );
 }
 
-static int _QuarticSolve(Quartic *q,extended ts[4]) {
+int _QuarticSolve(Quartic *q,extended ts[4]) {
     extended extrema[5];
     Spline1D sp;
     int ecnt = 0, i, zcnt;
@@ -3523,7 +3517,9 @@ return( _CubicSolve(&sp,0,ts+1)+1);
 	}
 	for (;;) {
 	    t = (topt+bottomt)/2;
-	    if ( t==topt || t==bottomt ) {
+	    if ( isnan(t) ) {
+		break;
+	    } else if ( t==topt || t==bottomt ) {
 		ts[zcnt++] = t;
 	break;
 	    }
@@ -5248,7 +5244,7 @@ static AnchorPoint *AnchorPointsRemoveName(AnchorPoint *alist,AnchorClass *an) {
 	    if ( an->type == act_mark || (an->type==act_mklg && ap->type==at_mark))
 		next = NULL;	/* Only one instance of an anchor class in a glyph for mark to base anchors */
 				/*  Or for the mark glyphs of ligature classes */
-			        /*  Mark to mark & cursive will (probably) have 2 occurances */
+			        /*  Mark to mark & cursive will (probably) have 2 occurrences */
 			        /*  and ligatures may have lots */
 	    AnchorPointsFree(ap);
 	} else
@@ -5513,7 +5509,7 @@ return;
 		adjust->corrections[i] = 0;
 	    adjust->last_pixel_size = size;
 	} else {
-	    int8 *new = malloc(adjust->last_pixel_size-size+1);
+	    int8_t *new = malloc(adjust->last_pixel_size-size+1);
 	    memset(new,0,adjust->first_pixel_size-size);
 	    memcpy(new+adjust->first_pixel_size-size,
 		    adjust->corrections, len);
@@ -5572,6 +5568,7 @@ void FPSTRuleContentsFree(struct fpst_rule *r, enum fpossub_format format) {
 	    free(r->u.coverage.fcovers[j]);
 	free(r->u.coverage.fcovers);
       break;
+      case pst_formatmax: break;
     }
     free(r->lookups);
 }
@@ -5604,18 +5601,18 @@ return( NULL );
 	    t->u.class.ncnt = f->u.class.ncnt;
 	    t->u.class.bcnt = f->u.class.bcnt;
 	    t->u.class.fcnt = f->u.class.fcnt;
-	    t->u.class.nclasses = malloc( f->u.class.ncnt*sizeof(uint16));
+	    t->u.class.nclasses = malloc( f->u.class.ncnt*sizeof(uint16_t));
 	    memcpy(t->u.class.nclasses,f->u.class.nclasses,
-		    f->u.class.ncnt*sizeof(uint16));
+		    f->u.class.ncnt*sizeof(uint16_t));
 	    if ( t->u.class.bcnt!=0 ) {
-		t->u.class.bclasses = malloc( f->u.class.bcnt*sizeof(uint16));
+		t->u.class.bclasses = malloc( f->u.class.bcnt*sizeof(uint16_t));
 		memcpy(t->u.class.bclasses,f->u.class.bclasses,
-			f->u.class.bcnt*sizeof(uint16));
+			f->u.class.bcnt*sizeof(uint16_t));
 	    }
 	    if ( t->u.class.fcnt!=0 ) {
-		t->u.class.fclasses = malloc( f->u.class.fcnt*sizeof(uint16));
+		t->u.class.fclasses = malloc( f->u.class.fcnt*sizeof(uint16_t));
 		memcpy(t->u.class.fclasses,f->u.class.fclasses,
-			f->u.class.fcnt*sizeof(uint16));
+			f->u.class.fcnt*sizeof(uint16_t));
 	    }
 	  break;
 	  case pst_reversecoverage:
@@ -5638,6 +5635,7 @@ return( NULL );
 		    t->u.coverage.fcovers[j] = copy(f->u.coverage.fcovers[j]);
 	    }
 	  break;
+	  case pst_formatmax: break;
 	}
 	if ( f->lookup_cnt!=0 ) {
 	    t->lookup_cnt = f->lookup_cnt;
@@ -6022,7 +6020,7 @@ void TtfTablesFree(struct ttf_table *tab) {
     }
 }
 
-void SFRemoveSavedTable(SplineFont *sf, uint32 tag) {
+void SFRemoveSavedTable(SplineFont *sf, uint32_t tag) {
     struct ttf_table *tab, *prev;
 
     for ( prev=NULL, tab=sf->ttf_tables; tab!=NULL && tab->tag!=tag; prev=tab, tab=tab->next );
@@ -6102,8 +6100,8 @@ return( NULL );
     *new = *kc;
     new->firsts = malloc(new->first_cnt*sizeof(char *));
     new->seconds = malloc(new->second_cnt*sizeof(char *));
-    new->offsets = malloc(new->first_cnt*new->second_cnt*sizeof(int16));
-    memcpy(new->offsets,kc->offsets, new->first_cnt*new->second_cnt*sizeof(int16));
+    new->offsets = malloc(new->first_cnt*new->second_cnt*sizeof(int16_t));
+    memcpy(new->offsets,kc->offsets, new->first_cnt*new->second_cnt*sizeof(int16_t));
     // Group kerning.
     if (kc->firsts_names) new->firsts_names = calloc(new->first_cnt,sizeof(char *));
     if (kc->seconds_names) new->seconds_names = calloc(new->second_cnt,sizeof(char *));
@@ -6131,7 +6129,7 @@ return( NULL );
     memcpy(new->adjusts,kc->adjusts, new->first_cnt*new->second_cnt*sizeof(DeviceTable));
     for ( i=new->first_cnt*new->second_cnt-1; i>=0 ; --i ) {
 	if ( new->adjusts[i].corrections!=NULL ) {
-	    int8 *old = new->adjusts[i].corrections;
+	    int8_t *old = new->adjusts[i].corrections;
 	    int len = new->adjusts[i].last_pixel_size - new->adjusts[i].first_pixel_size + 1;
 	    new->adjusts[i].corrections = malloc(len);
 	    memcpy(new->adjusts[i].corrections,old,len);
@@ -6298,12 +6296,12 @@ EncMap *EncMapNew(int enccount,int backmax,Encoding *enc) {
 
     /* Ensure all memory available, otherwise cleanup and exit as NULL */
     if ( (map=chunkalloc(sizeof(EncMap)))!=NULL ) {
-	if ( (map->map=malloc(enccount*sizeof(int32)))!=NULL ) {
-	    if ( (map->backmap=malloc(backmax*sizeof(int32)))!=NULL ) {
+	if ( (map->map=malloc(enccount*sizeof(int32_t)))!=NULL ) {
+	    if ( (map->backmap=malloc(backmax*sizeof(int32_t)))!=NULL ) {
 		map->enccount = map->encmax = enccount;
 		map->backmax = backmax;
-		memset(map->map,-1,enccount*sizeof(int32));
-		memset(map->backmap,-1,backmax*sizeof(int32));
+		memset(map->map,-1,enccount*sizeof(int32_t));
+		memset(map->backmap,-1,backmax*sizeof(int32_t));
 		map->enc = enc;
 		return( map );
 	    }
@@ -6349,10 +6347,10 @@ EncMap *EncMapCopy(EncMap *map) {
     /* Ensure all memory available, otherwise cleanup and exit as NULL */
     if ( (new=chunkalloc(sizeof(EncMap)))!=NULL ) {
 	*new = *map;
-	if ( (new->map=malloc(map->encmax*sizeof(int32)))!=NULL ) {
-	    if ( (new->backmap=malloc(map->backmax*sizeof(int32)))!=NULL ) {
-		memcpy(new->map,map->map,map->enccount*sizeof(int32));
-		memcpy(new->backmap,map->backmap,map->backmax*sizeof(int32));
+	if ( (new->map=malloc(map->encmax*sizeof(int32_t)))!=NULL ) {
+	    if ( (new->backmap=malloc(map->backmax*sizeof(int32_t)))!=NULL ) {
+		memcpy(new->map,map->map,map->enccount*sizeof(int32_t));
+		memcpy(new->backmap,map->backmap,map->backmax*sizeof(int32_t));
 		/* NOTE: This new->enc 'also' points to same map->enc. */
 		if ( map->remap==NULL )
 		    return( new );
@@ -6761,7 +6759,6 @@ int CountKerningClasses(SplineFont *sf) {
     struct kernclass *current_kernclass;
     int isv;
     int isr;
-    int i;
     int absolute_index = 0; // This gives us a unique index for each kerning class.
     // First we catch the existing names.
     absolute_index = 0;
@@ -6863,7 +6860,6 @@ int HashKerningClassNamesCaps(SplineFont *sf, struct glif_name_index * class_nam
 }
 
 int KerningClassSeekByAbsoluteIndex(const struct splinefont *sf, int seek_index, struct kernclass **okc, int *oisv, int *oisr, int *ooffset) {
-    int current = 0;
     struct kernclass *current_kernclass;
     int isv;
     int isr;
@@ -7100,13 +7096,13 @@ return( changed );
 		    (&ptspace[i]->prevcp.x)[is_y]-cur<within ) {
 		(&ptspace[i]->prevcp.x)[is_y] = cur;
 		if ( (&ptspace[i]->prevcp.x)[!is_y]==(&ptspace[i]->me.x)[!is_y] )
-		    ptspace[i]->noprevcp = true;
+		    ptspace[i]->prevcp = ptspace[i]->me;
 	    }
 	    if ( (&ptspace[i]->nextcp.x)[is_y]-cur>-within &&
 		    (&ptspace[i]->nextcp.x)[is_y]-cur<within ) {
 		(&ptspace[i]->nextcp.x)[is_y] = cur;
 		if ( (&ptspace[i]->nextcp.x)[!is_y]==(&ptspace[i]->me.x)[!is_y] )
-		    ptspace[i]->nonextcp = true;
+		    ptspace[i]->nextcp = ptspace[i]->me;
 	    }
 	    cspace[i].cnt = 0;
 	}
@@ -7258,7 +7254,7 @@ return( changed );
 
 static int SplineRemoveAnnoyingExtrema1(Spline *s,int which,bigreal err_sq) {
     /* Remove extrema which are very close to one of the spline end-points */
-    /*  and which are in the oposite direction (along the normal of the */
+    /*  and which are in the opposite direction (along the normal of the */
     /*  close end-point's cp) from the other end-point */
     extended ts[2], t1, t2;
     bigreal df, dt;
@@ -7398,7 +7394,7 @@ int SplineRemoveWildControlPoints(Spline *s, bigreal distratio) {
 	if (!s->to->noprevcp)
 		bcdisplacement1 = DistanceBetweenPoints(&s->to->me, &s->to->prevcp);
 	if (pdisplacement == 0 || MAX(bcdisplacement0, bcdisplacement1) / pdisplacement > distratio) {
-		changed = s->islinear = s->from->nonextcp = s->to->noprevcp = true;
+		changed = s->islinear = true;
 		s->from->nextcp = s->from->me;
 		s->to->prevcp = s->to->me;
 		SplineRefigure(s);
@@ -7457,10 +7453,6 @@ SplinePoint *SplineBisect(Spline *spline, extended t) {
 	mid->nextcp.x = xend.c0;	mid->nextcp.y = yend.c0;
 	mid->prevcp.x = xstart.c1;	mid->prevcp.y = ystart.c1;
     }
-    if ( mid->me.x==mid->nextcp.x && mid->me.y==mid->nextcp.y )
-	mid->nonextcp = true;
-    if ( mid->me.x==mid->prevcp.x && mid->me.y==mid->prevcp.y )
-	mid->noprevcp = true;
 
     old0 = spline->from; old1 = spline->to;
     if ( order2 ) {
@@ -7470,8 +7462,6 @@ SplinePoint *SplineBisect(Spline *spline, extended t) {
 	old0->nextcp.x = xstart.c0;	old0->nextcp.y = ystart.c0;
 	old1->prevcp.x = xend.c1;	old1->prevcp.y = yend.c1;
     }
-    old0->nonextcp = (old0->nextcp.x==old0->me.x && old0->nextcp.y==old0->me.y);
-    old1->noprevcp = (old1->prevcp.x==old1->me.x && old1->prevcp.y==old1->me.y);
     old0->nextcpdef = false;
     old1->prevcpdef = false;
     SplineFree(spline);
@@ -7484,7 +7474,7 @@ SplinePoint *SplineBisect(Spline *spline, extended t) {
     old0->next = spline1;
     mid->prev = spline1;
     if ( SplineIsLinear(spline1)) {
-	spline1->islinear = spline1->from->nonextcp = spline1->to->noprevcp = true;
+	spline1->islinear = true;
 	spline1->from->nextcp = spline1->from->me;
 	spline1->to->prevcp = spline1->to->me;
     }
@@ -7498,7 +7488,7 @@ SplinePoint *SplineBisect(Spline *spline, extended t) {
     mid->next = spline2;
     old1->prev = spline2;
     if ( SplineIsLinear(spline2)) {
-	spline2->islinear = spline2->from->nonextcp = spline2->to->noprevcp = true;
+	spline2->islinear = true;
 	spline2->from->nextcp = spline2->from->me;
 	spline2->to->prevcp = spline2->to->me;
     }
@@ -7544,9 +7534,7 @@ return( spline );
 	if ( i==cnt )
 	    sp = spline->to;
 	else {
-	    sp = chunkalloc(sizeof(SplinePoint));
-	    sp->me.x = splines[0][i+1].sp.d;
-	    sp->me.y = splines[1][i+1].sp.d;
+	    sp = SplinePointCreate(splines[0][i+1].sp.d, splines[1][i+1].sp.d);
 	}
 	if ( order2 ) {
 	    sp->prevcp = last->nextcp;
@@ -7649,7 +7637,7 @@ int SSBoundsWithin(SplineSet *ss,bigreal z1, bigreal z2, bigreal *wmin, bigreal 
 
     while ( ss!=NULL ) {
 	first = NULL;
-	for ( s=ss->first->next; s!=first; s=s->to->next ) {
+	for ( s=ss->first->next; s!=first && s!=NULL; s=s->to->next ) {
 	    if ( first==NULL ) first = s;
 	    ws = &s->splines[other];
 	    zs = &s->splines[major];

@@ -15,12 +15,13 @@ install(FILES
   choosersfdir.png choosertar.png choosertextbdf.png choosertextc.png choosertextcss.png
   choosertextfontps.png choosertextfontsfd.png choosertexthtml.png choosertextjava.png
   choosertextmake.png choosertextplain.png choosertextps.png choosertextxml.png chooserttf.png
-  chooserunknown.png chooserupdir.png chooservideo.png colorwheel.png downarrow.png editclearback.png
+  chooserunknown.png chooserupdir.png chooservideo.png colorwheel.png downarrow.png downarrow_disabled.png editclearback.png
   editclear.png editcopyfg2bg.png editcopylayer2layer.png editcopylbearing.png editcopylookupdata.png
   editcopy.png editcopyrbearing.png editcopyref.png editcopyvwidth.png editcopywidth.png editcut.png
   editfind.png editjoin.png editmerge.png editmergetoline.png editpasteafter.png editpasteinto.png
   editpaste.png editredo.png editrmundoes.png editrplref.png editsameas.png editselect.png
-  editundo.png editunlink.png elementaddextrema.png elementalign.png elementanticlock.png
+  editundo.png editunlink.png elementaddextrema.png elementaddinflections.png 
+  elementbalance.png elementharmonize.png elementalign.png elementanticlock.png
   elementautotrace.png elementbdfinfo.png elementbitmapsavail.png elementbuildaccent.png
   elementbuildcomposite.png elementclockwise.png elementcomparefonts.png elementcomparelayers.png
   elementcorrectdir.png elementexpandstroke.png elementfindprobs.png elementfontinfo.png

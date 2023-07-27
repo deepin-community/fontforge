@@ -32,9 +32,7 @@
 #include "fontforgeui.h"
 #include "gfile.h"
 #include "gicons.h"
-#include "gio.h"
 #include "gkeysym.h"
-#include "gresource.h"
 #include "macbinary.h"
 #include "mm.h"
 #include "namelist.h"
@@ -120,7 +118,7 @@ struct gfc_data {
     int sfnt_flags;		/*  important. We index into them */
   /* WAS otf_flags */
     int psotb_flags;		/*  don't reorder or put junk in between */
-    uint8 optset[3];
+    uint8_t optset[3];
     SplineFont *sf;
     EncMap *map;
     int layer;
@@ -202,10 +200,11 @@ extern int oldbitmapstate;
 
 static const char *pfaeditflag = "SplineFontDB:";
 
-int32 *ParseBitmapSizes(GGadget *g,char *msg,int *err) {
+static int32_t *ParseBitmapSizes(GGadget *g, int *err) {
     const unichar_t *val = _GGadgetGetTitle(g), *pt; unichar_t *end, *end2;
+    const char *msg = _("Pixel List"); // Before switching to C locale
     int i;
-    int32 *sizes;
+    int32_t *sizes;
 
     locale_t tmplocale; locale_t oldlocale; // Declare temporary locale storage.
     switch_to_c_locale(&tmplocale, &oldlocale); // Switch to the C locale temporarily and cache the old locale.
@@ -220,13 +219,11 @@ int32 *ParseBitmapSizes(GGadget *g,char *msg,int *err) {
 	pt = end+1;
 	end2 = NULL;
     }
-    sizes = malloc((i+1)*sizeof(int32));
+    sizes = malloc((i+1)*sizeof(int32_t));
 
     for ( i=0, pt = val; *pt!='\0' ; ) {
 	sizes[i]=rint(u_strtod(pt,&end));
-	if ( msg!=_("Pixel List") )
-	    /* No bit depth allowed */;
-	else if ( *end!='@' )
+	if ( *end!='@' )
 	    sizes[i] |= 0x10000;
 	else
 	    sizes[i] |= (u_strtol(end+1,&end,10)<<16);
@@ -522,7 +519,7 @@ static void OptSetDefaults(GWindow gw,struct gfc_data *d,int which,int iscid) {
 #define OPT_Height	233
 
 static void SaveOptionsDlg(struct gfc_data *d,int which,int iscid) {
-    int k,fontlog_k,group,group2;
+    int k,group,group2;
     GWindow gw;
     GWindowAttrs wattrs;
     GGadgetCreateData gcd[36];
@@ -855,7 +852,6 @@ static void SaveOptionsDlg(struct gfc_data *d,int which,int iscid) {
     boxes[3].gd.label = (GTextInfo *) &gcd[group2-1];
     boxes[3].creator = GHVGroupCreate;
 
-    fontlog_k = k;
     gcd[k].gd.flags = gg_visible | gg_enabled;
     label[k].text = (unichar_t *) _("Output FONTLOG.txt");
     label[k].text_is_1byte = true;
@@ -1145,7 +1141,6 @@ return( -1 );
     } else
 	GDrawSetUserData(gw,&done);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gw,true);
     while ( true ) {
 	done = 0;
@@ -1174,7 +1169,7 @@ return( -1 );
     }
 }
 
-static char *SearchDirForWernerFile(char *dir,char *filename) {
+static char *SearchDirForWernerFile(const char *dir,char *filename) {
     char buffer[1025], buf2[200];
     FILE *file;
     int good = 0;
@@ -1198,18 +1193,14 @@ static char *SearchDirForWernerFile(char *dir,char *filename) {
     return( NULL );
 }
 
-static enum fchooserret GFileChooserFilterWernerSFDs(GGadget *g,GDirEntry *ent,
-	const unichar_t *dir) {
+static enum fchooserret GFileChooserFilterWernerSFDs(GGadget *g,const struct gdirentry *ent,
+	const char *dir) {
     enum fchooserret ret = GFileChooserDefFilter(g,ent,dir);
     char buf2[200];
     FILE *file;
 
     if ( ret==fc_show && !ent->isdir ) {
-	char *filename = malloc(u_strlen(dir)+u_strlen(ent->name)+5);
-	cu_strcpy(filename,dir);
-	strcat(filename,"/");
-	cu_strcat(filename,ent->name);
-	file = fopen(filename,"r");
+	file = fopen(ent->fullpath,"r");
 	if ( file==NULL )
 	    ret = fc_hide;
 	else {
@@ -1218,7 +1209,6 @@ static enum fchooserret GFileChooserFilterWernerSFDs(GGadget *g,GDirEntry *ent,
 		ret = fc_hide;
 	    fclose(file);
 	}
-	free(filename);
     }
 return( ret );
 }
@@ -1323,7 +1313,7 @@ static void prepend_timestamp(struct gfc_data *d){
 static void DoSave(struct gfc_data *d,unichar_t *path) {
     int err=false;
     char *temp;
-    int32 *sizes=NULL;
+    int32_t *sizes=NULL;
     int iscid, i;
     struct sflist *sfs=NULL, *cur, *last=NULL;
     static int psscalewarned=0, ttfscalewarned=0, psfnlenwarned=0;
@@ -1364,7 +1354,7 @@ return;
     }
 
     if ( d->family==gf_none )
-	layer = (intpt) GGadgetGetListItemSelected(GWidgetGetControl(d->gw,CID_Layers))->userdata;
+	layer = (intptr_t) GGadgetGetListItemSelected(GWidgetGetControl(d->gw,CID_Layers))->userdata;
 
     temp = u2def_copy(path);
     oldformatstate = GGadgetGetFirstListSelectedItem(d->pstype);
@@ -1449,7 +1439,7 @@ return;
 
     oldbitmapstate = GGadgetGetFirstListSelectedItem(d->bmptype);
     if ( oldbitmapstate!=bf_none )
-	sizes = ParseBitmapSizes(d->bmpsizes,_("Pixel List"),&err);
+	sizes = ParseBitmapSizes(d->bmpsizes,&err);
     if ( err )
 return;
     if ( oldbitmapstate==bf_nfntmacbin && oldformatstate!=ff_pfbmacbin && !nfnt_warned ) {
@@ -1478,7 +1468,7 @@ return;
 		last = cur;
 		cur->sf = GGadgetGetUserData(GWidgetGetControl(d->gw,CID_Family+10*i));
 		if ( oldbitmapstate!=bf_none )
-		    cur->sizes = ParseBitmapSizes(GWidgetGetControl(d->gw,CID_Family+10*i+1),_("Pixel List"),&err);
+		    cur->sizes = ParseBitmapSizes(GWidgetGetControl(d->gw,CID_Family+10*i+1),&err);
 		if ( err ) {
 		    SfListFree(sfs);
 return;
@@ -1607,45 +1597,32 @@ return;
     d->ret = !err;
 }
 
-static void GFD_doesnt(GIOControl *gio) {
-    /* The filename the user chose doesn't exist, so everything is happy */
-    struct gfc_data *d = gio->userdata;
-    DoSave(d,gio->path);
-    GFileChooserReplaceIO(d->gfc,NULL);
-}
-
-static void GFD_exists(GIOControl *gio) {
-    /* The filename the user chose exists, ask user if s/he wants to overwrite */
-    struct gfc_data *d = gio->userdata;
-    char *temp;
-    const char *rcb[3];
-
-    rcb[2]=NULL;
-    rcb[0] =  _("_Replace");
-    rcb[1] =  _("_Cancel");
-
-    if ( gwwv_ask(_("File Exists"),rcb,0,1,_("File, %s, exists. Replace it?"),
-	    temp = u2utf8_copy(u_GFileNameTail(gio->path)))==0 ) {
-	DoSave(d,gio->path);
-    }
-    free(temp);
-    GFileChooserReplaceIO(d->gfc,NULL);
-}
-
 static void _GFD_SaveOk(struct gfc_data *d) {
     GGadget *tf;
     unichar_t *ret;
+	char *tmp;
     int formatstate = GGadgetGetFirstListSelectedItem(d->pstype);
+	bool save = true;
 
     GFileChooserGetChildren(d->gfc,NULL,NULL,&tf);
     if ( *_GGadgetGetTitle(tf)!='\0' ) {
 	ret = GGadgetGetTitle(d->gfc);
-	if ( formatstate!=ff_none )	/* are we actually generating an outline font? */
-	    GIOfileExists(GFileChooserReplaceIO(d->gfc,
-		    GIOCreate(ret,d,GFD_exists,GFD_doesnt)));
-	else
-	    GFD_doesnt(GIOCreate(ret,d,GFD_exists,GFD_doesnt));	/* No point in bugging the user if we aren't doing anything */
+	tmp = u2def_copy(ret);
+	/* No point in bugging the user if we aren't doing anything */
+	if (formatstate != ff_none && GFileExists(tmp)) {
+		const char *rcb[3];
+
+		rcb[2]=NULL;
+		rcb[0] =  _("_Replace");
+		rcb[1] =  _("_Cancel");
+
+		save = gwwv_ask(_("File Exists"),rcb,0,1,_("File, %s, exists. Replace it?"),tmp) == 0;
+	}
+	if (save) {
+		DoSave(d, ret);
+	}
 	free(ret);
+	free(tmp);
     }
 }
 
@@ -1703,31 +1680,11 @@ static int GFD_Options(GGadget *g, GEvent *e) {
 return( true );
 }
 
-static void GFD_dircreated(GIOControl *gio) {
-    struct gfc_data *d = gio->userdata;
-    unichar_t *dir = u_copy(gio->path);
-
-    GFileChooserReplaceIO(d->gfc,NULL);
-    GFileChooserSetDir(d->gfc,dir);
-    free(dir);
-}
-
-static void GFD_dircreatefailed(GIOControl *gio) {
-    /* We couldn't create the directory */
-    struct gfc_data *d = gio->userdata;
-    char *temp;
-
-    ff_post_notice(_("Couldn't create directory"),_("Couldn't create directory: %s"),
-		temp = u2utf8_copy(u_GFileNameTail(gio->path)));
-    free(temp);
-    GFileChooserReplaceIO(d->gfc,NULL);
-}
-
 static int GFD_NewDir(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	struct gfc_data *d = GDrawGetUserData(GGadgetGetWindow(g));
 	char *newdir;
-	unichar_t *temp;
+	unichar_t *temp = NULL;
 	newdir = gwwv_ask_string(_("Create directory..."),NULL,_("Directory name?"));
 	if ( newdir==NULL )
 return( true );
@@ -1737,9 +1694,13 @@ return( true );
 	    free(newdir); free(olddir);
 	    newdir = temp;
 	}
-	temp = utf82u_copy(newdir);
-	GIOmkDir(GFileChooserReplaceIO(d->gfc,
-		GIOCreate(temp,d,GFD_dircreated,GFD_dircreatefailed)));
+	if (GFileMkDir(newdir, 0755)) {
+		ff_post_notice(_("Couldn't create directory"),_("Couldn't create directory: %s"),
+			newdir);
+	} else {
+		temp = utf82u_copy(newdir);
+		GFileChooserSetDir(d->gfc, temp);
+	}
 	free(newdir); free(temp);
     }
 return( true );
@@ -1778,7 +1739,7 @@ static int GFD_Format(GGadget *g, GEvent *e) {
 	struct gfc_data *d = GDrawGetUserData(GGadgetGetWindow(g));
 	unichar_t *pt, *dup, *tpt, *ret;
 	int format = GGadgetGetFirstListSelectedItem(d->pstype);
-	int32 len; int bf;
+	int32_t len; int bf;
 	static unichar_t nullstr[] = { 0 };
 	GTextInfo **list;
 	SplineFont *temp;
@@ -2015,7 +1976,7 @@ static GTextInfo *SFUsableLayerNames(SplineFont *sf,int def_layer) {
 	ti[cnt].text = (unichar_t *) sf->layers[layer].name;
 	ti[cnt].text_is_1byte = true;
 	ti[cnt].selected = layer==def_layer;
-	ti[cnt++].userdata = (void *) (intpt) layer;
+	ti[cnt++].userdata = (void *) (intptr_t) layer;
     }
 return( ti );
 }
@@ -2037,7 +1998,7 @@ int SFGenerateFont(SplineFont *sf,int layer,int family,EncMap *map) {
     int familycnt=0;
     int fondcnt = 0, fondmax = 10;
     SFArray *familysfs=NULL;
-    uint16 psstyle;
+    uint16_t psstyle;
     static int done=false;
     extern NameList *force_names_when_saving;
     char **nlnames;
@@ -2720,7 +2681,6 @@ return( 0 );
 
     GFD_FigureWhich(&d);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gw,true);
     while ( !d.done )
         GDrawProcessOneEvent(NULL);

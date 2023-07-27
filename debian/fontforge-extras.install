@@ -8,4 +8,4 @@ usr/bin/showttf
 usr/bin/stripttc
 usr/bin/ttf2eps
 usr/bin/woff
-usr/share/fontforge/*.cidmap
+usr/share/fontforge/cidmap/

@@ -44,11 +44,9 @@ extern int interpCPsOnMotion;
 int CVAnySel(CharView *cv, int *anyp, int *anyr, int *anyi, int *anya) {
     int anypoints = 0, anyrefs=0, anyimages=0, anyanchor=0;
     SplinePointList *spl;
-    Spline *spline, *first;
     RefChar *rf;
     ImageList *il;
     AnchorPoint *ap;
-    int i;
 
     for ( spl = cv->b.layerheads[cv->b.drawmode]->splines; spl!=NULL && !anypoints; spl = spl->next ) {
         anypoints = SplinePointListCheckSelected1(spl, cv->b.sc->inspiro && hasspiro(), NULL, true);
@@ -697,7 +695,7 @@ return;
 		cv->lbearingsel = true;
 	    if ( cv->lbearingsel ) {
 //		cv->oldlbearing = cv->b.sc->lbearing;
-		fs->p->cx = 0;;
+		fs->p->cx = 0;
 		CVInfoDraw(cv,cv->gw);
 		fs->p->anysel = true;
 		cv->expandedge = ee_left;
@@ -1220,7 +1218,7 @@ static void adjustLBearing( CharView *cv, SplineChar *sc, real val )
 }
 
 /* Move the selection and return whether we did a merge */
-int CVMoveSelection(CharView *cv, real dx, real dy, uint32 input_state) {
+int CVMoveSelection(CharView *cv, real dx, real dy, uint32_t input_state) {
     CharViewTab* tab = CVGetActiveTab(cv);
     real transform[6];
     RefChar *refs;
@@ -1311,9 +1309,9 @@ return(false);
     }
     fudge = snapdistance/tab->scale/2;
     if ( cv->widthsel ) {
-	if ( cv->b.sc->width+dx>0 && ((int16) (cv->b.sc->width+dx))<0 )
+	if ( cv->b.sc->width+dx>0 && ((int16_t) (cv->b.sc->width+dx))<0 )
 	    cv->b.sc->width = 32767;
-	else if ( cv->b.sc->width+dx<0 && ((int16) (cv->b.sc->width+dx))>0 )
+	else if ( cv->b.sc->width+dx<0 && ((int16_t) (cv->b.sc->width+dx))>0 )
 	    cv->b.sc->width = -32768;
 	else
 	    cv->b.sc->width += dx;
@@ -1328,9 +1326,9 @@ return(false);
 	changed = true;
     }
     if ( cv->vwidthsel ) {
-	if ( cv->b.sc->vwidth-dy>0 && ((int16) (cv->b.sc->vwidth-dy))<0 )
+	if ( cv->b.sc->vwidth-dy>0 && ((int16_t) (cv->b.sc->vwidth-dy))<0 )
 	    cv->b.sc->vwidth = 32767;
-	else if ( cv->b.sc->vwidth-dy<0 && ((int16) (cv->b.sc->vwidth-dy))>0 )
+	else if ( cv->b.sc->vwidth-dy<0 && ((int16_t) (cv->b.sc->vwidth-dy))>0 )
 	    cv->b.sc->vwidth = -32768;
 	else
 	    cv->b.sc->vwidth -= dy;
@@ -1339,9 +1337,9 @@ return(false);
 	changed = true;
     }
     if ( cv->icsel ) {
-	if ( cv->b.sc->italic_correction+dx>0 && ((int16) (cv->b.sc->italic_correction+dx))<0 )
+	if ( cv->b.sc->italic_correction+dx>0 && ((int16_t) (cv->b.sc->italic_correction+dx))<0 )
 	    cv->b.sc->italic_correction = 32767-1;
-	else if ( cv->b.sc->italic_correction+dx<0 && ((int16) (cv->b.sc->italic_correction+dx))>0 )
+	else if ( cv->b.sc->italic_correction+dx<0 && ((int16_t) (cv->b.sc->italic_correction+dx))>0 )
 	    cv->b.sc->italic_correction = -32768;
 	else
 	    cv->b.sc->italic_correction += dx;
@@ -1350,9 +1348,9 @@ return(false);
 	changed = true;
     }
     if ( cv->tah_sel ) {
-	if ( cv->b.sc->top_accent_horiz+dx>0 && ((int16) (cv->b.sc->top_accent_horiz+dx))<0 )
+	if ( cv->b.sc->top_accent_horiz+dx>0 && ((int16_t) (cv->b.sc->top_accent_horiz+dx))<0 )
 	    cv->b.sc->top_accent_horiz = 32767-1;
-	else if ( cv->b.sc->top_accent_horiz+dx<0 && ((int16) (cv->b.sc->top_accent_horiz+dx))>0 )
+	else if ( cv->b.sc->top_accent_horiz+dx<0 && ((int16_t) (cv->b.sc->top_accent_horiz+dx))>0 )
 	    cv->b.sc->top_accent_horiz = -32768;
 	else
 	    cv->b.sc->top_accent_horiz += dx;
@@ -1441,6 +1439,7 @@ int CVMouseMovePointer(CharView *cv, GEvent *event) {
     int needsupdate = false;
     int did_a_merge = false;
     int touch_control_points = false;
+    int no_prev_cp = false, no_next_cp = false;
 
     
     /* if we haven't moved from the original location (ever) then this is a noop */
@@ -1559,26 +1558,53 @@ return( false );
 	touch_control_points = true;
 	// The modifier is wrong.
 	if (cv->p.anysel && cv->p.sp && event->u.mouse.state & ksm_control) {
-		// Identify the individual point clicked. Find its control points. Move the selected point on a line between those control points.
-		tmpp1 = nearest_point_on_line_segment((BasePoint){cv->p.sp->prevcp.x,cv->p.sp->prevcp.y}, \
-			(BasePoint){cv->p.sp->nextcp.x,cv->p.sp->nextcp.y}, (BasePoint){cv->info.x, cv->info.y});
-		// We also need to rebase the original point onto that line segment so that the movement is exactly along the line even if the original click is not.
-		tmpp2 = nearest_point_on_line_segment((BasePoint){cv->p.sp->prevcp.x,cv->p.sp->prevcp.y}, \
-			(BasePoint){cv->p.sp->nextcp.x,cv->p.sp->nextcp.y}, (BasePoint){cv->last_c.x, cv->last_c.y});
+		touch_control_points = false;
+		BasePoint prevref, nextref;
+		if (cv->p.sp->noprevcp && cv->p.sp->prev) {
+		    no_prev_cp = true;
+		    prevref = cv->p.sp->prev->from->me;
+		} else {
+		    prevref = cv->p.sp->prevcp;
+		}
+		if (cv->p.sp->nonextcp && cv->p.sp->next) {
+		    no_next_cp = true;
+		    nextref = cv->p.sp->next->to->me;
+		} else {
+		    nextref = cv->p.sp->nextcp;
+		}
+		// Identify the individual point clicked. Find its control
+		// points. Move the selected point on a line between those
+		// control points.
+		tmpp1 = nearest_point_on_line_segment(prevref, nextref, cv->info);
+		// We also need to rebase the original point onto that line
+		// segment so that the movement is exactly along the line
+		// even if the original click is not.
+		tmpp2 = nearest_point_on_line_segment(prevref, nextref, cv->last_c);
 		xadj = tmpp1.x-tmpp2.x;
 		yadj = tmpp1.y-tmpp2.y;
-		touch_control_points = false; // We will need to move the control points back (but only for the point dragged).
 	}
 	
 	did_a_merge = CVMoveSelection(cv,
 		xadj,yadj,
 		event->u.mouse.state);
-	// Rather than create a new set of functions for moving points without their control points, we instead just restore them if we did not want them moved.
+	// Rather than create a new set of functions for moving points without
+	// their control points, we instead just restore them if we did not want
+	// them moved.
 	if (cv->p.sp && touch_control_points == false) {
-		cv->p.sp->prevcp = cachecp1;
-		cv->p.sp->nextcp = cachecp2;
+		if (no_prev_cp)
+		    cv->p.sp->prevcp = cv->p.sp->me;
+		else
+		    cv->p.sp->prevcp = cachecp1;
+		if (no_next_cp)
+		    cv->p.sp->nextcp = cv->p.sp->me;
+		else
+		    cv->p.sp->nextcp = cachecp2;
+		SplineRefigure(cv->p.sp->prev);
+		SplineRefigure(cv->p.sp->next);
+		// We presumably still trigger this in case we're dragging other
+		// selected points along
 		touch_control_points = true;
-    		AdjustControls(cv->p.sp);
+		// Don't think this is wanted or needed now AdjustControls(cv->p.sp);
 	}
 	needsupdate = true;
 

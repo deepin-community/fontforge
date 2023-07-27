@@ -32,6 +32,7 @@
 #include "ffglib.h"
 #include "fontforgeui.h"
 #include "gkeysym.h"
+#include "gresedit.h"
 #include "psfont.h"
 #include "splineutil.h"
 #include "ustring.h"
@@ -41,6 +42,9 @@
 
 /* This operations are designed to work on a single font. NOT a CID collection*/
 /*  A CID collection must be treated one sub-font at a time */
+
+GResFont histogram_font = GRESFONT_INIT("400 10pt " SANS_UI_FAMILIES);
+Color histogram_graphcol = 0x2020ff;
 
 struct hentry {
     int cnt, sum;
@@ -63,7 +67,7 @@ static void HistDataFree(HistData *h) {
     free(h);
 }
 
-static HistData *HistFindBlues(SplineFont *sf,int layer, uint8 *selected, EncMap *map) {
+static HistData *HistFindBlues(SplineFont *sf,int layer, uint8_t *selected, EncMap *map) {
     int i, gid, low,high, top,bottom;
     SplineChar *sc;
     DBounds b;
@@ -138,7 +142,7 @@ static HistData *HistFindBlues(SplineFont *sf,int layer, uint8 *selected, EncMap
 return( hist );
 }
 
-static HistData *HistFindStemWidths(SplineFont *sf,int layer, uint8 *selected,EncMap *map,int hor) {
+static HistData *HistFindStemWidths(SplineFont *sf,int layer, uint8_t *selected,EncMap *map,int hor) {
     int i, gid, low,high, val;
     SplineChar *sc;
     HistData *hist;
@@ -202,11 +206,11 @@ static HistData *HistFindStemWidths(SplineFont *sf,int layer, uint8 *selected,En
 return( hist );
 }
 
-static HistData *HistFindHStemWidths(SplineFont *sf,int layer, uint8 *selected,EncMap *map) {
+static HistData *HistFindHStemWidths(SplineFont *sf,int layer, uint8_t *selected,EncMap *map) {
 return( HistFindStemWidths(sf,layer,selected,map,true) );
 }
 
-static HistData *HistFindVStemWidths(SplineFont *sf,int layer, uint8 *selected,EncMap *map) {
+static HistData *HistFindVStemWidths(SplineFont *sf,int layer, uint8_t *selected,EncMap *map) {
 return( HistFindStemWidths(sf,layer,selected,map,false) );
 }
 
@@ -253,7 +257,7 @@ struct hist_dlg {
     SplineFont *sf;
     int layer;
     struct psdict *private;
-    uint8 *selected;
+    uint8_t *selected;
     HistData *h;
 
     int pending_blue;
@@ -425,10 +429,12 @@ static void HistExpose(GWindow pixmap, struct hist_dlg *hist) {
     height = size.height-hist->fh-2;
     yscale = (4*height/5.0)/(hist->h->max-0);
 
+    Color fg = GDrawGetDefaultForeground(NULL);
+
     GDrawSetLineWidth(pixmap,0);
     r.x = 0; r.y = 0;
     r.width = size.width-1; r.height = height-1;
-    GDrawDrawRect(pixmap,&r,0x000000);
+    GDrawDrawRect(pixmap,&r,fg);
 
     ++r.x; r.width--;
     ++r.y; r.height--;
@@ -439,7 +445,7 @@ static void HistExpose(GWindow pixmap, struct hist_dlg *hist) {
 	r.height = rint(hist->h->hist[i-hist->h->low].sum * yscale);
 	if ( r.height>=0 ) {
 	    r.y = height - r.height;
-	    GDrawFillRect(pixmap,&r,0x2020ff);
+	    GDrawFillRect(pixmap,&r,histogram_graphcol);
 	}
     }
 
@@ -447,10 +453,10 @@ static void HistExpose(GWindow pixmap, struct hist_dlg *hist) {
 
     GDrawSetFont(pixmap,hist->font);
     sprintf(buf,"%d",hist->hoff);
-    GDrawDrawText8(pixmap,0,height+2+hist->as, buf,-1,0x000000);
+    GDrawDrawText8(pixmap,0,height+2+hist->as, buf,-1,fg);
     sprintf(buf,"%d",hist->hoff+hist->hwidth/hist->barwidth);
     GDrawDrawText8(pixmap,size.width-GDrawGetText8Width(pixmap,buf,-1),height+2+hist->as,
-	    buf,-1,0x000000);
+	    buf,-1,fg);
 }
 
 static void HistRExpose(GWindow pixmap, struct hist_dlg *hist) {
@@ -465,7 +471,7 @@ static void HistRExpose(GWindow pixmap, struct hist_dlg *hist) {
 
     sprintf(buf,"%d",hist->h->max);
     GDrawDrawText8(pixmap,1,height-rint(hist->h->max*yscale),
-	    buf,-1,0x000000);
+	    buf,-1,GDrawGetDefaultForeground(NULL));
 }
 
 static void HistLExpose(GWindow pixmap, struct hist_dlg *hist) {
@@ -480,7 +486,7 @@ static void HistLExpose(GWindow pixmap, struct hist_dlg *hist) {
 
     sprintf(buf,"%d",hist->h->max);
     GDrawDrawText8(pixmap,size.width-GDrawGetText8Width(pixmap,buf,-1)-1,height-rint(hist->h->max*yscale),
-	    buf,-1,0x000000);
+	    buf,-1,GDrawGetDefaultForeground(NULL));
 }
 
 static void HistScroll(struct hist_dlg *hist,struct sbevent *sb) {
@@ -515,6 +521,7 @@ static void HistScroll(struct hist_dlg *hist,struct sbevent *sb) {
       case et_sb_thumbrelease:
         newpos = sb->pos;
       break;
+      case et_sb_halfup: case et_sb_halfdown: break;
     }
     if ( newpos>(hist->h->high+1-hist->h->low)-cols + hist->h->low )
         newpos = (hist->h->high+1-hist->h->low)-cols + hist->h->low;
@@ -604,6 +611,7 @@ return( false );
       case et_mousedown:
 	GGadgetEndPopup();
       break;
+      default: break;
     }
 return( true );
 }
@@ -626,6 +634,7 @@ return( false );
       case et_mousedown:
 	GGadgetEndPopup();
       break;
+      default: break;
     }
 return( true );
 }
@@ -652,6 +661,7 @@ return( false );
 	GGadgetEndPopup();
 	HistPress(hist,event);
       break;
+      default: break;
     }
 return( true );
 }
@@ -671,7 +681,7 @@ return( true );
 	}
 return( false );
     } else if ( event->type==et_resize ) {
-	HistResize(hist);;
+	HistResize(hist);
     } else if ( event->type==et_mousemove ) {
 	GGadgetEndPopup();
     } else if ( event->type==et_mousedown ) {
@@ -709,12 +719,13 @@ return( false );
 	    } else
 		hist->done = true;
 	  break;
+	  default: break;
 	}
     }
 return( true );
 }
 
-static void CheckSmallSelection(uint8 *selected,EncMap *map,SplineFont *sf) {
+static void CheckSmallSelection(uint8_t *selected,EncMap *map,SplineFont *sf) {
     int i, cnt, tot;
 
     for ( i=cnt=tot=0; i<map->enccount; ++i ) {
@@ -729,7 +740,7 @@ static void CheckSmallSelection(uint8 *selected,EncMap *map,SplineFont *sf) {
 	ff_post_notice(_("Tiny Selection"),_("There are so few glyphs selected that it seems unlikely to me that you will get a representative sample of this aspect of your font. If you deselect everything the command will apply to all glyphs in the font"));
 }
 
-void SFHistogram(SplineFont *sf,int layer, struct psdict *private, uint8 *selected,
+void SFHistogram(SplineFont *sf,int layer, struct psdict *private, uint8_t *selected,
 	EncMap *map,enum hist_type which) {
     struct hist_dlg hist;
     GWindow gw;
@@ -739,10 +750,8 @@ void SFHistogram(SplineFont *sf,int layer, struct psdict *private, uint8 *select
     GTextInfo label[17];
     int i,j;
     char binsize[20], barwidth[20], *primary, *secondary;
-    FontRequest rq;
     int as, ds, ld;
     static unichar_t n9999[] = { '9', '9', '9', '9', 0 };
-    static GFont *font = NULL;
 
     memset(&hist,0,sizeof(hist));
     hist.sf = sf;
@@ -785,15 +794,7 @@ void SFHistogram(SplineFont *sf,int layer, struct psdict *private, uint8 *select
     pos.height = pos.width + hist.yoff;
     hist.gw = gw = GDrawCreateTopWindow(NULL,&pos,hist_e_h,&hist,&wattrs);
 
-    if ( font == NULL ) {
-	memset(&rq,0,sizeof(rq));
-	rq.utf8_family_name = SANS_UI_FAMILIES;
-	rq.point_size = 10;
-	rq.weight = 400;
-	font = GDrawInstanciateFont(NULL,&rq);
-	font = GResourceFindFont("Histogram.Font",font);
-    }
-    hist.font = font;
+    hist.font = histogram_font.fi;
     GDrawWindowFontMetrics(gw,hist.font,&as,&ds,&ld);
     hist.fh = as+ds; hist.as = as;
 
@@ -882,7 +883,7 @@ void SFHistogram(SplineFont *sf,int layer, struct psdict *private, uint8 *select
 
     label[i].text = (unichar_t *) _("BlueValues come in pairs. Select another.");
     label[i].text_is_1byte = true;
-    label[i].fg = 0xff0000;
+    label[i].fg = GDrawGetWarningForeground(NULL);
     label[i].bg = GDrawGetDefaultBackground(NULL);
     gcd[i].gd.label = &label[i];
     gcd[i].gd.flags = gg_enabled;

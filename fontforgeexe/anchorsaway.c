@@ -231,7 +231,7 @@ static void AnchorD_FindComplements(AnchorDlg *a) {
     AnchorPoint *ap;
     int i, k, j, cnt;
     SplineFont *_sf = a->sc->parent, *sf;
-    uint8 *sel, *oldsel;
+    uint8_t *sel, *oldsel;
     FontView *fv = (FontView *) _sf->fv;
     EncMap *map = fv->b.map;
 
@@ -571,7 +571,7 @@ static void AnchorD_DrawPos(AnchorDlg *a) {
 
 static void AnchorD_SelectGlyph(AnchorDlg *a, AnchorPoint *ap) {
     int i;
-    int32 len;
+    int32_t len;
     GTextInfo **ti = GGadgetGetList(GWidgetGetControl(a->gw,CID_Glyph),&len);
 
     for ( i=0; i<len; ++i )
@@ -669,6 +669,7 @@ static void AnchorD_HScroll(AnchorDlg *a,struct sbevent *sb) {
       case et_sb_thumbrelease:
         newpos = sb->pos;
       break;
+      case et_sb_halfup: case et_sb_halfdown: break;
     }
     if ( newpos + a->sb_width >= a->xlen )
 	newpos = a->xlen - a->sb_width;
@@ -1151,8 +1152,10 @@ return( AnchorD_Mouse(a,event));
 	  case et_scrollbarchange:
 	    AnchorD_HScroll(a,&event->u.control.u.sb);
 	  break;
+	  default: break;
 	}
       break;
+      default: break;
     }
 return( true );
 }

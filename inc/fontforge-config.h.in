@@ -36,6 +36,11 @@
 /* The install prefix configured at configure/compile time, used as a last resort */
 #define FONTFORGE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 
+#define SERIF_UI_FAMILIES "@FONTFORGE_SERIF_FAMILIES@"
+#define SANS_UI_FAMILIES  "@FONTFORGE_UI_FAMILIES@"
+#define LABEL_UI_FAMILIES "@FONTFORGE_LABEL_FAMILIES@"
+#define MONO_UI_FAMILIES  "@FONTFORGE_MONO_FAMILIES@"
+
 /* Platform checks */
 
 #cmakedefine WORDS_BIGENDIAN 1
@@ -44,8 +49,6 @@
 /* Mac specific defines */
 
 #cmakedefine _CursorsMustBe16x16 1
-
-#cmakedefine _Keyboard @_Keyboard@
 
 #cmakedefine __Mac 1
 
@@ -58,21 +61,17 @@
 
 #cmakedefine _ModKeysAutoRepeat 1
 
-
 /* Header checks */
 
 #cmakedefine HAVE_EXECINFO_H 1
-
-#cmakedefine HAVE_ICONV_H 1
 
 #cmakedefine HAVE_LIBINTL_H 1
 
 #cmakedefine HAVE_IEEEFP_H 1
 
-#cmakedefine HAVE_LANGINFO_H 1
+/* Function checks */
 
-#cmakedefine HAVE_NL_LANGINFO 1
-
+#cmakedefine HAVE_REALPATH 1
 
 /* FontForge configurable options */
 
@@ -111,17 +110,11 @@
 
 #cmakedefine _NO_LIBUNGIF 1
 
-#cmakedefine _NO_LIBUNINAMESLIST 1
-
-#cmakedefine _NO_LIBUNICODENAMES 1
-
 #cmakedefine _NO_PYTHON 1
 
 #cmakedefine _NO_LIBREADLINE 1
 
 #cmakedefine _LIBSPIRO_FUN @_LIBSPIRO_FUN@
-
-#cmakedefine _LIBUNINAMESLIST_FUN @_LIBUNINAMESLIST_FUN@
 
 
 /* More or less obsolete settings from the old configure-fontforge.h */

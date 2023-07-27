@@ -40,12 +40,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#ifndef _NO_LIBUNICODENAMES
-#include <libunicodenames.h>	/* need to open a database when we start */
-extern uninm_names_db names_db; /* Unicode character names and annotations database */
-extern uninm_blocks_db blocks_db;
-#endif
-
 #ifdef __Mac
 # include <stdlib.h>		/* getenv,setenv */
 #endif
@@ -53,12 +47,14 @@ extern uninm_blocks_db blocks_db;
 static void _doscriptusage(void) {
     printf( "fontforge [options]\n" );
     printf( "\t-usage\t\t\t (displays this message, and exits)\n" );
-    printf( "\t-help\t\t\t (displays this message, invokes a browser)\n\t\t\t\t  (Using the BROWSER environment variable)\n" );
+    printf( "\t-help\t\t\t (displays this message, invokes a browser\n\t\t\t\t  using the BROWSER environment variable)\n" );
     printf( "\t-version\t\t (prints the version of fontforge and exits)\n" );
-    printf( "\t-lang=py\t\t use python to execute scripts\n" );
-    printf( "\t-lang=ff\t\t use fontforge's old language to execute scripts\n" );
+    printf( "\t-lang=py\t\t (use python to execute scripts\n" );
+    printf( "\t-lang=ff\t\t (use fontforge's native language to\n\t\t\t\t  execute scripts)\n" );
     printf( "\t-script scriptfile\t (executes scriptfile)\n" );
     printf( "\t-c script-string\t (executes the argument as scripting cmds)\n" );
+    printf( "\t-skippyfile\t\t (do not execute python init scripts)\n" );
+    printf( "\t-skippyplug\t\t (do not load python plugins)\n" );
     printf( "\n" );
     printf( "If no scriptfile/string is given (or if it's \"-\") FontForge will read stdin\n" );
     printf( "FontForge will read postscript (pfa, pfb, ps, cid), opentype (otf),\n" );
@@ -83,36 +79,53 @@ exit(0);
 }
 
 int fontforge_main( int argc, char **argv ) {
-    time_t tm = FONTFORGE_MODTIME_RAW;
-    struct tm* modtime = gmtime(&tm);
+    int run_python_init_files = true;
+    int import_python_plugins = true;
+    bool quiet = false;
+    char *pt;
 
-    fprintf( stderr, "Copyright (c) 2000-%d. See AUTHORS for Contributors.\n", modtime->tm_year+1900 );
-    fprintf( stderr, " License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n" );
-    fprintf( stderr, " with many parts BSD <http://fontforge.org/license.html>. Please read LICENSE.\n" );
-    fprintf( stderr, " Version: %s\n", FONTFORGE_VERSION );
-    fprintf( stderr, " Based on sources from %s"
-#ifdef FREETYPE_HAS_DEBUGGER
-	    "-TtfDb"
-#endif
-#ifdef _NO_PYTHON
-	    "-NoPython"
-#endif
-#ifdef FONTFORGE_CONFIG_USE_DOUBLE
-	    "-D"
-#endif
-	    ".\n",
-	    FONTFORGE_MODTIME_STR );
-    // Can be empty if e.g. building from a tarball
-    if (FONTFORGE_GIT_VERSION[0] != '\0') {
-	fprintf( stderr, " Based on source from git with hash: %s\n", FONTFORGE_GIT_VERSION );
-    }
-
-    FindProgDir(argv[0]);
+    FindProgRoot(argv[0]);
     InitSimpleStuff();
 
     bind_textdomain_codeset("FontForge","UTF-8");
     bindtextdomain("FontForge", getLocaleDir());
     textdomain("FontForge");
+    for ( int i=1; i<argc; ++i ) {
+	pt = argv[i];
+
+	if ( strcmp(pt,"-SkipPythonInitFiles")==0 || strcmp(pt,"-skippyfile")==0 ) {
+	    run_python_init_files = false;
+	} else if ( strcmp(pt,"-skippyplug")==0 ) {
+	    import_python_plugins = false;
+	} else if ( strcmp(pt,"-quiet")==0 ) {
+	    quiet = true;
+	}
+    }
+
+    if (!quiet) {
+        time_t tm = FONTFORGE_MODTIME_RAW;
+        struct tm* modtime = gmtime(&tm);
+        fprintf( stderr, "Copyright (c) 2000-%d. See AUTHORS for Contributors.\n", modtime->tm_year+1900 );
+        fprintf( stderr, " License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n" );
+        fprintf( stderr, " with many parts BSD <http://fontforge.org/license.html>. Please read LICENSE.\n" );
+        fprintf( stderr, " Version: %s\n", FONTFORGE_VERSION );
+        fprintf( stderr, " Based on sources from %s"
+#ifdef FREETYPE_HAS_DEBUGGER
+            "-TtfDb"
+#endif
+#ifdef _NO_PYTHON
+            "-NoPython"
+#endif
+#ifdef FONTFORGE_CONFIG_USE_DOUBLE
+            "-D"
+#endif
+            ".\n",
+            FONTFORGE_MODTIME_STR );
+        // Can be empty if e.g. building from a tarball
+        if (FONTFORGE_GIT_VERSION[0] != '\0') {
+            fprintf( stderr, " Based on source from git with hash: %s\n", FONTFORGE_GIT_VERSION );
+        }
+    }
 
     if ( default_encoding==NULL )
 	default_encoding=FindOrMakeEncoding("ISO8859-1");
@@ -120,7 +133,7 @@ int fontforge_main( int argc, char **argv ) {
 	default_encoding=&custom;	/* In case iconv is broken */
     CheckIsScript(argc,argv);		/* Will run the script and exit if it is a script */
     if ( argc==2 ) {
-	char *pt = argv[1];
+	pt = argv[1];
 	if ( *pt=='-' && pt[1]=='-' && pt[2]!='\0') ++pt;
 	if ( strcmp(pt,"-usage")==0 )
 	    doscriptusage();
@@ -132,13 +145,8 @@ int fontforge_main( int argc, char **argv ) {
 #  if defined(_NO_PYTHON)
     ProcessNativeScript(argc, argv,stdin);
 #  else
-    PyFF_Stdin();
+    PyFF_Stdin(run_python_init_files, import_python_plugins);
 #  endif
-
-#ifndef _NO_LIBUNICODENAMES
-    uninm_names_db_close(names_db);	/* close this database before exiting */
-    uninm_blocks_db_close(blocks_db);
-#endif
 
 return( 0 );
 }

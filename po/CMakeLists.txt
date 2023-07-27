@@ -2,7 +2,7 @@
 
 # * Run the 'pofiles' command to generate the binary .mo files
 # * Run the 'potfiles' ocmmand to generate the master .pot file
-#   (which cotnains all translatable strings)
+#   (which contains all translatable strings)
 # * Run the 'fullpo' command to generate the .po files, merged
 #   with the master .pot file and with context
 
@@ -19,6 +19,8 @@ add_custom_target(potfiles
     ../gdraw/*.c
     ../gutils/*.c
     ../inc/*.h
+    ../Unicode/*.c
+    ../Unicode/*.h
     ../desktop/org.fontforge.FontForge.appdata.xml.in
     ../desktop/org.fontforge.FontForge.desktop
   COMMAND patch "${CMAKE_CURRENT_BINARY_DIR}/FontForge.pot" "pottitle.patch"
@@ -49,6 +51,12 @@ endforeach()
 
 add_custom_target(pofiles ALL DEPENDS ${_outputs})
 add_custom_target(fullpo DEPENDS ${_fulls})
+add_custom_target(poupdate
+  COMMAND "${Python3_EXECUTABLE}" "update.py" "${CMAKE_CURRENT_BINARY_DIR}/FontForge.pot"
+  DEPENDS potfiles
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  VERBATIM
+)
 
 if(ENABLE_MAINTAINER_TOOLS)
   add_executable(toengb toengb.c)

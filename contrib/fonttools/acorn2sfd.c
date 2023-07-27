@@ -220,22 +220,18 @@ static SplineSet *ReadSplineSets(FILE *file,int flags,SplineSet *old,int closed)
 		fprintf( stderr, "No initial point, assuming 0,0\n" );
 		active = calloc(1,sizeof(SplineSet));
 		active->first = active->last = calloc(1,sizeof(SplinePoint));
-		active->first->nonextcp = active->first->noprevcp = true;
 	    }
 	    next = calloc(1,sizeof(SplinePoint));
 	    if ( (verb&3)==2 ) {		/* Line to */
 		next->me.x = x1; next->me.y = y1;
 		next->nextcp = next->prevcp = next->me;
-		next->nonextcp = next->noprevcp = true;
 	    } else {				/* Curve to */
 		readcoords(file,flags&1,&x2,&y2);
 		readcoords(file,flags&1,&x3,&y3);
 		active->last->nextcp.x = x1; active->last->nextcp.y = y1;
-		active->last->nonextcp = false;
 		next->prevcp.x = x2; next->prevcp.y = y2;
 		next->me.x = x3; next->me.y = y3;
 		next->nextcp = next->me;
-		next->nonextcp = true;
 	    }
 	    SplineMake3(active->last,next);
 	    active->last = next;
@@ -508,7 +504,7 @@ static void ReadIntmetrics(char *dir, struct Outlines *outline) {
     int i, flags, m, n, left, right;
     int kern_offset, table_base, misc_offset;
     char buffer[100];
-    uint8 *mapping=NULL;
+    uint8_t *mapping=NULL;
     int *widths;
     struct r_kern *kern;
 
@@ -810,7 +806,7 @@ return( NULL );
     if ( outline.ns==-1 )
 	outline.ns = outline.scaffold_size/2;
     else if ( 2*outline.ns+1 > outline.scaffold_size )
-	fprintf( stderr, "Inconsistant scaffold count\n" );
+	fprintf( stderr, "Inconsistent scaffold count\n" );
     /* I don't understand the scaffold stuff. */
     /* there should be outline.ns-1 shorts of offsets, followed by a byte */
     /*  followed by the data the offsets point to. I'm just going to skip */
@@ -841,10 +837,10 @@ return( NULL );
     outline.sf->map = calloc(1,sizeof(EncMap));
     outline.sf->map->enc = &custom;
     outline.sf->map->encmax = outline.sf->map->enccount = outline.sf->map->backmax = outline.sf->glyphmax;
-    outline.sf->map->map = malloc(outline.sf->glyphmax*sizeof(int32));
-    outline.sf->map->backmap = malloc(outline.sf->glyphmax*sizeof(int32));
-    memset(outline.sf->map->map,-1,outline.sf->glyphmax*sizeof(int32));
-    memset(outline.sf->map->backmap,-1,outline.sf->glyphmax*sizeof(int32));
+    outline.sf->map->map = malloc(outline.sf->glyphmax*sizeof(int32_t));
+    outline.sf->map->backmap = malloc(outline.sf->glyphmax*sizeof(int32_t));
+    memset(outline.sf->map->map,-1,outline.sf->glyphmax*sizeof(int32_t));
+    memset(outline.sf->map->backmap,-1,outline.sf->glyphmax*sizeof(int32_t));
     outline.sf->for_new_glyphs = namelist_for_new_fonts;
     outline.sf->fontname = despace(outline.fontname);
     outline.sf->fullname = copy(outline.fontname);

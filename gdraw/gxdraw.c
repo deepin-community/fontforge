@@ -31,6 +31,7 @@
  
 #include "fontP.h"
 #include "gresource.h"
+#include "gresourceP.h"
 #include "gxcdrawP.h"
 #include "gxdrawP.h"
 #include "ustring.h"
@@ -603,8 +604,8 @@ return( ct-ct_user );
 return( CopyFromParent );
     if ( StdCursor[ct]==0 ) {
 	XColor fb[2];
-	fb[0].red = COLOR_RED(gdisp->def_foreground)*0x101; fb[0].green = COLOR_GREEN(gdisp->def_foreground)*0x101; fb[0].blue = COLOR_BLUE(gdisp->def_foreground)*0x101;
-	fb[1].red = COLOR_RED(gdisp->def_background)*0x101; fb[1].green = COLOR_GREEN(gdisp->def_background)*0x101; fb[1].blue = COLOR_BLUE(gdisp->def_background)*0x101;
+	fb[0].red = COLOR_RED(_GDraw_res_fg)*0x101; fb[0].green = COLOR_GREEN(_GDraw_res_fg)*0x101; fb[0].blue = COLOR_BLUE(_GDraw_res_fg)*0x101;
+	fb[1].red = COLOR_RED(_GDraw_res_bg)*0x101; fb[1].green = COLOR_GREEN(_GDraw_res_bg)*0x101; fb[1].blue = COLOR_BLUE(_GDraw_res_bg)*0x101;
 	if ( ct==ct_invisible ) {
 	    static short zeros[16]={0};
 	    Pixmap temp = XCreatePixmapFromBitmapData(display,gdisp->root,
@@ -791,7 +792,7 @@ return( NULL );
 	wmask |= CWBorderPixel;
     }
     if ( !(wattrs->mask&wam_backcol) || wattrs->background_color==COLOR_DEFAULT )
-	wattrs->background_color = gdisp->def_background;
+	wattrs->background_color = _GDraw_res_bg;
     if ( wattrs->background_color != COLOR_UNKNOWN ) {
 	attrs.background_pixel = _GXDraw_GetScreenPixel(gdisp,wattrs->background_color);
 	wmask |= CWBackPixel;
@@ -965,7 +966,7 @@ return( NULL );
 	memset(&e,0,sizeof(e));
 	e.type = et_create;
 	e.w = (GWindow) nw;
-	e.native_window = (void *) (intpt) nw->w;
+	e.native_window = (void *) (intptr_t) nw->w;
 	(eh)((GWindow) nw,&e);
     }
 #ifndef _NO_LIBCAIRO
@@ -1013,14 +1014,14 @@ static void GXDrawSetZoom(GWindow w, GRect *pos, enum gzoom_flags flags) {
     XSetWMSizeHints(display,((GXWindow) w)->w,&zoom,XA_WM_ZOOM_HINTS);
 }
 
-static GWindow GXDrawCreatePixmap(GDisplay *gdisp, GWindow UNUSED(similar), uint16 width, uint16 height) {
+static GWindow GXDrawCreatePixmap(GDisplay *gdisp, GWindow UNUSED(similar), uint16_t width, uint16_t height) {
     GXWindow gw = calloc(1,sizeof(struct gxwindow));
     int wamcairo = false;
 
     if ( gw==NULL )
 return( NULL );
     gw->ggc = _GXDraw_NewGGC();
-    gw->ggc->bg = ((GXDisplay *) gdisp)->def_background;
+    gw->ggc->bg = _GDraw_res_bg;
     if ( gw->ggc==NULL ) {
 	free(gw);
 return( NULL );
@@ -1052,7 +1053,7 @@ return( NULL );
 return( (GWindow) gw );
 }
 
-static GWindow GXDrawCreateBitmap(GDisplay *disp, uint16 width, uint16 height, uint8 *data) {
+static GWindow GXDrawCreateBitmap(GDisplay *disp, uint16_t width, uint16_t height, uint8_t *data) {
     GXDisplay *gdisp = (GXDisplay *) disp;
     GXWindow gw = calloc(1,sizeof(struct gxwindow));
 
@@ -1082,13 +1083,13 @@ return( (GWindow) gw );
 }
 
 static GCursor GXDrawCreateCursor(GWindow src,GWindow mask,Color fg,Color bg,
-	int16 x, int16 y ) {
+	int16_t x, int16_t y ) {
     GXDisplay *gdisp = (GXDisplay *) (src->display);
     Display *display = gdisp->display;
     XColor fgc, bgc;
     /* The XServer shipping with redhat 7.1 seems to suffer a protocol change */
     /*  with the red and blue members of XColor structure reversed */
-    /* The XServer runing on Mac OS/X can only handle 16x16 cursors */
+    /* The XServer running on Mac OS/X can only handle 16x16 cursors */
 
     fgc.red = COLOR_RED(fg)*0x101; fgc.green = COLOR_GREEN(fg)*0x101; fgc.blue = COLOR_BLUE(fg)*0x101;
     bgc.red = COLOR_RED(bg)*0x101; bgc.green = COLOR_GREEN(bg)*0x101; bgc.blue = COLOR_BLUE(bg)*0x101;
@@ -1129,7 +1130,7 @@ static void GXDestroyCursor(GDisplay *gdisp,GCursor ct) {
 static int GXNativeWindowExists(GDisplay *gdisp,void *native) {
     void *ret;
 
-    if ( XFindContext(((GXDisplay *) gdisp)->display,(Window) (intpt) native,((GXDisplay *) gdisp)->mycontext,(void *) &ret)==0 &&
+    if ( XFindContext(((GXDisplay *) gdisp)->display,(Window) (intptr_t) native,((GXDisplay *) gdisp)->mycontext,(void *) &ret)==0 &&
 	    ret!=NULL )
 return( true );
 
@@ -1247,7 +1248,7 @@ static void GXDrawSetVisible(GWindow w, int visible) {
     }
 }
 
-static void GXDrawMove(GWindow w, int32 x, int32 y) {
+static void GXDrawMove(GWindow w, int32_t x, int32_t y) {
     GXWindow gw = (GXWindow) w;
 
     if ( gw->is_toplevel ) {
@@ -1263,7 +1264,7 @@ static void GXDrawMove(GWindow w, int32 x, int32 y) {
     XMoveWindow(gw->display->display,gw->w,x,y);
 }
 
-static void GXDrawTrueMove(GWindow w, int32 x, int32 y) {
+static void GXDrawTrueMove(GWindow w, int32_t x, int32_t y) {
     GXWindow gw = (GXWindow) w;
 
     if ( gw->is_toplevel && !gw->is_popup && !gw->istransient ) {
@@ -1273,7 +1274,7 @@ static void GXDrawTrueMove(GWindow w, int32 x, int32 y) {
     GXDrawMove(w,x,y);
 }
 
-static void GXDrawResize(GWindow w, int32 width, int32 height) {
+static void GXDrawResize(GWindow w, int32_t width, int32_t height) {
     GXWindow gw = (GXWindow) w;
 
     XResizeWindow(gw->display->display,gw->w,width,height);
@@ -1289,7 +1290,7 @@ static void GXDrawResize(GWindow w, int32 width, int32 height) {
     }
 }
 
-static void GXDrawMoveResize(GWindow w, int32 x, int32 y, int32 width, int32 height) {
+static void GXDrawMoveResize(GWindow w, int32_t x, int32_t y, int32_t width, int32_t height) {
     GXWindow gw = (GXWindow) w;
 
     if ( gw->is_toplevel ) {
@@ -1317,94 +1318,10 @@ static void GXDrawRaise(GWindow w) {
 static GXDisplay *edisp;
 static int error(Display *disp, XErrorEvent *err) {
     /* Under twm I get a bad match, under kde a bad window? */
-    if ( err->error_code == BadMatch || err->error_code == BadWindow ) {
-	if ( edisp!=NULL ) edisp->wm_breaks_raiseabove = true;
-    } else {
+    if ( err->error_code != BadMatch && err->error_code != BadWindow ) {
 	myerrorhandler(disp,err);
     }
 return( 1 );
-}
-
-static void GXDrawRaiseAbove(GWindow w,GWindow below) {
-    GXWindow gw = (GXWindow) w, gbelow = (GXWindow) below;
-    Window gxw = gw->w, gxbelow = gbelow->w;
-    GXDisplay *gdisp = gw->display;
-    XWindowChanges ch;
-
-    /* Sometimes we get a BadWindow error here for no good reason */
-    XSync(gdisp->display,false);
-    GDrawProcessPendingEvents((GDisplay *) gdisp);
-    XSetErrorHandler(/*gdisp->display,*/error);
-    if ( !gdisp->wm_raiseabove_tested ) {
-	edisp = gdisp;
-    } else
-	edisp = NULL;
- retry:
-    if ( gdisp->wm_breaks_raiseabove ) {
-	/* If we do this code in gnome it breaks things */
-	/* if we don't do it in twm it breaks things. Sigh */
-	if ( gw->is_toplevel )
-	    gxw = GetParentissimus(gw);
-	if ( gbelow->is_toplevel )
-	    gxbelow = GetParentissimus(gbelow);
-    }
-    ch.sibling = gxbelow;
-    ch.stack_mode = Above;
-    XConfigureWindow(gdisp->display,gxw,CWSibling|CWStackMode,&ch);
-    XSync(gdisp->display,false);
-    GDrawProcessPendingEvents((GDisplay *) gdisp);
-    if ( !gdisp->wm_raiseabove_tested ) {
-	gdisp->wm_raiseabove_tested = true;
-	if ( gdisp->wm_breaks_raiseabove )
- goto retry;
-    }
-    XSetErrorHandler(/*gdisp->display,*/myerrorhandler);
-}
-
-static int GXDrawIsAbove(GWindow w,GWindow other) {
-    GXWindow gw = (GXWindow) w, gother = (GXWindow) other;
-    Window gxw = gw->w, gxother = gother->w, parent;
-    GXDisplay *gdisp = (GXDisplay *) (gw->display);
-    Window par, *children, root;
-    unsigned int nkids; int i;
-
-    if ( gw->is_toplevel && gother->is_toplevel ) {
-	gxw = GetParentissimus(gw);
-	gxother = GetParentissimus(gother);
-	parent = gdisp->root;
-    } else if ( gw->parent!=gother->parent )
-return( -1 );			/* Incommensurate */
-    else
-	parent = gw->parent->w;
-
-    XQueryTree(gdisp->display,parent,&root,&par,&children,&nkids);
-    /* bottom-most child is children[0], topmost is children[nkids-1] */
-    for ( i=nkids-1; i>=0; --i ) {
-	if ( children[i] == gxw )
-return( true );
-	if ( children[i] == gxother )
-return( false );
-    }
-    if ( children )
-	XFree(children);
-return( -1 );
-}
-
-static void GXDrawLower(GWindow w) {
-    GXWindow gw = (GXWindow) w;
-
-    XLowerWindow(gw->display->display,gw->w);
-}
-
-static void GXDrawSetWindowTitles(GWindow w, const unichar_t *title, const unichar_t *icontit) {
-    GXWindow gw = (GXWindow) w;
-    Display *display = gw->display->display;
-    char *ipt, *tpt;
-
-    XmbSetWMProperties(display,gw->w,(tpt = u2def_copy(title)),
-			(ipt = u2def_copy(icontit)),
-			NULL,0,NULL,NULL,NULL);
-    free(ipt); free(tpt);
 }
 
 static void GXDrawSetWindowTitles8(GWindow w, const char *title, const char *icontit) {
@@ -1454,15 +1371,6 @@ static GCursor GXDrawGetCursor(GWindow w) {
     GXWindow gw = (GXWindow) w;
 
 return( gw->cursor );
-}
-
-static GWindow GXDrawGetRedirectWindow(GDisplay *gd) {
-    GXDisplay *gdisp = (GXDisplay *) gd;
-
-    if ( gdisp->input==NULL )
-return( NULL );
-
-return( gdisp->input->cur_dlg );
 }
 
 static void GXDrawGetPointerPosition(GWindow w, GEvent *ret) {
@@ -1727,18 +1635,6 @@ static void GXDrawClipPreserve(GWindow w)
 #endif
 }
 
-static void GXDrawSetDifferenceMode(GWindow w) {
-#ifndef _NO_LIBCAIRO
-    if (((GXWindow) w)->usecairo) {
-        _GXCDraw_SetDifferenceMode((GXWindow)w);
-    } else
-#endif
-    {
-        GXDisplay *gdisp = ((GXWindow) w)->display; ;
-        XSetFunction(gdisp->display, gdisp->gcstate[((GXWindow) w)->ggc->bitmap_col].gc, GXxor);
-    }
-}
-
 static void GXDrawPushClip(GWindow w, GRect *rct, GRect *old) {
     /* return the current clip, and intersect the current clip with the desired */
     /*  clip to get the new */
@@ -1809,7 +1705,7 @@ static void GXDrawClear(GWindow gw, GRect *rect) {
     }
  }
 
-static void GXDrawDrawLine(GWindow w, int32 x,int32 y, int32 xend,int32 yend, Color col) {
+static void GXDrawDrawLine(GWindow w, int32_t x,int32_t y, int32_t xend,int32_t yend, Color col) {
     w->ggc->fg = col;
 
 #ifndef _NO_LIBCAIRO
@@ -1824,7 +1720,7 @@ static void GXDrawDrawLine(GWindow w, int32 x,int32 y, int32 xend,int32 yend, Co
     }
 }
 
-static void _DrawArrow(GXWindow gxw, int32 x, int32 y, int32 xother, int32 yother ) {
+static void _DrawArrow(GXWindow gxw, int32_t x, int32_t y, int32_t xother, int32_t yother ) {
     GXDisplay *display = gxw->display;
     XPoint points[3];
     double a;
@@ -1848,7 +1744,7 @@ return;
     XDrawLines(display->display,gxw->w,display->gcstate[gxw->ggc->bitmap_col].gc,points,3,CoordModeOrigin);
 }
 
-static void GXDrawDrawArrow(GWindow gw, int32 x,int32 y, int32 xend,int32 yend, int16 arrows, Color col) {
+static void GXDrawDrawArrow(GWindow gw, int32_t x,int32_t y, int32_t xend,int32_t yend, int16_t arrows, Color col) {
     GXWindow gxw = (GXWindow) gw;
     GXDisplay *display = gxw->display;
     gxw->ggc->fg = col;
@@ -1945,7 +1841,7 @@ static void GXDrawDrawElipse(GWindow gw, GRect *rect, Color col) {
     }
 }
 
-static void GXDrawDrawArc(GWindow gw, GRect *rect, int32 sangle, int32 tangle, Color col) {
+static void GXDrawDrawArc(GWindow gw, GRect *rect, int32_t sangle, int32_t tangle, Color col) {
     GXWindow gxw = (GXWindow) gw;
     GXDisplay *display = gxw->display;
     gxw->ggc->fg = col;
@@ -1980,7 +1876,7 @@ static void GXDrawFillElipse(GWindow gw, GRect *rect, Color col) {
     }
 }
 
-static void GXDrawDrawPoly(GWindow gw, GPoint *pts, int16 cnt, Color col) {
+static void GXDrawDrawPoly(GWindow gw, GPoint *pts, int16_t cnt, Color col) {
     GXWindow gxw = (GXWindow) gw;
     GXDisplay *display = gxw->display;
 
@@ -1996,7 +1892,7 @@ static void GXDrawDrawPoly(GWindow gw, GPoint *pts, int16 cnt, Color col) {
     }
 }
 
-static void GXDrawFillPoly(GWindow gw, GPoint *pts, int16 cnt, Color col) {
+static void GXDrawFillPoly(GWindow gw, GPoint *pts, int16_t cnt, Color col) {
     GXWindow gxw = (GXWindow) gw;
     GXDisplay *display = gxw->display;
 
@@ -2130,7 +2026,7 @@ static void GXDrawLayoutInit(GWindow w, char *text, int cnt, GFont *fi) {
     _GXPDraw_LayoutInit(w,text,cnt,fi);
 }
 
-static void GXDraw_LayoutDraw(GWindow w, int32 x, int32 y, Color fg) {
+static void GXDraw_LayoutDraw(GWindow w, int32_t x, int32_t y, Color fg) {
     _GXPDraw_LayoutDraw(w,x,y,fg);
 }
 
@@ -2179,7 +2075,7 @@ return;
     }
 }
 
-static void GXDrawScroll(GWindow _w, GRect *rect, int32 hor, int32 vert) {
+static void GXDrawScroll(GWindow _w, GRect *rect, int32_t hor, int32_t vert) {
     GXWindow gw = (GXWindow) _w;
     GXDisplay *gdisp = gw->display;
     GRect temp, old;
@@ -2201,7 +2097,7 @@ static void GXDrawScroll(GWindow _w, GRect *rect, int32 hor, int32 vert) {
 #ifndef _NO_LIBCAIRO
     if ( gw->usecairo ) {
 	/* Cairo can happily scroll the window -- except it doesn't know about*/
-	/*  child windows, and so we don't get the requisit events to redraw */
+	/*  child windows, and so we don't get the requisite events to redraw */
 	/*  areas covered by children. Rats. */
 	GXDrawSendExpose(gw,rect->x,rect->y,rect->x+rect->width,rect->y+rect->height);
 	GXDrawPopClip(_w,&old);
@@ -2224,7 +2120,7 @@ return;
     GXDrawPopClip(_w,&old);
 }
 
-static void _GXDraw_Pixmap( GWindow _w, GWindow _pixmap, GRect *src, int32 x, int32 y) {
+static void _GXDraw_Pixmap( GWindow _w, GWindow _pixmap, GRect *src, int32_t x, int32_t y) {
     GXWindow gw = (GXWindow) _w, pixmap = (GXWindow) _pixmap;
     GXDisplay *gdisp = gw->display;
 
@@ -2272,12 +2168,12 @@ return( NULL );
     gic->w = w;
     gic->ploc.y = 20; gic->sloc.y = 40;
     listp = XVaCreateNestedList(0, XNFontSet, gdisp->def_im_fontset,
-		    XNForeground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_foreground),
-		    XNBackground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_background),
+		    XNForeground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_fg),
+		    XNBackground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_bg),
 		    XNSpotLocation, &gic->ploc, NULL);
     lists = XVaCreateNestedList(0, XNFontSet, gdisp->def_im_fontset,
-		    XNForeground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_foreground),
-		    XNBackground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_background),
+		    XNForeground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_fg),
+		    XNBackground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_bg),
 		    XNSpotLocation, &gic->sloc, NULL);
     for ( i=(def_style&gic_type); i>=gic_hidden; --i ) {
 	ic = XCreateIC(gdisp->im,XNInputStyle,styles[i],
@@ -2326,12 +2222,12 @@ static void GXDrawSetGIC(GWindow w, GIC *_gic, int x, int y) {
 	XSetICFocus(gic->ic);
 	if ( gic->style==gic_overspot ) {
 	    listp = XVaCreateNestedList(0, XNFontSet, gdisp->def_im_fontset,
-		    XNForeground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_foreground),
-		    XNBackground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_background),
+		    XNForeground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_fg),
+		    XNBackground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_bg),
 		    XNSpotLocation, &gic->ploc, NULL);
 	    lists = XVaCreateNestedList(0, XNFontSet, gdisp->def_im_fontset,
-		    XNForeground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_foreground),
-		    XNBackground, _GXDraw_GetScreenPixel(gdisp,gdisp->def_background),
+		    XNForeground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_fg),
+		    XNBackground, _GXDraw_GetScreenPixel(gdisp,_GDraw_res_bg),
 		    XNSpotLocation, &gic->sloc, NULL);
 	    XSetICValues(gic->ic,
 		    XNPreeditAttributes, listp,
@@ -2407,7 +2303,7 @@ return;
     }
 }
 
-static void GTimerSetNext(GTimer *timer,int32 time_from_now) {
+static void GTimerSetNext(GTimer *timer,int32_t time_from_now) {
     struct timeval tv;
 
     gettimeofday(&tv,NULL);
@@ -2497,7 +2393,7 @@ static void GTimerReinstall(GXDisplay *gdisp,GTimer *timer) {
 	free(timer);
 }
 
-static GTimer *GXDrawRequestTimer(GWindow w,int32 time_from_now,int32 frequency,
+static GTimer *GXDrawRequestTimer(GWindow w,int32_t time_from_now,int32_t frequency,
 	void *userdata) {
     GTimer *timer = calloc(1,sizeof(GTimer));
 
@@ -2540,7 +2436,7 @@ return( false );
 	    /*  this timer */
 	ret = true;
     }
-    if ( GTimerInList(gdisp,timer)) {		/* carefull, they might have cancelled it */
+    if ( GTimerInList(gdisp,timer)) {		/* careful, they might have cancelled it */
 	timer->active = false;
 	if ( timer->repeat_time==0 )
 	    GXDrawCancelTimer(timer);
@@ -2810,16 +2706,6 @@ return;
 	    else if ( keysym<=XKEYSYM_TOP && keysym>=0 )
 		keysym = gdraw_xkeysym_2_unicode[keysym];
 	    gevent.u.chr.keysym = keysym;
-	    if ( keysym==gdisp->mykey_keysym &&
-		    (event->xkey.state&(ControlMask|Mod1Mask))==gdisp->mykey_mask ) {
-		gdisp->mykeybuild = !gdisp->mykeybuild;
-		gdisp->mykey_state = 0;
-		gevent.u.chr.chars[0] = '\0';
-		gevent.u.chr.keysym = '\0';
-		if ( !gdisp->mykeybuild && _GDraw_BuildCharHook!=NULL )
-		    (_GDraw_BuildCharHook)((GDisplay *) gdisp);
-	    } else if ( gdisp->mykeybuild )
-		_GDraw_ComposeChars((GDisplay *) gdisp,&gevent);
 	} else {
 	    /* XLookupKeysym doesn't do shifts for us (or I don't know how to use the index arg to make it) */
 	    len = XLookupString((XKeyEvent *) event,charbuf,sizeof(charbuf),&keysym,&gdisp->buildingkeys);
@@ -3221,15 +3107,6 @@ static void GXDrawProcessPendingEvents(GDisplay *gdisp) {
 	dispatchEvent((GXDisplay *) gdisp, &event);
 }
 
-static void GXDrawProcessWindowEvents(GWindow w) {
-    XEvent event;
-    GXWindow gw = (GXWindow) w;
-    Display *display = gw->display->display;
-
-    while ( XCheckIfEvent(display,&event,windowevents,(char *) (gw->w)))
-	dispatchEvent(gw->display, &event);
-}
-
 static void GXDrawSync(GDisplay *gdisp) {
     XSync(((GXDisplay *) gdisp)->display,false);
 }
@@ -3514,6 +3391,14 @@ return( 0 );
 #endif
 }
 
+static int GXDrawShortcutKeyMatches(const GEvent *e, unichar_t ch) {
+    if ((e->type != et_char && e->type != et_charup) || ch == 0) {
+        return false;
+    }
+
+	return toupper(e->u.chr.chars[0]) == ch;
+}
+
 static Bool exposeornotify(Display *d,XEvent *e,XPointer arg) {
     if ( e->type == Expose || e->type == GraphicsExpose ||
 	    e->type == CreateNotify || e->type == MapNotify ||
@@ -3640,7 +3525,7 @@ static void GXDrawGrabSelection(GWindow w,enum selnames sel) {
 	memset(&e,0,sizeof(e));
 	e.type = et_selclear;
 	e.u.selclear.sel = sel;
-	e.native_window = (void *) (intpt) gd->selinfo[sel].owner->w;
+	e.native_window = (void *) (intptr_t) gd->selinfo[sel].owner->w;
 	if ( gd->selinfo[sel].owner->eh!=NULL )
 	    (gd->selinfo[sel].owner->eh)((GWindow) gd->selinfo[sel].owner, &e);
     }
@@ -3656,7 +3541,7 @@ static void GXDrawGrabSelection(GWindow w,enum selnames sel) {
 }
 
 static void GXDrawAddSelectionType(GWindow w,enum selnames sel,char *type,
-	void *data,int32 cnt,int32 unitsize, void *(*gendata)(void *,int32 *len),
+	void *data,int32_t cnt,int32_t unitsize, void *(*gendata)(void *,int32_t *len),
 	void (*freedata)(void *)) {
     GXDisplay *gd = (GXDisplay *) (w->display);
     int typeatom = GXDrawGetAtom(gd,type);
@@ -3693,7 +3578,7 @@ static void GXDrawTransmitSelection(GXDisplay *gd,XEvent *event) {
     int is_multiple = cur_targ == GXDrawGetAtom(gd,"MULTIPLE");
     int found = 0;
     void *temp;
-    int32 proplen;
+    int32_t proplen;
 
     for ( which = 0; which<sn_max; ++which )
 	if ( event->xselectionrequest.selection == gd->selinfo[which].sel_atom )
@@ -3818,7 +3703,7 @@ return;
     XSendEvent(gd->display,e_to_send.xselection.requestor,True,0,&e_to_send);
 }
 
-static void *GXDrawRequestSelection(GWindow w,enum selnames sn, char *typename, int32 *len) {
+static void *GXDrawRequestSelection(GWindow w,enum selnames sn, char *typename, int32_t *len) {
     GXDisplay *gd = (GXDisplay *) (w->display);
     GXWindow gw = (GXWindow) w;
     Display *display = gd->display;
@@ -3967,7 +3852,7 @@ return( -1 );
 }
 
 static void *vc_cvt(char *val, void *def) {
-    static char *classes[] = { "StaticGray", "GrayScale", "StaticColor", "PsuedoColor", "TrueColor", "DirectColor", NULL };
+    static char *classes[] = { "StaticGray", "GrayScale", "StaticColor", "PseudoColor", "TrueColor", "DirectColor", NULL };
     int ret = match(classes,val);
     if ( ret== -1 ) {
 	char *ept;
@@ -3975,7 +3860,7 @@ static void *vc_cvt(char *val, void *def) {
 	if ( ept==val || *ept!='\0' )
 return( def );
     }
-return( (void *) (intpt) ret );
+return( (void *) (intptr_t) ret );
 }
 
 static void *cm_cvt(char *val, void *def) {
@@ -3984,22 +3869,15 @@ static void *cm_cvt(char *val, void *def) {
     if ( ret== -1 )
 return( (void *) -1 );
 
-return( (void *) (intpt) (ret-1) );
+return( (void *) (intptr_t) (ret-1) );
 }
 
 static void GXResourceInit(GXDisplay *gdisp,char *programname) {
     Atom rmatom, type;
     int format, i; unsigned long nitems, bytes_after;
     unsigned char *ret = NULL;
-    GResStruct res[21];
-    int dithertemp; double sizetemp, sizetempcm;
-    int depth = -1, vc = -1, cm=-1, cmpos;
-    int tbf = 1;
-#if __Mac
-    int mxc = 1;	/* Don't leave this on by default. The cmd key uses the same bit as numlock on other systems */
-#else
-    int mxc = 0;
-#endif
+    GResStruct res[4];
+    int depth = -1, vc = -1, cm=-1;
 
     rmatom = XInternAtom(gdisp->display,"RESOURCE_MANAGER",true);
     if ( rmatom!=None ) {
@@ -4016,42 +3894,26 @@ static void GXResourceInit(GXDisplay *gdisp,char *programname) {
     GResourceAddResourceString((char *) ret,programname);
     if ( ret!=NULL ) XFree(ret);
 
+    GDrawResourceFind();
+    gdisp->bs.double_time = _GDraw_res_multiclicktime;
+    gdisp->bs.double_wiggle = _GDraw_res_multiclickwiggle;
+    gdisp->SelNotifyTimeout = _GDraw_res_selnottime;
+    gdisp->macosx_cmd = _GDraw_res_macosxcmd;
+    gdisp->twobmouse_win = _GDraw_res_twobuttonfixup;
+    gdisp->res = _GDraw_res_res>0 ? _GDraw_res_res : 100;
+    if ( _GDraw_res_synchronize )
+        XSynchronize(gdisp->display,true);
+
     memset(res,0,sizeof(res));
     i = 0;
-    res[i].resname = "MultiClickTime"; res[i].type = rt_int; res[i].val = &gdisp->bs.double_time; ++i;
-    res[i].resname = "MultiClickWiggle"; res[i].type = rt_int; res[i].val = &gdisp->bs.double_wiggle; ++i;
-    res[i].resname = "SelectionNotifyTimeout"; res[i].type = rt_int; res[i].val = &gdisp->SelNotifyTimeout; ++i;
-    dithertemp = gdisp->do_dithering;
-    res[i].resname = "DoDithering"; res[i].type = rt_bool; res[i].val = &dithertemp; ++i;
-    res[i].resname = "ScreenWidthPixels"; res[i].type = rt_int; res[i].val = &gdisp->groot->pos.width; ++i;
-    res[i].resname = "ScreenHeightPixels"; res[i].type = rt_int; res[i].val = &gdisp->groot->pos.height; ++i;
-    sizetemp = WidthMMOfScreen(DefaultScreenOfDisplay(gdisp->display))/25.4;
-    sizetempcm = WidthMMOfScreen(DefaultScreenOfDisplay(gdisp->display))/10;
-    gdisp->xres = gdisp->groot->pos.width/sizetemp;
-    res[i].resname = "ScreenWidthInches"; res[i].type = rt_double; res[i].val = &sizetemp; ++i;
-    cmpos = i;
-    res[i].resname = "ScreenWidthCentimeters"; res[i].type = rt_double; res[i].val = &sizetempcm; ++i;
     res[i].resname = "Depth"; res[i].type = rt_int; res[i].val = &depth; ++i;
     res[i].resname = "VisualClass"; res[i].type = rt_string; res[i].val = &vc; res[i].cvt=vc_cvt; ++i;
-    res[i].resname = "TwoButtonFixup"; res[i].type = rt_bool; res[i].val = &tbf; ++i;
-    res[i].resname = "MacOSXCmd"; res[i].type = rt_bool; res[i].val = &mxc; ++i;
     res[i].resname = "Colormap"; res[i].type = rt_string; res[i].val = &cm; res[i].cvt=cm_cvt; ++i;
     res[i].resname = NULL;
     GResourceFind(res,NULL);
 
-    if ( !res[cmpos].found && !res[cmpos-1].found && rint(gdisp->groot->pos.width/sizetemp) == 75 )
-	gdisp->res = 100;	/* X seems to think that if it doesn't know */
-				/*  the screen width, then 75 dpi is a good guess */
-			        /*  Now-a-days, 100 seems better */
-    else
-    if ( res[cmpos].found && sizetempcm>=1 )
-	gdisp->res = gdisp->groot->pos.width*2.54/sizetempcm;
-    else if ( sizetemp>=1 )
-	gdisp->res = gdisp->groot->pos.width/sizetemp;
     gdisp->desired_depth = depth; gdisp->desired_vc = vc;
     gdisp->desired_cm = cm;
-    gdisp->macosx_cmd = mxc;
-    gdisp->twobmouse_win = tbf;
 }
 
 static struct displayfuncs xfuncs = {
@@ -4077,19 +3939,13 @@ static struct displayfuncs xfuncs = {
     GXDrawResize,
     GXDrawMoveResize,
     GXDrawRaise,
-    GXDrawRaiseAbove,
-    GXDrawIsAbove,
-    GXDrawLower,
-    GXDrawSetWindowTitles,
     GXDrawSetWindowTitles8,
-    GXDrawGetWindowTitle,
     GXDrawGetWindowTitle8,
     GXDrawSetTransientFor,
     GXDrawGetPointerPosition,
     GXDrawGetPointerWindow,
     GXDrawSetCursor,
     GXDrawGetCursor,
-    GXDrawGetRedirectWindow,
     GXDrawTranslateCoordinates,
 
     GXDrawBeep,
@@ -4097,9 +3953,6 @@ static struct displayfuncs xfuncs = {
     GXDrawPushClip,
     GXDrawPopClip,
 
-    GXDrawSetDifferenceMode,
-
-    GXDrawClear,
     GXDrawDrawLine,
     GXDrawDrawArrow,
     GXDrawDrawRect,
@@ -4135,12 +3988,12 @@ static struct displayfuncs xfuncs = {
     GXDrawSync,
     GXDrawSkipMouseMoveEvents,
     GXDrawProcessPendingEvents,
-    GXDrawProcessWindowEvents,
     GXDrawProcessOneEvent,
     GXDrawEventLoop,
     GXDrawPostEvent,
     GXDrawPostDragEvent,
     GXDrawRequestDeviceEvents,
+	GXDrawShortcutKeyMatches,
 
     GXDrawRequestTimer,
     GXDrawCancelTimer,
@@ -4245,8 +4098,6 @@ return( NULL );
     gdisp->virtualRoot = BadAlloc;
     gdisp->res = (25.4*WidthOfScreen(DefaultScreenOfDisplay(display)))/
 	    WidthMMOfScreen(DefaultScreenOfDisplay(display));
-    gdisp->mykey_keysym = XK_F12;
-    gdisp->mykey_mask = 0;
     gdisp->do_dithering = true;
     gdisp->desired_vc = gdisp->desired_depth = -1;
 
@@ -4286,12 +4137,6 @@ return( NULL );
     groot->is_visible = true;
     
     GXResourceInit(gdisp,programname);
-
-    gdisp->bs.double_time = GResourceFindInt( "DoubleClickTime", gdisp->bs.double_time );
-    gdisp->def_background = GResourceFindColor( "Background", COLOR_CREATE(0xf5,0xff,0xfa));
-    gdisp->def_foreground = GResourceFindColor( "Foreground", COLOR_CREATE(0x00,0x00,0x00));
-    if ( GResourceFindBool("Synchronize", false ))
-	XSynchronize(gdisp->display,true);
 
 #ifdef X_HAVE_UTF8_STRING	/* Don't even try without this. I don't want to have to guess encodings myself... */
     /* X Input method initialization */

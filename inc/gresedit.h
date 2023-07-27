@@ -32,40 +32,38 @@
 #include "ggadget.h"
 #include "gresource.h"
 
-enum res_type2 { rt_stringlong = rt_string+1, rt_coloralpha, rt_image, rt_font };
-
 struct resed {
     const char *name, *resname;
     enum res_type type;
     void *val;
     char *popup;
     void *(*cvt)(char *,void *);
-    union { int ival; double dval; char *sval; GFont *fontval; } orig;
+    union { int ival; double dval; char *sval; GResFont fontval; GResImage imageval; } orig;
     int cid;
     int found;
 };
 
 #define RESED_EMPTY { NULL, NULL, 0, NULL, NULL, NULL, { 0 }, 0, 0 }
 
-
 typedef struct gresinfo {
     struct gresinfo *next;
     struct gresinfo *inherits_from;
     struct gresinfo *seealso1, *seealso2;
     GBox *boxdata;
-    GFont **font;
+    GResFont *font;
     GGadgetCreateData *examples;
     struct resed *extras;
     char *name;
     char *initialcomment;
     char *resname;
     char *progname;
-    uint8 is_button;		/* Activate default button border flag */
-    uint32 override_mask;
-    GBox *overrides;
+    uint8_t is_button;		/* Activate default button border flag */
+    uint8_t is_initialized;
+    uint32_t override_mask;
+    GBox overrides;
     GBox orig_state;
     void (*refresh)(void);	/* Called when user OKs the resource editor dlg */
-    void *reserved_for_future_use1;
+    int (*initialize)(struct gresinfo *);
     void *reserved_for_future_use2;
 } GResInfo;
 
@@ -94,12 +92,13 @@ enum override_mask_flags {
     omf_border_brighter		= 0x800000,
     omf_border_darkest		= 0x1000000,
     omf_border_darker		= 0x2000000,
-    omf_active_border		= 0x4000000,
-
-    omf_font			= 0x80000000
+    omf_active_border		= 0x4000000
 };
 
+extern void GResEditDoInit(GResInfo *ri);
+extern int _GResEditInitialize(GResInfo *ri);
 extern void GResEdit(GResInfo *additional,const char *def_res_file,void (*change_res_filename)(const char *));
 extern void GResEditFind( struct resed *resed, char *prefix);
+
 
 #endif /* FONTFORGE_GRESEDIT_H */

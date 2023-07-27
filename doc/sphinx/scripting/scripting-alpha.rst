@@ -70,7 +70,7 @@ the fourth argument you must specify the second and third arguments too.
 
 .. function:: AddDHint(x1,y1,x2,y2,unit.x,unit.y)
 
-   Adds a diagonal hint. A diagonal hint requires two points on oposite sides of
+   Adds a diagonal hint. A diagonal hint requires two points on opposite sides of
    the stem and a unit vector in the direction of the stem.
 
 .. function:: AddExtrema([all])
@@ -83,6 +83,22 @@ the fourth argument you must specify the second and third arguments too.
    more information). If the "all" argument is specified and is a nonzero
    integer, then all extrema will be added; otherwise, some that would be very
    close to existing endpoints will not be added.
+   
+.. function:: AddInflections()
+
+   If the curvature of a spline in a glyph changes sign then break the spline 
+   so that there will be a point at all points of inflection. 
+   
+.. function:: Balance()
+
+   For all cubic bezier splines of the glyph make the line between the control 
+   points parallel to the chord such that the area is preserved. This is an
+   improved version of the algorithm known as "tunnify".
+   
+.. function:: Harmonize()
+
+   For all bezier splines of the glyph move the smooth on-curve points between 
+   its adjacent control points such that the adjacent curvatures become equal.
 
 .. function:: AddHHint(start,width)
 
@@ -326,7 +342,7 @@ the fourth argument you must specify the second and third arguments too.
 .. function:: BuildAccented()
 
    If any of the selected glyphs are accented, then clear them and create a new
-   glyph by inserting references to the approriate base glyph and accents.
+   glyph by inserting references to the appropriate base glyph and accents.
 
 .. function:: BuildComposite()
 
@@ -699,7 +715,7 @@ the fourth argument you must specify the second and third arguments too.
 .. function:: DontAutoHint()
 
    Mark any selected glyphs so that they will not be AutoHinted when saving the
-   font. (This flag is cleared if the user explicitely AutoHints the glyph
+   font. (This flag is cleared if the user explicitly AutoHints the glyph
    himself).
 
 .. function:: DrawsSomething([arg])
@@ -845,7 +861,7 @@ the fourth argument you must specify the second and third arguments too.
       "Glyph %n from font %f.svg"
       "U+%U.bmp"
 
-   If the format constists entirely of a filetype then FontForge will use a
+   If the format consists entirely of a filetype then FontForge will use a
    format of ``"%n_%f.<filetype>"``
 
    All characters in the format string except for % are copied verbatim. If
@@ -1022,7 +1038,7 @@ the fourth argument you must specify the second and third arguments too.
    * fmflags&0x80 => generate tables so the font will work on both Apple and MS
      platforms.
 
-     Apple has screwed up and in Mac 10.4 (Tigger), if OpenType tables are present
+     Apple has screwed up and in Mac 10.4 (Tiger), if OpenType tables are present
      in a font then the AAT tables will be ignored -- or so I'm told (I can't test
      this myself). Unfortunately Apple does not implement all of OpenType, so the
      result is almost certain to be wrong).
@@ -1294,7 +1310,7 @@ the fourth argument you must specify the second and third arguments too.
    * "LayerCount" returns the number of layers in the glyph. This will always be 2
      (foreground & background) except in the case of a multilayered font.
    * "RefCount" returns the number of references in the glyph
-   * "RefNames" returns an array containing the names of all glyphs refered to.
+   * "RefNames" returns an array containing the names of all glyphs referred to.
      This may contain 0 elements. This may contain a glyph twice ("colon" might
      refer twice to period)
    * "RefTransform" returns an array of arrays. The bottom most arrays are 6
@@ -1445,24 +1461,12 @@ the fourth argument you must specify the second and third arguments too.
    Returns whether the value is finite (not infinite and not a nan). It can
    execute with no current font.
 
-.. function:: IsFraction(val)
-
-   Return 1 if n is a unicode fraction (either a vulgar fraction or other
-   fraction) as described by www.unicode.org. Return 0 if there is no fraction
-   for this value. It can execute with no current font.
-
 .. function:: IsHexDigit(val)
 
    Returns whether val is a hex-digit. Val may be either an integer, a unicode
    or a string. The first two cases are treated as unicode code points, the
    third looks at the first (utf8) character in the string. It can execute with
    no current font.
-
-.. function:: IsLigature(val)
-
-   Return 1 if n is a ligature as described by www.unicode.org. Return 0 if
-   there is no unicode ligature for this value. It can execute with no current
-   font.
 
 .. function:: IsLower(val)
 
@@ -1474,12 +1478,6 @@ the fourth argument you must specify the second and third arguments too.
 .. function:: IsNan(real)
 
    Returns whether the value is a nan. It can execute with no current font.
-
-.. function:: IsOtherFraction(val)
-
-   Return 1 if n is a unicode fraction (not defined as vulgar fraction) as
-   described by www.unicode.org. Return 0 if there is no fraction for this
-   value. It can execute with no current font.
 
 .. function:: IsSpace(val)
 
@@ -1494,12 +1492,6 @@ the fourth argument you must specify the second and third arguments too.
    unicode or a string. The first two cases are treated as unicode code points,
    the third looks at the first (utf8) character in the string. It can execute
    with no current font.
-
-.. function:: IsVulgarFraction(val)
-
-   Return 1 if n is a unicode vulgar fraction as described by www.unicode.org.
-   Return 0 if there is no fraction for this value. It can execute with no
-   current font.
 
 .. function:: Italic([angle[,[xscale[,flags[,serif[,bearings[,stems[,counters[,lcstems[,lccounters]]]]]]]]]])
 
@@ -1719,8 +1711,8 @@ the fourth argument you must specify the second and third arguments too.
 .. function:: MoveReference(delta-x,delta-y,[refname/ref-unicode]+)
 
    References may be identified either by a string containing the name of the
-   glyph being refered to, or an integer containing the unicode code point of
-   the glyph being refered to, there may be an arbetrary (positive) number of
+   glyph being referred to, or an integer containing the unicode code point of
+   the glyph being referred to, there may be an arbetrary (positive) number of
    references specified. Each selected glyph will be searched for references
    that match the name/unicode-values given, all references found will be moved
    by the specified offsets.
@@ -1745,7 +1737,7 @@ the fourth argument you must specify the second and third arguments too.
 
 .. function:: NearlyHvCps([error[,err-denom]])
 
-   Checks for control points which are almost, but not quite horzontal or
+   Checks for control points which are almost, but not quite horizontal or
    vertical (where almost means (say) that
    ``abs( (control point).x - point.x ) < error``, where error is either:
 
@@ -1758,7 +1750,7 @@ the fourth argument you must specify the second and third arguments too.
 
 .. function:: NearlyHvLines([error[,err-denom]])
 
-   Checks for lines which are almost, but not quite horzontal or vertical (where
+   Checks for lines which are almost, but not quite horizontal or vertical (where
    almost means (say) that ``abs( (end point).x - (start point).x ) < error``,
    where error is either:
 
@@ -1880,8 +1872,8 @@ the fourth argument you must specify the second and third arguments too.
 .. function:: PositionReference(x,y,[refname/ref-unicode]+)
 
    References may be identified either by a string containing the name of the
-   glyph being refered to, or an integer containing the unicode code point of
-   the glyph being refered to, there may be an arbetrary (positive) number of
+   glyph being referred to, or an integer containing the unicode code point of
+   the glyph being referred to, there may be an arbetrary (positive) number of
    references specified. Each selected glyph will be searched for references
    that match the name/unicode-values given, all references found will be at the
    specified location.
@@ -2243,7 +2235,7 @@ the fourth argument you must specify the second and third arguments too.
      set the selection of the glyph at encoding 0 and so forth. The array may have
      a different number of elements from that number of glyphs in the font but
      should otherwise be in the same format as that returned by the $selection
-     psuedo-variable.
+     pseudo-variable.
 
 .. function:: SelectAll
 
@@ -2756,7 +2748,7 @@ the fourth argument you must specify the second and third arguments too.
 
    Same as the c strftime routine. By default it formats the current time in
    gmt, but if that argument is 0 it will use the local timezone. By default it
-   will format the argument acording to the current locale, but if a locale is
+   will format the argument according to the current locale, but if a locale is
    specified it will be used.
 
 .. function:: StrJoin(string-array,delimiter)
@@ -2786,7 +2778,7 @@ the fourth argument you must specify the second and third arguments too.
 
 .. function:: StrSplit(str,delimiter[,max-cnt])
 
-   Splits the string at every occurance of the delimiter and produces an array
+   Splits the string at every occurrence of the delimiter and produces an array
    of sub-strings. ::
 
       StrSplit("The quick brown box"," ")
@@ -2869,16 +2861,16 @@ the fourth argument you must specify the second and third arguments too.
    .. math::
 
       \begin{bmatrix}
-         \frac{t_1}{100} & \frac{t_2}{100} & \frac{t_3}{100} \\
-         \frac{t_4}{100} & \frac{t_5}{100} & \frac{t_6}{100}
+         \frac{t_1}{100} & \frac{t_3}{100} & \frac{t_5}{100} \\
+         \frac{t_2}{100} & \frac{t_4}{100} & \frac{t_6}{100}
       \end{bmatrix}
 
    This is a standard PostScript transformation matrix where
 
    .. math::
 
-      x' &= \frac{t_1}{100}x + \frac{t_2}{100}y + \frac{t_3}{100} \\
-      y' &= \frac{t_4}{100}x + \frac{t_5}{100}y + \frac{t_6}{100}
+      x' &= \frac{t_1}{100}x + \frac{t_3}{100}y + \frac{t_5}{100} \\
+      y' &= \frac{t_2}{100}x + \frac{t_4}{100}y + \frac{t_6}{100}
 
    The peculiar notion of dividing by 100 was to overcome the fact that
    fontforge's scripting language formerly could not handle real numbers. We've
@@ -2902,100 +2894,10 @@ the fourth argument you must specify the second and third arguments too.
 
    It can execute with no current font.
 
-.. function:: ucFracChartGetCnt()
-
-   Returns total count of Fractions found in the Unicode chart as described by
-   www.unicode.org. It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucLigChartGetCnt()
-
-   Returns total count of Ligatures found in the Unicode chart as described by
-   www.unicode.org. It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucLigChartGetLoc(val)
-
-   Returns n for FontForge internal table Unicode val=Ligature[n]. If val does
-   not exist in table, then return -1. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucLigChartGetNxt(int)
-
-   Returns FontForge internal table Unicode Ligature[n]. Return -1 if n<0 or
-   n>=ucLigChartGetCnt(). It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
 .. function:: UCodePoint(int)
 
    Converts the argument to a unicode code point (a special type used in several
    commands). It can execute with no current font.
-
-.. function:: ucOFracChartGetCnt()
-
-   Returns total count of non-Vulgar Fractions found in the Unicode chart as
-   described by www.unicode.org. It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucOFracChartGetLoc(val)
-
-   Returns n for FontForge internal table Unicode val=OtherFraction[n]. If val
-   does not exist in table, then return -1. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucOFracChartGetNxt(int)
-
-   Returns FontForge internal table Unicode (non-vulgar) Fraction[n]. Return -1
-   if n<0 or n>=ucOFracChartGetCnt(). Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucVulChartGetCnt()
-
-   Returns total count of Vulgar Fractions found in the Unicode chart as
-   described by www.unicode.org. It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucVulChartGetLoc(val)
-
-   Returns n for FontForge internal table Unicode val=VulgarFraction[n]. If val
-   does not exist in table, then return -1. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucVulChartGetNxt(int)
-
-   Returns FontForge internal table Unicode Vulgar Fraction[n]. Returns -1 if
-   n<0 or n>=ucVulChartGetCnt(). Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
 
 .. function:: UnicodeAnnotationFromLib(val)
 
@@ -3008,15 +2910,13 @@ the fourth argument you must specify the second and third arguments too.
 
    Return the number of Unicode Blocks for this list as described by
    www.unicode.org. Currently, the blocks are {0..233}, spanning unicode values
-   {uni0..uni10FFFF}. If there is no library available, then return -1. This can
-   execute with no current font.
+   {uni0..uni10FFFF}. This can execute with no current font.
 
 .. function:: UnicodeBlockEndFromLib(val)
 
    Returns the Unicode Block end value as described by www.unicode.org.
    Currently, the blocks are {0..233}, spanning unicode values
-   {uni0..uni10FFFF}. If there is no value, or no library available, then return
-   -1. This can execute with no current font.
+   {uni0..uni10FFFF}. This can execute with no current font.
 
 .. function:: UnicodeBlockNameFromLib(val)
 
@@ -3029,8 +2929,8 @@ the fourth argument you must specify the second and third arguments too.
 
    Returns the Unicode Block start value as described by www.unicode.org.
    Currently, the blocks are {0..233}, spanning unicode values
-   {uni0..uni10FFFF}. If there is no value, or no library available, then return
-   -1. This can execute with no current font.
+   {uni0..uni10FFFF}. If there is no value, then return -1. This can execute
+   with no current font.
 
 .. function:: UnicodeFromName(name)
 
@@ -3042,57 +2942,20 @@ the fourth argument you must specify the second and third arguments too.
 .. function:: UnicodeNameFromLib(val)
 
    Returns the Unicode Name for this value as described by www.unicode.org. If
-   there is no unicode name for this value, or no library available, then return
-   empty string "". It can execute with no current font.
+   there is no unicode name for this value, then return empty string "". It can
+   execute with no current font.
 
 .. function:: UnicodeNamesListVersion()
 
    Return the Unicode Nameslist Version (as described by www.unicode.org).
-   libuninameslist is released on a schedule that depends on when
-   www.unicode.org releases new information. These dates do not match FontForge
-   release dates, therefore users might not keep this optional library upto
-   current updates. This instruction can be used to test if the Nameslist
-   library is recent for your script. This function currently works only for
-   libuninameslist ver_0.3.20130501 or later, else it returns empty string "".
+
    This can execute with no current font.
-
-.. function:: UnicodeNames2GetCntFromLib()
-
-   Return the Total Count of all Names that were corrected with a new name.
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. If there is no libuninameslist ver 0.5 or later
-   available, then return -1
-
-.. function:: UnicodeNames2GetNxtFromLib(val)
-
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. With val==unicode value, this function returns -1
-   if no Names2 exists, or the Nth table location for this unicode value listed
-   in libuninameslist that was corrected to a new name. If there is no
-   libuninameslist ver 0.5 or later, then return -1.
-
-.. function:: UnicodeNames2NxtUniFromLib(val)
-
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. This function returns the Next Unicode value
-   listed in libuninameslist internal table that was corrected to a new name.
-   The internal table of Unicode values is of size UnicodeNames2GetCntFromLib().
-   If there is no libuninameslist ver 0.5 or later, then return -1.
-
-.. function:: UnicodeNames2FrmTabFromLib(val)
-
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. This function returns the Next Names2 listed in
-   libuninameslist internal table that was corrected to a new name. The internal
-   table of Unicode values is of size UnicodeNames2GetCntFromLib(). If there is
-   no libuninameslist ver 0.5 or later, then return NULL.
 
 .. function:: UnicodeNames2FromLib(val)
 
    Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. This function returns the Names2 or NULL based on
-   the unicode value given. If there is no libuninameslist ver 0.5 or later,
-   then return NULL.
+   Unicode Nameslist version. This function returns the formal alias for the
+   unicode value given, or an empty string if there is no such alias.
 
 .. function:: UnlinkReference
 

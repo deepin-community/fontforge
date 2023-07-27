@@ -12,19 +12,17 @@ add_library(gdraw STATIC
   fontP.h
   gaskdlg.c
   gbuttons.c
-  gchardlg.c
   gcolor.c
   gcontainer.c
   gdrawable.c
-  gdrawbuildchars.c
   gdraw.c
   gdrawerror.c
   gdrawgimage.c
   gdrawP.h
   gdrawtxt.c
-  gdrawtxtinit.c
   gfilechooser.c
   gfiledlg.c
+  gflowbox.c
   ggadgetP.h
   ggadgets.c
   ggdkcdraw.c
@@ -44,10 +42,10 @@ add_library(gdraw STATIC
   gradio.c
   gresedit.c
   gresource.c
-  gresourceimage.c
   gresourceP.h
   gsavefiledlg.c
   gscrollbar.c
+  gscroll1box.c
   gspacer.c
   gtabset.c
   gtextfield.c

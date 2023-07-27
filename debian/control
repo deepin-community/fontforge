@@ -7,7 +7,6 @@ Uploaders:
  Davide Viti <zinosat@tiscali.it>,
  Hideki Yamane <henrich@debian.org>,
  Jonas Smedegaard <dr@jones.dk>,
- Rogério Brito <rbrito@ime.usp.br>,
  Vasudev Kamath <vasudev@copyninja.info>,
  Anthony Fok <foka@debian.org>
 Build-Depends:
@@ -23,8 +22,7 @@ Build-Depends:
  libpango1.0-dev,
  libpng-dev,
  libspiro-dev,
- libtiff5-dev,
- libuninameslist-dev,
+ libtiff-dev,
  libxml2-dev,
  libglib2.0-dev,
  ninja-build,
@@ -38,7 +36,7 @@ Build-Depends-Indep:
  desktop-file-utils,
  potrace,
  python3-sphinx,
-Standards-Version: 4.5.1
+Standards-Version: 4.6.2
 Homepage: https://fontforge.github.io/en-US/
 Vcs-Git: https://salsa.debian.org/fonts-team/fontforge.git
 Vcs-Browser: https://salsa.debian.org/fonts-team/fontforge

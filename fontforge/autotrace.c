@@ -633,15 +633,15 @@ return( NULL );
 
 const char *FindAutoTraceName(void) {
     static int searched=0;
-    static int waspotraceprefered;
+    static int waspotracepreferred;
     static const char *name = NULL;
     char buffer[1025];
 
-    if ( searched && waspotraceprefered==preferpotrace )
+    if ( searched && waspotracepreferred==preferpotrace )
 return( name );
 
     searched = true;
-    waspotraceprefered = preferpotrace;
+    waspotracepreferred = preferpotrace;
     if ( preferpotrace ) {
 	if (( name = getenv("POTRACE"))!=NULL )
 return( name );
@@ -678,6 +678,7 @@ return( name );
 return( name );
 }
 
+#ifndef __MINGW32__
 static char *FindGfFile(char *tempdir) {
     DIR *temp;
     struct dirent *ent;
@@ -733,11 +734,6 @@ static void cleantempdir(char *tempdir) {
     rmdir(tempdir);
 }
 
-void MfArgsInit(void) {
-    if ( mf_args==NULL )
-	mf_args = copy("\\scrollmode; mode=proof ; mag=2; input");
-}
-
 static char *MfArgs(void) {
     MfArgsInit();
 
@@ -752,6 +748,12 @@ return( (char *) -1 );
 	SavePrefs(true);
     }
 return( mf_args );
+}
+#endif
+
+void MfArgsInit(void) {
+    if ( mf_args==NULL )
+	mf_args = copy("\\scrollmode; mode=proof ; mag=2; input");
 }
 
 SplineFont *SFFromMF(char *filename) {

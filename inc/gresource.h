@@ -29,8 +29,29 @@
 #define FONTFORGE_GRESOURCE_H
 
 #include "gdraw.h"
+#include "ggadget.h"
 
-enum res_type { rt_int, rt_double, rt_bool/* int */, rt_color, rt_string };
+#include <iconv.h>
+
+enum res_type { rt_int, rt_double, rt_bool/* int */, rt_color, rt_string, rt_image, rt_font, rt_stringlong, rt_coloralpha };
+
+struct gimage_cache_bucket;
+
+typedef struct gresimage {
+    const char *ini_name;
+    struct gimage_cache_bucket *bucket;
+} GResImage;
+
+typedef struct gresfont {
+    GFont *fi;
+    char *rstr;
+    uint8_t can_free_name;
+} GResFont;
+
+#define GRESIMAGE_INIT(defstr) { (defstr), NULL }
+#define GRESFONT_INIT(defstr) { NULL, (defstr), false }
+
+GImage *GResImageGetImage(GResImage *);
 
 typedef struct gresstruct {
     const char *resname;
@@ -44,20 +65,11 @@ typedef struct gresstruct {
 
 
 extern char *GResourceProgramName;
-extern int local_encoding;
-#if HAVE_ICONV_H
-# include <iconv.h>
-extern char *iconv_local_encoding_name;
-#endif
 
-void GResourceSetProg(char *prog);
-void GResourceAddResourceFile(char *filename,char *prog,int warn);
-void GResourceAddResourceString(char *string,char *prog);
-void GResourceFind( GResStruct *info, char *prefix);
-char *GResourceFindString(char *name);
-int GResourceFindBool(char *name, int def);
-long GResourceFindInt(char *name, long def);
-Color GResourceFindColor(char *name, Color def);
-GImage *GResourceFindImage(char *name, GImage *def);
+int ResStrToFontRequest(const char *resname, FontRequest *rq);
+
+void GResourceSetProg(const char *prog);
+void GResourceAddResourceFile(const char *filename,const char *prog,int warn);
+void GResourceAddResourceString(const char *string,const char *prog);
 
 #endif /* FONTFORGE_GRESOURCE_H */

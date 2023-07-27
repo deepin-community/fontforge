@@ -37,7 +37,6 @@
 #include "bitmapchar.h"
 #include "bitmapcontrol.h"
 #include "bvedit.h"
-#include "chardata.h"
 #include "cvexport.h"
 #include "cvimages.h"
 #include "cvundoes.h"
@@ -82,7 +81,6 @@
 #include "tottfgpos.h"
 #include "ttf.h"
 #include "ttfinstrs.h"
-#include "unicodelibinfo.h"
 #include "ustring.h"
 #include "utype.h"
 
@@ -465,7 +463,8 @@ static void PrintVal(Val *val) {
 	char *t1 = script2utf8_copy(val->u.sval);
 	char *loc = utf82def_copy(t1);
 	printf( "%s", loc );
-	free(loc); free(t1);
+	free(loc);
+    free(t1);
     } else if ( val->type==v_arr || val->type==v_arrfree ) {
 	putchar( '[' );
 	if ( val->u.aval->argc>0 ) {
@@ -842,7 +841,7 @@ static void bisupper(Context *c) {
     if ( c->a.vals[1].type==v_str ) {
 	pt = c->a.vals[1].u.sval;
 	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = ch>=0 && ch<0x10000?isupper(ch):0;
+	c->return_val.u.ival = isupper(ch);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
 	c->return_val.u.ival = isupper(c->a.vals[1].u.ival);
     else
@@ -857,7 +856,7 @@ static void bislower(Context *c) {
     if ( c->a.vals[1].type==v_str ) {
 	pt = c->a.vals[1].u.sval;
 	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = ch>=0 && ch<0x10000?islower(ch):0;
+	c->return_val.u.ival = islower(ch);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
 	c->return_val.u.ival = islower(c->a.vals[1].u.ival);
     else
@@ -872,7 +871,7 @@ static void bisdigit(Context *c) {
     if ( c->a.vals[1].type==v_str ) {
 	pt = c->a.vals[1].u.sval;
 	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = ch>=0 && ch<0x10000?isdigit(ch):0;
+	c->return_val.u.ival = isdigit(ch);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
 	c->return_val.u.ival = isdigit(c->a.vals[1].u.ival);
     else
@@ -887,7 +886,7 @@ static void bishexdigit(Context *c) {
     if ( c->a.vals[1].type==v_str ) {
 	pt = c->a.vals[1].u.sval;
 	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = ch>=0 && ch<0x10000?ishexdigit(ch):0;
+	c->return_val.u.ival = ishexdigit(ch);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
 	c->return_val.u.ival = ishexdigit(c->a.vals[1].u.ival);
     else
@@ -902,7 +901,7 @@ static void bisalpha(Context *c) {
     if ( c->a.vals[1].type==v_str ) {
 	pt = c->a.vals[1].u.sval;
 	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = ch>=0 && ch<0x10000?isalpha(ch):0;
+	c->return_val.u.ival = isalpha(ch);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
 	c->return_val.u.ival = isalpha(c->a.vals[1].u.ival);
     else
@@ -917,7 +916,7 @@ static void bisalnum(Context *c) {
     if ( c->a.vals[1].type==v_str ) {
 	pt = c->a.vals[1].u.sval;
 	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = ch>=0 && ch<0x10000?isalnum(ch):0;
+	c->return_val.u.ival = isalnum(ch);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
 	c->return_val.u.ival = isalnum(c->a.vals[1].u.ival);
     else
@@ -932,72 +931,9 @@ static void bisspace(Context *c) {
     if ( c->a.vals[1].type==v_str ) {
 	pt = c->a.vals[1].u.sval;
 	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = ch>=0 && ch<0x10000?isspace(ch):0;
+	c->return_val.u.ival = isspace(ch);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
 	c->return_val.u.ival = isspace(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bisligature(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = is_LIGATURE(ch)==0?1:0;
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = is_LIGATURE(c->a.vals[1].u.ival)==0?1:0;
-    else
-	c->error = ce_badargtype;
-}
-
-static void bisvulgarfraction(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = is_VULGAR_FRACTION(ch)==0?1:0;
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = is_VULGAR_FRACTION(c->a.vals[1].u.ival)==0?1:0;
-    else
-	c->error = ce_badargtype;
-}
-
-static void bisotherfraction(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = is_OTHER_FRACTION(ch)==0?1:0;
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = is_OTHER_FRACTION(c->a.vals[1].u.ival)==0?1:0;
-    else
-	c->error = ce_badargtype;
-}
-
-
-static void bisfraction(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = (is_VULGAR_FRACTION(c->a.vals[1].u.ival)==0 || \
-				is_OTHER_FRACTION(ch)==0)?1:0;
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = (is_VULGAR_FRACTION(c->a.vals[1].u.ival)==0 || \
-				is_OTHER_FRACTION(c->a.vals[1].u.ival)==0)?1:0;
     else
 	c->error = ce_badargtype;
 }
@@ -1013,13 +949,13 @@ static void btoupper(Context *c) {
 	    ch = utf8_ildb(&ipt);
 	    if ( ch==-1 )
 	break;
-	    if ( ch<0x10000 ) ch = toupper(ch);
+	    ch = toupper(ch);
 	    pt = utf8_idpb(pt,ch,UTF8IDPB_NOZERO);
 	}
 	*pt = '\0';
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode ) {
 	c->return_val.type = v_int;
-	c->return_val.u.ival = c->a.vals[1].u.ival<0x10000?toupper(c->a.vals[1].u.ival): c->a.vals[1].u.ival;
+	c->return_val.u.ival = toupper(c->a.vals[1].u.ival);
     } else
 	c->error = ce_badargtype;
 }
@@ -1035,13 +971,13 @@ static void btolower(Context *c) {
 	    ch = utf8_ildb(&ipt);
 	    if ( ch==-1 )
 	break;
-	    if ( ch<0x10000 ) ch = tolower(ch);
+	    ch = tolower(ch);
 	    pt = utf8_idpb(pt,ch,UTF8IDPB_NOZERO);
 	}
 	*pt = '\0';
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode ) {
 	c->return_val.type = v_int;
-	c->return_val.u.ival = c->a.vals[1].u.ival<0x10000?tolower(c->a.vals[1].u.ival): c->a.vals[1].u.ival;
+	c->return_val.u.ival = tolower(c->a.vals[1].u.ival);
     } else
 	c->error = ce_badargtype;
 }
@@ -1057,13 +993,13 @@ static void btomirror(Context *c) {
 	    ch = utf8_ildb(&ipt);
 	    if ( ch==-1 )
 	break;
-	    if ( ch<0x10000 ) ch = tomirror(ch);
+	    ch = tomirror(ch);
 	    pt = utf8_idpb(pt,ch,UTF8IDPB_NOZERO);
 	}
 	*pt = '\0';
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode ) {
 	c->return_val.type = v_int;
-	c->return_val.u.ival = c->a.vals[1].u.ival<0x10000?tomirror(c->a.vals[1].u.ival): c->a.vals[1].u.ival;
+	c->return_val.u.ival = tomirror(c->a.vals[1].u.ival);
     } else
 	c->error = ce_badargtype;
 }
@@ -1171,28 +1107,34 @@ static void bNameFromUnicode(Context *c) {
 }
 
 
-/* --start of libuninameslist functions------------------------ */
+/* --start of names list functions------------------------ */
 
 static void bUnicodeBlockCountFromLib(Context *c) {
 /* If the library is available, then return the number of name blocks */
 
     c->return_val.type=v_int;
-    c->return_val.u.ival=unicode_block_count();
+    uniname_blocks(&c->return_val.u.ival);
 }
 
 static void bUnicodeBlockEndFromLib(Context *c) {
 /* If the library is available, then get the official Nth block end */
+    const struct unicode_range *blocks;
     if ( c->a.vals[1].type!=v_int && c->a.vals[1].type!=v_unicode ) {
 	c->error = ce_badargtype;
 	return;
     }
     c->return_val.type=v_int;
-    c->return_val.u.ival=unicode_block_end(c->a.vals[1].u.ival);
+    blocks = uniname_blocks(&c->return_val.u.ival);
+    if (c->a.vals[1].u.ival < 0 || c->a.vals[1].u.ival >= c->return_val.u.ival) {
+        c->return_val.u.ival = -1;
+    } else {
+        c->return_val.u.ival = blocks[c->a.vals[1].u.ival].end;
+    }
 }
 
 static void bUnicodeBlockNameFromLib(Context *c) {
 /* If the library is available, then get the official Nth block name */
-    char *temp;
+    const struct unicode_range *blocks;
 
     if ( c->a.vals[1].type!=v_int && c->a.vals[1].type!=v_unicode ) {
 	c->error = ce_badargtype;
@@ -1200,21 +1142,28 @@ static void bUnicodeBlockNameFromLib(Context *c) {
     }
     c->return_val.type = v_str;
 
-    if ( (temp=unicode_block_name(c->a.vals[1].u.ival))==NULL ) {
-	temp=malloc(1*sizeof(char)); *temp='\0';
+    blocks = uniname_blocks(&c->return_val.u.ival);
+    if (c->a.vals[1].u.ival < 0 || c->a.vals[1].u.ival >= c->return_val.u.ival) {
+        c->return_val.u.sval = calloc(1, sizeof(char));
+    } else {
+        c->return_val.u.sval = copy(blocks[c->a.vals[1].u.ival].name);
     }
-    c->return_val.u.sval=temp;
 }
 
 static void bUnicodeBlockStartFromLib(Context *c) {
 /* If the library is available, then get the official Nth block start */
-
+    const struct unicode_range *blocks;
     if ( c->a.vals[1].type!=v_int && c->a.vals[1].type!=v_unicode ) {
 	c->error = ce_badargtype;
 	return;
     }
     c->return_val.type=v_int;
-    c->return_val.u.ival=unicode_block_start(c->a.vals[1].u.ival);
+    blocks = uniname_blocks(&c->return_val.u.ival);
+    if (c->a.vals[1].u.ival < 0 || c->a.vals[1].u.ival >= c->return_val.u.ival) {
+        c->return_val.u.ival = -1;
+    } else {
+        c->return_val.u.ival = blocks[c->a.vals[1].u.ival].start;
+    }
 }
 
 static void bUnicodeNameFromLib(Context *c) {
@@ -1227,7 +1176,7 @@ static void bUnicodeNameFromLib(Context *c) {
     }
     c->return_val.type = v_str;
 
-    if ( (temp=unicode_name(c->a.vals[1].u.ival))==NULL ) {
+    if ( (temp=uniname_name(c->a.vals[1].u.ival))==NULL ) {
 	temp=malloc(1*sizeof(char)); *temp='\0';
     }
     c->return_val.u.sval = temp;
@@ -1242,7 +1191,7 @@ static void bUnicodeAnnotationFromLib(Context *c) {
     }
     c->return_val.type = v_str;
 
-    if ( (temp=unicode_annot(c->a.vals[1].u.ival))==NULL ) {
+    if ( (temp=uniname_annotation(c->a.vals[1].u.ival, false))==NULL ) {
 	temp=malloc(1*sizeof(char)); *temp='\0';
     }
     c->return_val.u.sval = temp;
@@ -1250,91 +1199,35 @@ static void bUnicodeAnnotationFromLib(Context *c) {
 
 static void bUnicodeNamesListVersion(Context *c) {
 /* If the library is available, then return the Nameslist Version */
-    char *temp;
-
-    if ( (temp=unicode_library_version())==NULL ) {
-	temp=malloc(1*sizeof(char)); *temp='\0';
-    }
     c->return_val.type = v_str;
-    c->return_val.u.sval = temp;
-}
-
-/* ----start of libuninameslist Names2 functions--------------- */
-
-static void bUnicodeNames2GetCntFromLib(Context *c) {
-/* If the library is available, then Get the Names2 table Count */
-    c->return_val.type=v_int;
-    c->return_val.u.ival=unicode_names2cnt();
-}
-
-static void bUnicodeNames2GetNxtFromLib(Context *c) {
-/* If the library is available, use unicode val to find Names2, */
-/* if exists, return location in table, if not found return -1. */
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = unicode_names2getUtabLoc(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = unicode_names2getUtabLoc(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bUnicodeNames2NxtUniFromLib(Context *c) {
-/* If the library is available, return unicode val for table[n] */
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = unicode_names2valFrmTab(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = unicode_names2valFrmTab(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bUnicodeNames2FrmTabFromLib(Context *c) {
-/* If the library is available, return table[n]->Names2 string. */
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_str;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.sval = unicode_name2FrmTab(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.sval = unicode_name2FrmTab(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
+    c->return_val.u.sval = copy("NamesList-Version: " UNICODE_VERSION);
 }
 
 static void bUnicodeNames2FromLib(Context *c) {
 /* If the library is available, use unicode val to find Names2, */
-/* if exists, return Names2, and if not exist then return NULL. */
-    const char *pt;
-    long ch;
+/* if exists, return Names2, and if not exist then return and empty str. */
+/* This function is poorly named. This actually corresponds to the
+   formal alias in the NamesList annotation. */
+    unichar_t ch;
 
+    c->error = ce_false;
     c->return_val.type = v_str;
     if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.sval = unicode_name2(ch);
+	ch = utf8_ildb((const char**)&c->a.vals[1].u.sval);
     } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.sval = unicode_name2(c->a.vals[1].u.ival);
+	ch = c->a.vals[1].u.ival;
     else
 	c->error = ce_badargtype;
+
+    if (c->error == ce_false) {
+        c->return_val.u.sval = uniname_formal_alias(ch);
+        if (!c->return_val.u.sval) {
+            c->return_val.u.sval = calloc(1, sizeof(char));
+        }
+    }
 }
 
-/* ----end of libuninameslist Names2 functions----------------- */
-/* --end of libuninameslist functions-------------------------- */
+/* --end of names list functions-------------------------- */
 
 
 static void bChr(Context *c) {
@@ -1368,9 +1261,9 @@ static void bChr(Context *c) {
 }
 
 static void bUtf8(Context *c) {
-    uint32 buf[2];
+    uint32_t buf[2];
     int i;
-    uint32 *temp;
+    uint32_t *temp;
 
     if ( c->a.vals[1].type==v_int ) {
 	if ( c->a.vals[1].u.ival<0 || c->a.vals[1].u.ival>0x10ffff ) {
@@ -1382,7 +1275,7 @@ static void bUtf8(Context *c) {
 	c->return_val.u.sval = u2utf8_copy(buf);
     } else if ( c->a.vals[1].type==v_arr || c->a.vals[1].type==v_arrfree ) {
 	Array *arr = c->a.vals[1].u.aval;
-	temp = malloc((arr->argc+1)*sizeof(uint32));
+	temp = malloc((arr->argc+1)*sizeof(uint32_t));
 	for ( i=0; i<arr->argc; ++i ) {
 	    if ( arr->vals[i].type!=v_int ) {
 		c->error = ce_badargtype;
@@ -1433,14 +1326,14 @@ static void bOrd(Context *c) {
 	    return;
 	}
 	c->return_val.type = v_int;
-	c->return_val.u.ival = (uint8) c->a.vals[1].u.sval[c->a.vals[2].u.ival];
+	c->return_val.u.ival = (uint8_t) c->a.vals[1].u.sval[c->a.vals[2].u.ival];
     } else {
 	int i, len = strlen(c->a.vals[1].u.sval);
 	c->return_val.type = v_arrfree;
 	c->return_val.u.aval = arraynew(len);
 	for ( i=0; i<len; ++i ) {
 	    c->return_val.u.aval->vals[i].type = v_int;
-	    c->return_val.u.aval->vals[i].u.ival = (uint8) c->a.vals[1].u.sval[i];
+	    c->return_val.u.aval->vals[i].u.ival = (uint8_t) c->a.vals[1].u.sval[i];
 	}
     }
 }
@@ -2087,7 +1980,7 @@ static void bGenerateFamily(Context *c) {
     Array *fonts;
     FontViewBase *fv;
     int i, j, fc, added;
-    uint16 psstyle;
+    uint16_t psstyle;
     int fondcnt = 0, fondmax = 10;
     SFArray *familysfs=NULL;
     char *t;
@@ -2247,7 +2140,7 @@ static void bControlAfmLigatureOutput(Context *c) {
 }
 
 static void Bitmapper(Context *c,int isavail) {
-    int32 *sizes;
+    int32_t *sizes;
     int i;
     int rasterize = true;
 
@@ -2270,7 +2163,7 @@ static void Bitmapper(Context *c,int isavail) {
 	}
 	rasterize = c->a.vals[2].u.ival;
     }
-    sizes = malloc((c->a.vals[1].u.aval->argc+1)*sizeof(int32));
+    sizes = malloc((c->a.vals[1].u.aval->argc+1)*sizeof(int32_t));
     for ( i=0; i<c->a.vals[1].u.aval->argc; ++i ) {
 	sizes[i] = c->a.vals[1].u.aval->vals[i].u.ival;
 	if ( (sizes[i]>>16)==0 )
@@ -2330,7 +2223,7 @@ static void bImport(Context *c) {
 
     t = script2utf8_copy(c->a.vals[1].u.sval);
     locfilename = utf82def_copy(t);
-    filename = GFileMakeAbsoluteName(locfilename);
+    filename = GFileGetAbsoluteName(locfilename);
     free(locfilename); free(t);
 
     ext = strrchr(filename,'.');
@@ -2576,11 +2469,12 @@ static void bFontImage(Context *c) {
 }
 
 static void bMergeKern(Context *c) {
-    char *t; char *locfilename;
+    char *t; char *locfilename; bool ignore_invalid_replacement=FALSE;
 
     t = script2utf8_copy(c->a.vals[1].u.sval);
     locfilename = utf82def_copy(t);
-    if ( !LoadKerningDataFromMetricsFile(c->curfv->sf,locfilename,c->curfv->map))
+    ignore_invalid_replacement = c->a.vals[2].u.sval;
+    if ( !LoadKerningDataFromMetricsFile(c->curfv->sf,locfilename,c->curfv->map,ignore_invalid_replacement))
 	ScriptError( c, "Failed to find kern info in file" );
     free(locfilename); free(t);
 }
@@ -2615,7 +2509,7 @@ static void bPrintSetup(Context *c) {
 
 static void bPrintFont(Context *c) {
     int type, i, inlinesample = false;
-    int32 *pointsizes=NULL;
+    int32_t *pointsizes=NULL;
     char *samplefile=NULL, *output=NULL;
     unichar_t *sample=NULL;
     char *t; char *locfilename=NULL;
@@ -2634,12 +2528,12 @@ static void bPrintFont(Context *c) {
     if ( c->a.argc>=3 ) {
 	if ( c->a.vals[2].type==v_int ) {
 	    if ( c->a.vals[2].u.ival>0 ) {
-		pointsizes = calloc(2,sizeof(int32));
+		pointsizes = calloc(2,sizeof(int32_t));
 		pointsizes[0] = c->a.vals[2].u.ival;
 	    }
 	} else if ( c->a.vals[2].type==v_arr ) {
 	    Array *a = c->a.vals[2].u.aval;
-	    pointsizes = malloc((a->argc+1)*sizeof(int32));
+	    pointsizes = malloc((a->argc+1)*sizeof(int32_t));
 	    for ( i=0; i<a->argc; ++i ) {
 		if ( a->vals[i].type!=v_int )
 		    ScriptError( c, "Bad type for array contents");
@@ -3272,7 +3166,6 @@ static void bSelectByColor(Context *c) {
 
 /* **** Element Menu **** */
 static void bReencode(Context *c) {
-    Encoding *new_enc;
     int force = 0;
     int ret;
 
@@ -3318,8 +3211,8 @@ return;
 	c->curfv->selected = realloc(c->curfv->selected,newcnt);
 	if ( newcnt>map->encmax ) {
 	    memset(c->curfv->selected+map->enccount,0,newcnt-map->enccount);
-	    map->map = realloc(map->map,(map->encmax=newcnt+10)*sizeof(int32));
-	    memset(map->map+map->enccount,-1,(newcnt-map->enccount)*sizeof(int32));
+	    map->map = realloc(map->map,(map->encmax=newcnt+10)*sizeof(int32_t));
+	    memset(map->map+map->enccount,-1,(newcnt-map->enccount)*sizeof(int32_t));
 	}
     }
     map->enccount = newcnt;
@@ -3365,7 +3258,7 @@ static void bRemoveDetachedGlyphs(Context *c) {
 
 static void bLoadTableFromFile(Context *c) {
     SplineFont *sf = c->curfv->sf;
-    uint32 tag;
+    uint32_t tag;
     char *tstr, *end;
     struct ttf_table *tab;
     FILE *file;
@@ -3405,7 +3298,7 @@ static void bLoadTableFromFile(Context *c) {
 
 static void bSaveTableToFile(Context *c) {
     SplineFont *sf = c->curfv->sf;
-    uint32 tag;
+    uint32_t tag;
     char *tstr, *end;
     struct ttf_table *tab;
     FILE *file;
@@ -3436,7 +3329,7 @@ static void bSaveTableToFile(Context *c) {
 
 static void bRemovePreservedTable(Context *c) {
     SplineFont *sf = c->curfv->sf;
-    uint32 tag;
+    uint32_t tag;
     char *tstr, *end;
     struct ttf_table *tab, *prev;
 
@@ -3462,7 +3355,7 @@ static void bRemovePreservedTable(Context *c) {
 
 static void bHasPreservedTable(Context *c) {
     SplineFont *sf = c->curfv->sf;
-    uint32 tag;
+    uint32_t tag;
     char *tstr, *end;
     struct ttf_table *tab;
 
@@ -3767,14 +3660,14 @@ static void bSetPanose(Context *c) {
     c->curfv->sf->changed = true;
 }
 
-static void setint16(int16 *val,Context *c) {
+static void setint16(int16_t *val,Context *c) {
     if ( c->a.vals[2].type!=v_int )
 	c->error = ce_badargtype;
     else
 	*val = c->a.vals[2].u.ival;
 }
 
-static void setss16(int16 *val,SplineFont *sf,Context *c) {
+static void setss16(int16_t *val,SplineFont *sf,Context *c) {
     if ( c->a.vals[2].type!=v_int ) {
 	c->error = ce_badargtype;
 	return;
@@ -4020,17 +3913,17 @@ static void bSetMaxpValue(Context *c) {
 	tab->len = tab->maxlen = 32;
     }
     if ( strmatch(c->a.vals[1].u.sval,"Zones")==0 )
-	memputshort(tab->data,7*sizeof(uint16),c->a.vals[2].u.ival);
+	memputshort(tab->data,7*sizeof(uint16_t),c->a.vals[2].u.ival);
     else if ( strmatch(c->a.vals[1].u.sval,"TwilightPntCnt")==0 )
-	memputshort(tab->data,8*sizeof(uint16),c->a.vals[2].u.ival);
+	memputshort(tab->data,8*sizeof(uint16_t),c->a.vals[2].u.ival);
     else if ( strmatch(c->a.vals[1].u.sval,"StorageCnt")==0 )
-	memputshort(tab->data,9*sizeof(uint16),c->a.vals[2].u.ival);
+	memputshort(tab->data,9*sizeof(uint16_t),c->a.vals[2].u.ival);
     else if ( strmatch(c->a.vals[1].u.sval,"MaxStackDepth")==0 )
-	memputshort(tab->data,12*sizeof(uint16),c->a.vals[2].u.ival);
+	memputshort(tab->data,12*sizeof(uint16_t),c->a.vals[2].u.ival);
     else if ( strmatch(c->a.vals[1].u.sval,"FDEFs")==0 )
-	memputshort(tab->data,10*sizeof(uint16),c->a.vals[2].u.ival);
+	memputshort(tab->data,10*sizeof(uint16_t),c->a.vals[2].u.ival);
     else if ( strmatch(c->a.vals[1].u.sval,"IDEFs")==0 )
-	memputshort(tab->data,11*sizeof(uint16),c->a.vals[2].u.ival);
+	memputshort(tab->data,11*sizeof(uint16_t),c->a.vals[2].u.ival);
     else
 	ScriptErrorString(c,"Unknown 'maxp' field: ", c->a.vals[1].u.sval );
 }
@@ -4038,7 +3931,7 @@ static void bSetMaxpValue(Context *c) {
 static void bGetMaxpValue(Context *c) {
     SplineFont *sf = c->curfv->sf;
     struct ttf_table *tab;
-    uint8 *data, dummy[32];
+    uint8_t *data, dummy[32];
 
     memset(dummy,0,32);
     dummy[15] = 2;
@@ -4053,17 +3946,17 @@ static void bGetMaxpValue(Context *c) {
 
     c->return_val.type = v_int;
     if ( strmatch(c->a.vals[1].u.sval,"Zones")==0 )
-	c->return_val.u.ival = memushort(data,32,7*sizeof(uint16));
+	c->return_val.u.ival = memushort(data,32,7*sizeof(uint16_t));
     else if ( strmatch(c->a.vals[1].u.sval,"TwilightPntCnt")==0 )
-	c->return_val.u.ival = memushort(data,32,8*sizeof(uint16));
+	c->return_val.u.ival = memushort(data,32,8*sizeof(uint16_t));
     else if ( strmatch(c->a.vals[1].u.sval,"StorageCnt")==0 )
-	c->return_val.u.ival = memushort(data,32,9*sizeof(uint16));
+	c->return_val.u.ival = memushort(data,32,9*sizeof(uint16_t));
     else if ( strmatch(c->a.vals[1].u.sval,"MaxStackDepth")==0 )
-	c->return_val.u.ival = memushort(data,32,12*sizeof(uint16));
+	c->return_val.u.ival = memushort(data,32,12*sizeof(uint16_t));
     else if ( strmatch(c->a.vals[1].u.sval,"FDEFs")==0 )
-	c->return_val.u.ival = memushort(data,32,10*sizeof(uint16));
+	c->return_val.u.ival = memushort(data,32,10*sizeof(uint16_t));
     else if ( strmatch(c->a.vals[1].u.sval,"IDEFs")==0 )
-	c->return_val.u.ival = memushort(data,32,11*sizeof(uint16));
+	c->return_val.u.ival = memushort(data,32,11*sizeof(uint16_t));
     else
 	ScriptErrorString(c,"Unknown 'maxp' field: ", c->a.vals[1].u.sval );
 }
@@ -4337,7 +4230,7 @@ return;
     src->ttf_instrs_len = 0;
     SplineCharFree(src);
 
-    /* Fix up dependant info */
+    /* Fix up dependent info */
     for ( layer=ly_fore; layer<dest->layer_cnt; ++layer )
 	for ( refs = dest->layers[layer].refs; refs!=NULL; refs=refs->next ) {
 	    for ( scl=refs->sc->dependents; scl!=NULL; scl=scl->next )
@@ -4347,7 +4240,7 @@ return;
     SCCharChangedUpdate(dest,ly_fore);
 }
 
-static int FSLMatch(FeatureScriptLangList *fl,uint32 feat_tag,uint32 script,uint32 lang) {
+static int FSLMatch(FeatureScriptLangList *fl,uint32_t feat_tag,uint32_t script,uint32_t lang) {
     struct scriptlanglist *sl;
     int l;
 
@@ -4356,7 +4249,7 @@ static int FSLMatch(FeatureScriptLangList *fl,uint32 feat_tag,uint32 script,uint
 	    for ( sl=fl->scripts; sl!=NULL ; sl=sl->next ) {
 		if ( sl->script==script || script==CHR('*',' ',' ',' ')) {
 		    for ( l=0; l<sl->lang_cnt; ++l ) {
-			uint32 lng = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
+			uint32_t lng = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
 			if ( lng==lang || lang==CHR('*',' ',' ',' '))
 return( true );
 		    }
@@ -4368,14 +4261,14 @@ return( true );
 return( false );
 }
 
-static void FVApplySubstitution(FontViewBase *fv,uint32 script, uint32 lang, uint32 feat_tag) {
+static void FVApplySubstitution(FontViewBase *fv,uint32_t script, uint32_t lang, uint32_t feat_tag) {
     SplineFont *sf = fv->sf, *sf_sl=sf;
     SplineChar *sc, *replacement, *sc2;
     PST *pst;
     EncMap *map = fv->map;
     int i, gid, gid2;
     SplineChar **replacements;
-    uint8 *removes;
+    uint8_t *removes;
 
     if ( sf_sl->cidmaster!=NULL ) sf_sl = sf_sl->cidmaster;
     else if ( sf_sl->mm!=NULL ) sf_sl = sf_sl->mm->normal;
@@ -4383,7 +4276,7 @@ static void FVApplySubstitution(FontViewBase *fv,uint32 script, uint32 lang, uin
     /* I used to do replaces and removes as I went along, and then Werner */
     /*  gave me a font were "a" was replaced by "b" replaced by "a" */
     replacements = calloc(sf->glyphcnt,sizeof(SplineChar *));
-    removes = calloc(sf->glyphcnt,sizeof(uint8));
+    removes = calloc(sf->glyphcnt,sizeof(uint8_t));
 
     for ( i=0; i<map->enccount; ++i ) if ( fv->selected[i] &&
 	    (gid=map->map[i])!=-1 && (sc=sf->glyphs[gid])!=NULL ) {
@@ -4405,7 +4298,7 @@ static void FVApplySubstitution(FontViewBase *fv,uint32 script, uint32 lang, uin
 	if ( replacements[gid]!=NULL ) {
 	    SCReplaceWith(sc,replacements[gid]);
 	} else if ( removes[gid] ) {
-	    /* This is deliberatly in the else. We don't want to remove a glyph*/
+	    /* This is deliberately in the else. We don't want to remove a glyph*/
 	    /*  we are about to replace */
 	    for ( gid2=0; gid2<sf->glyphcnt; ++gid2 ) if ( (sc2=replacements[gid2])!=NULL ) {
 		if (sc2->layers && ly_fore < sc2->layer_cnt) {
@@ -4427,7 +4320,7 @@ static void FVApplySubstitution(FontViewBase *fv,uint32 script, uint32 lang, uin
 }
 
 static void bApplySubstitution(Context *c) {
-    uint32 tags[3];
+    uint32_t tags[3];
     int i;
 
     for ( i=0; i<3; ++i ) {
@@ -5484,6 +5377,33 @@ static void bAddExtrema(Context *c) {
     }
 }
 
+static void bAddInflections(Context *c) {
+    if ( c->a.argc==1 )
+	FVAddInflections(c->curfv, false);
+    else {
+	c->error = ce_wrongnumarg;
+	return;
+    }
+}
+
+static void bBalance(Context *c) {
+    if ( c->a.argc==1 )
+	FVBalance(c->curfv, false);
+    else {
+	c->error = ce_wrongnumarg;
+	return;
+    }
+}
+
+static void bHarmonize(Context *c) {
+    if ( c->a.argc==1 )
+	FVHarmonize(c->curfv, false);
+    else {
+	c->error = ce_wrongnumarg;
+	return;
+    }
+}
+
 static void SCMakeLine(SplineChar *sc) {
     int ly, last;
     SplinePointList *spl;
@@ -5502,11 +5422,9 @@ static void SCMakeLine(SplineChar *sc) {
 			changed = true;
 		    }
 		    sp->prevcp = sp->me;
-		    sp->noprevcp = true;
 		    if ( sp->prev )
 			SplineRefigure(sp->prev);
 		    sp->nextcp = sp->me;
-		    sp->nonextcp = true;
 		    if ( sp->next )
 			SplineRefigure(sp->next);
 		}
@@ -5665,7 +5583,7 @@ static void bBuildAccented(Context *c) {
 }
 
 static void bAppendAccent(Context *c) {
-    int pos = FF_UNICODE_NOPOSDATAGIVEN; /* unicode char pos info, see #define for (uint32)(utype2[]) */
+    int pos = FF_UNICODE_NOPOSDATAGIVEN; /* unicode char pos info, see #define for (uint32_t)(utype2[]) */
     char *glyph_name = NULL;		/* unicode char name */
     int uni = -1;			/* unicode char value */
 
@@ -5685,10 +5603,10 @@ static void bAppendAccent(Context *c) {
     else
 	uni = c->a.vals[1].u.ival;
     if ( c->a.argc==3 )
-	pos = (uint32)(c->a.vals[2].u.ival);
+	pos = (uint32_t)(c->a.vals[2].u.ival);
 
     sc = GetOneSelChar(c);
-    ret = SCAppendAccent(sc,ly_fore,glyph_name,uni,(uint32)(pos));
+    ret = SCAppendAccent(sc,ly_fore,glyph_name,uni,(uint32_t)(pos));
     if ( ret==1 )
 	ScriptError(c,"No base character reference found");
     else if ( ret==2 )
@@ -5778,8 +5696,7 @@ static void bDefaultUseMyMetrics(Context *c) {
 		if ( match==NULL ) match = r;
 		/* I shan't bother checking for multiple matches */
 		/* I think the transform check is strict enough. */
-		if ( r->unicode_enc>=0 && r->unicode_enc<0x10000 &&
-			isalpha(r->unicode_enc) ) {
+		if ( isalpha(r->unicode_enc) ) {
 		    if ( goodmatch==NULL ) {
 			goodmatch = r;
 	break;
@@ -5842,8 +5759,8 @@ static void bAutoInstr(Context *c) {
     FVAutoInstr(c->curfv);
 }
 
-static void TableAddInstrs(SplineFont *sf, uint32 tag,int replace,
-	uint8 *instrs,int icnt) {
+static void TableAddInstrs(SplineFont *sf, uint32_t tag,int replace,
+	uint8_t *instrs,int icnt) {
     struct ttf_table *tab;
 
     for ( tab=sf->ttf_tables; tab!=NULL && tab->tag!=tag; tab=tab->next );
@@ -5866,7 +5783,7 @@ return;
 	memcpy(tab->data,instrs,icnt);
 	tab->len = icnt;
     } else {
-	uint8 *newi = malloc(icnt+tab->len);
+	uint8_t *newi = malloc(icnt+tab->len);
 	memcpy(newi,tab->data,tab->len);
 	memcpy(newi+tab->len,instrs,icnt);
 	free(tab->data);
@@ -5877,7 +5794,7 @@ return;
 }
 
 static void GlyphAddInstrs(SplineChar *sc,int replace,
-	uint8 *instrs,int icnt) {
+	uint8_t *instrs,int icnt) {
 
     if ( replace ) {
 	free(sc->ttf_instrs);
@@ -5893,7 +5810,7 @@ return;
 	memcpy(sc->ttf_instrs,instrs,icnt);
 	sc->ttf_instrs_len = icnt;
     } else {
-	uint8 *newi = malloc(icnt+sc->ttf_instrs_len);
+	uint8_t *newi = malloc(icnt+sc->ttf_instrs_len);
 	memcpy(newi,sc->ttf_instrs,sc->ttf_instrs_len);
 	memcpy(newi+sc->ttf_instrs_len,instrs,icnt);
 	free(sc->ttf_instrs);
@@ -5910,8 +5827,8 @@ static void bAddInstrs(Context *c) {
     int replace;
     SplineChar *sc = NULL;
     int icnt;
-    uint8 *instrs;
-    uint32 tag=0;
+    uint8_t *instrs;
+    uint32_t tag=0;
     SplineFont *sf = c->curfv->sf;
     int i;
     EncMap *map = c->curfv->map;
@@ -5973,7 +5890,7 @@ static void bGetCvtAt(Context *c) {
 	ScriptError(c,"Cvt table is either not present or too short");
     c->return_val.type = v_int;
     c->return_val.u.ival = memushort(tab->data,tab->len,
-	    sizeof(uint16)*c->a.vals[1].u.ival);
+	    sizeof(uint16_t)*c->a.vals[1].u.ival);
 }
 
 static void bReplaceCvtAt(Context *c) {
@@ -5983,7 +5900,7 @@ static void bReplaceCvtAt(Context *c) {
     for ( tab=sf->ttf_tables; tab!=NULL && tab->tag!=CHR('c','v','t',' '); tab=tab->next );
     if ( tab==NULL || c->a.vals[1].u.ival>=(int)tab->len/2 )
 	ScriptError(c,"Cvt table is either not present or too short");
-    memputshort(tab->data,sizeof(uint16)*c->a.vals[1].u.ival,
+    memputshort(tab->data,sizeof(uint16_t)*c->a.vals[1].u.ival,
 	    c->a.vals[2].u.ival);
 }
 
@@ -6039,8 +5956,8 @@ static void bClearInstrs(Context *c) {
 }
 
 static void bClearTable(Context *c) {
-    uint32 tag;
-    uint8 _tag[4];
+    uint32_t tag;
+    uint8_t _tag[4];
     SplineFont *sf = c->curfv->sf;
     struct ttf_table *table, *prev;
 
@@ -6699,9 +6616,9 @@ static void bCIDChangeSubFont(Context *c) {
 	free(c->curfv->selected);
 	c->curfv->selected = calloc(new->glyphcnt,sizeof(char));
 	if ( new->glyphcnt>map->encmax )
-	    map->map = realloc(map->map,(map->encmax = new->glyphcnt)*sizeof(int32));
+	    map->map = realloc(map->map,(map->encmax = new->glyphcnt)*sizeof(int32_t));
 	if ( new->glyphcnt>map->backmax )
-	    map->backmap = realloc(map->backmap,(map->backmax = new->glyphcnt)*sizeof(int32));
+	    map->backmap = realloc(map->backmap,(map->backmax = new->glyphcnt)*sizeof(int32_t));
 	for ( i=0; i<new->glyphcnt; ++i )
 	    map->map[i] = map->backmap[i] = i;
 	map->enccount = new->glyphcnt;
@@ -6942,8 +6859,7 @@ static void bAddAnchorPoint(Context *c) {
 	    type = at_cexit;
 	else if ( val==-3 || t->type==act_curs )
 	    type = at_centry;
-	else if (( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 &&
-		iscombining(sc->unicodeenc)) || sc->width==0 || sc->glyph_class==2 /* base class+1 */ )
+	else if ( iscombining(sc->unicodeenc) || sc->width==0 || sc->glyph_class==2 /* base class+1 */ )
 	    type = at_mark;
 	else if ( pst!=NULL && type==at_basechar )
 	    type = at_baselig;
@@ -7165,7 +7081,7 @@ static void bMergeLookupSubtables(Context *c) {
     SFRemoveLookupSubTable(c->curfv->sf,sub2,0);
 }
 
-static int32 ParseTag(Context *c,Val *tagstr,int macok,int *wasmac) {
+static int32_t ParseTag(Context *c,Val *tagstr,int macok,int *wasmac) {
     char tag[4];
     int feat,set;
     char *str;
@@ -7244,9 +7160,9 @@ static FeatureScriptLangList *ParseFeatureList(Context *c,Array *a) {
 	    } else {
 		sl->lang_cnt = langs->argc;
 		if ( langs->argc>MAX_LANG )
-		    sl->morelangs = malloc((langs->argc-MAX_LANG)*sizeof(uint32));
+		    sl->morelangs = malloc((langs->argc-MAX_LANG)*sizeof(uint32_t));
 		for ( l=0; l<langs->argc; ++l ) {
-		    uint32 lang = ParseTag(c,&langs->vals[l],false,&wasmac);
+		    uint32_t lang = ParseTag(c,&langs->vals[l],false,&wasmac);
 		    if ( l<MAX_LANG )
 			sl->langs[l] = lang;
 		    else
@@ -7372,7 +7288,7 @@ static void bLookupStoreLigatureInAfm(Context *c) {
     otl->store_in_afm = c->a.vals[2].u.ival;
 }
 
-static char *Tag2Str(uint32 tag, int ismac) {
+static char *Tag2Str(uint32_t tag, int ismac) {
     char buffer[20];
 
     if ( ismac )
@@ -8350,7 +8266,7 @@ static void bCompareFonts(Context *c) {
     t = script2utf8_copy(c->a.vals[1].u.sval);
     locfilename = utf82def_copy(t);
     free(t);
-    t = GFileMakeAbsoluteName(locfilename);
+    t = GFileGetAbsoluteName(locfilename);
     free(locfilename);
     locfilename = t;
     sf2 = FontWithThisFilename(locfilename);
@@ -8434,348 +8350,6 @@ static void bclearSpecialData(Context *c) {
     if (c->curfv) SplineFontClearSpecial(c->curfv->sf);
 }
 
-/* Ligature & Fraction information based on current Unicode (builtin) chart. */
-/* Unicode chart seems to distinguish vulgar fractions from other fractions. */
-/* Cnt returns lookup table-size, Nxt returns next Unicode value from array, */
-/* Loc returns 'n' for table array[0..n..(Cnt-1)] pointer. Errors return -1. */
-static void bLigChartGetCnt(Context *c) {
-    c->return_val.type=v_int;
-    c->return_val.u.ival=LigatureCount();
-}
-
-static void bVulChartGetCnt(Context *c) {
-    c->return_val.type=v_int;
-    c->return_val.u.ival=VulgarFractionCount();
-}
-
-static void bOFracChartGetCnt(Context *c) {
-    c->return_val.type=v_int;
-    c->return_val.u.ival=OtherFractionCount();
-}
-
-static void bFracChartGetCnt(Context *c) {
-    c->return_val.type=v_int;
-    c->return_val.u.ival=FractionCount();
-}
-
-static void bLigChartGetNxt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = Ligature_get_U(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = Ligature_get_U(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bVulChartGetNxt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = VulgFrac_get_U(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = VulgFrac_get_U(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bOFracChartGetNxt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = Fraction_get_U(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = Fraction_get_U(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bLigChartGetLoc(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = Ligature_find_N(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = Ligature_find_N(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bVulChartGetLoc(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = VulgFrac_find_N(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = VulgFrac_find_N(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bOFracChartGetLoc(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = Fraction_find_N(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = Fraction_find_N(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bLigChartGetAltCnt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = Ligature_alt_getC(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = Ligature_alt_getC(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bLigChartUGetAltCnt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = LigatureU_alt_getC(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = LigatureU_alt_getC(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bVulChartGetAltCnt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = VulgFrac_alt_getC(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = VulgFrac_alt_getC(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bVulChartUGetAltCnt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = VulgFracU_alt_getC(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = VulgFracU_alt_getC(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bOFracChartGetAltCnt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = Fraction_alt_getC(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = Fraction_alt_getC(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bOFracChartUGetAltCnt(Context *c) {
-    const char *pt;
-    long ch;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch = utf8_ildb(&pt);
-	c->return_val.u.ival = FractionU_alt_getC(ch);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	c->return_val.u.ival = FractionU_alt_getC(c->a.vals[1].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bLigChartGetAltVal(Context *c) {
-    const char *pt;
-    long ch1,ch2;
-
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch1 = utf8_ildb(&pt);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	ch1 = c->a.vals[1].u.ival;
-    else
-	c->error = ce_badargtype;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[2].type==v_str ) {
-	pt = c->a.vals[2].u.sval;
-	ch2 = utf8_ildb(&pt);
-	c->return_val.u.ival = Ligature_alt_getV(ch1,ch2);
-    } else if ( c->a.vals[2].type==v_int || c->a.vals[2].type==v_unicode )
-	c->return_val.u.ival = Ligature_alt_getV(ch1,c->a.vals[2].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bLigChartUGetAltVal(Context *c) {
-    const char *pt;
-    long ch1,ch2;
-
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch1 = utf8_ildb(&pt);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	ch1 = c->a.vals[1].u.ival;
-    else
-	c->error = ce_badargtype;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[2].type==v_str ) {
-	pt = c->a.vals[2].u.sval;
-	ch2 = utf8_ildb(&pt);
-	c->return_val.u.ival = LigatureU_alt_getV(ch1,ch2);
-    } else if ( c->a.vals[2].type==v_int || c->a.vals[2].type==v_unicode )
-	c->return_val.u.ival = LigatureU_alt_getV(ch1,c->a.vals[2].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bVulChartGetAltVal(Context *c) {
-    const char *pt;
-    long ch1,ch2;
-
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch1 = utf8_ildb(&pt);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	ch1 = c->a.vals[1].u.ival;
-    else
-	c->error = ce_badargtype;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[2].type==v_str ) {
-	pt = c->a.vals[2].u.sval;
-	ch2 = utf8_ildb(&pt);
-	c->return_val.u.ival = VulgFrac_alt_getV(ch1,ch2);
-    } else if ( c->a.vals[2].type==v_int || c->a.vals[2].type==v_unicode )
-	c->return_val.u.ival = VulgFrac_alt_getV(ch1,c->a.vals[2].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bVulChartUGetAltVal(Context *c) {
-    const char *pt;
-    long ch1,ch2;
-
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch1 = utf8_ildb(&pt);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	ch1 = c->a.vals[1].u.ival;
-    else
-	c->error = ce_badargtype;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[2].type==v_str ) {
-	pt = c->a.vals[2].u.sval;
-	ch2 = utf8_ildb(&pt);
-	c->return_val.u.ival = VulgFracU_alt_getV(ch1,ch2);
-    } else if ( c->a.vals[2].type==v_int || c->a.vals[2].type==v_unicode )
-	c->return_val.u.ival = VulgFracU_alt_getV(ch1,c->a.vals[2].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bOFracChartGetAltVal(Context *c) {
-    const char *pt;
-    long ch1,ch2;
-
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch1 = utf8_ildb(&pt);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	ch1 = c->a.vals[1].u.ival;
-    else
-	c->error = ce_badargtype;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[2].type==v_str ) {
-	pt = c->a.vals[2].u.sval;
-	ch2 = utf8_ildb(&pt);
-	c->return_val.u.ival = Fraction_alt_getV(ch1,ch2);
-    } else if ( c->a.vals[2].type==v_int || c->a.vals[2].type==v_unicode )
-	c->return_val.u.ival = Fraction_alt_getV(ch1,c->a.vals[2].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
-static void bOFracChartUGetAltVal(Context *c) {
-    const char *pt;
-    long ch1,ch2;
-
-    if ( c->a.vals[1].type==v_str ) {
-	pt = c->a.vals[1].u.sval;
-	ch1 = utf8_ildb(&pt);
-    } else if ( c->a.vals[1].type==v_int || c->a.vals[1].type==v_unicode )
-	ch1 = c->a.vals[1].u.ival;
-    else
-	c->error = ce_badargtype;
-
-    c->return_val.type = v_int;
-    if ( c->a.vals[2].type==v_str ) {
-	pt = c->a.vals[2].u.sval;
-	ch2 = utf8_ildb(&pt);
-	c->return_val.u.ival = FractionU_alt_getV(ch1,ch2);
-    } else if ( c->a.vals[2].type==v_int || c->a.vals[2].type==v_unicode )
-	c->return_val.u.ival = FractionU_alt_getV(ch1,c->a.vals[2].u.ival);
-    else
-	c->error = ce_badargtype;
-}
-
 static struct builtins {
     const char *name;
     void (*func)(Context *);
@@ -8810,10 +8384,6 @@ static struct builtins {
     { "IsAlpha", bisalpha, 1,2,0 },
     { "IsAlNum", bisalnum, 1,2,0 },
     { "IsSpace", bisspace, 1,2,0 },
-    { "IsLigature", bisligature, 1,2,0 },
-    { "IsVulgarFraction", bisvulgarfraction, 1,2,0 },
-    { "IsOtherFraction", bisotherfraction, 1,2,0 },
-    { "IsFraction", bisfraction, 1,2,0 },
     { "ToUpper", btoupper, 1,2,0 },
     { "ToLower", btolower, 1,2,0 },
     { "ToMirror", btomirror, 1,2,0 },
@@ -8829,7 +8399,7 @@ static struct builtins {
     { "SpiroVersion", bSpiroVersion, 1,1,0 },
     { "UnicodeFromName", bUnicodeFromName, 1,2,v_str },
     { "NameFromUnicode", bNameFromUnicode, 1,0,0 },
-    /* --start of libuninameslist functions------------------------ */
+    /* --start of names list functions------------------------ */
     { "UnicodeBlockCountFromLib", bUnicodeBlockCountFromLib, 1,1,0 },
     { "UnicodeBlockEndFromLib", bUnicodeBlockEndFromLib, 1,2,0 },
     { "UnicodeBlockNameFromLib", bUnicodeBlockNameFromLib, 1,2,0 },
@@ -8837,14 +8407,8 @@ static struct builtins {
     { "UnicodeNameFromLib", bUnicodeNameFromLib, 1,2,0 },
     { "UnicodeAnnotationFromLib", bUnicodeAnnotationFromLib, 1,2,0 },
     { "UnicodeNamesListVersion", bUnicodeNamesListVersion, 1,1,0 },
-    /* ----start of libuninameslist Names2 functions--------------- */
-    { "UnicodeNames2GetCntFromLib", bUnicodeNames2GetCntFromLib, 1,1,0 },
-    { "UnicodeNames2GetNxtFromLib", bUnicodeNames2GetNxtFromLib, 1,2,0 },
-    { "UnicodeNames2NxtUniFromLib", bUnicodeNames2NxtUniFromLib, 1,2,0 },
-    { "UnicodeNames2FrmTabFromLib", bUnicodeNames2FrmTabFromLib, 1,2,0 },
     { "UnicodeNames2FromLib", bUnicodeNames2FromLib, 1,2,0 },
-    /* ----end of libuninameslist Names2 functions----------------- */
-    /* --end of libuninameslist functions-------------------------- */
+    /* --end of names list functions-------------------------- */
     { "Chr", bChr, 1,0,0 },
     { "Ord", bOrd, 1,0,0 },
     { "Real", bReal, 1,2,0 },
@@ -9012,6 +8576,9 @@ static struct builtins {
     { "NearlyHvLines", bNearlyHvLines, 0,0,0 },
     { "NearlyLines", bNearlyLines, 0,0,0 },
     { "AddExtrema", bAddExtrema, 0,0,0 },
+    { "AddInflections", bAddInflections, 0,0,0 },
+    { "Balance", bBalance, 0,0,0 },
+    { "Harmonize", bHarmonize, 0,0,0 },
     { "RoundToInt", bRoundToInt, 0,0,0 },
     { "RoundToCluster", bRoundToCluster, 0,0,0 },
     { "Autotrace", bAutotrace, 0,1,0 },
@@ -9129,77 +8696,8 @@ static struct builtins {
     { "Validate", bValidate, 0,0,0 },
     { "DebugCrashFontForge", bDebugCrashFontForge, 1,0,0 },
     { "ClearSpecialData", bclearSpecialData, 0,1,0 },
-    { "ucLigChartGetCnt", bLigChartGetCnt, 1,1,0 },
-    { "ucVulChartGetCnt", bVulChartGetCnt, 1,1,0 },
-    { "ucOFracChartGetCnt", bOFracChartGetCnt, 1,1,0 },
-    { "ucFracChartGetCnt", bFracChartGetCnt, 1,1,0 },
-    { "ucLigChartGetNxt", bLigChartGetNxt, 1,2,0 },
-    { "ucVulChartGetNxt", bVulChartGetNxt, 1,2,0 },
-    { "ucOFracChartGetNxt", bOFracChartGetNxt, 1,2,0 },
-    { "ucLigChartGetLoc", bLigChartGetLoc, 1,2,0 },
-    { "ucVulChartGetLoc", bVulChartGetLoc, 1,2,0 },
-    { "ucOFracChartGetLoc", bOFracChartGetLoc, 1,2,0 },
-    { "ucLigChartGetAltCnt", bLigChartGetAltCnt, 1,2,0 },
-    { "ucLigChartGetAltVal", bLigChartGetAltVal, 1,3,0 },
-    { "ucVulChartGetAltCnt", bVulChartGetAltCnt, 1,2,0 },
-    { "ucVulChartGetAltVal", bVulChartGetAltVal, 1,3,0 },
-    { "ucOFracChartGetAltCnt", bOFracChartGetAltCnt, 1,2,0 },
-    { "ucOFracChartGetAltVal", bOFracChartGetAltVal, 1,3,0 },
-    { "ucLigChartUGetAltCnt", bLigChartUGetAltCnt, 1,2,0 },
-    { "ucLigChartUGetAltVal", bLigChartUGetAltVal, 1,3,0 },
-    { "ucVulChartUGetAltCnt", bVulChartUGetAltCnt, 1,2,0 },
-    { "ucVulChartUGetAltVal", bVulChartUGetAltVal, 1,3,0 },
-    { "ucOFracChartUGetAltCnt", bOFracChartUGetAltCnt, 1,2,0 },
-    { "ucOFracChartUGetAltVal", bOFracChartUGetAltVal, 1,3,0 },
     { NULL, 0, 0,0,0 }
 };
-
-static struct builtins *userdefined=NULL;
-static int ud_cnt=0, ud_max=0;
-
-int AddScriptingCommand(char *name,void (*func)(Context *),int needs_font ) {
-/* Add a new native scripting command (provided by 3rd_party plugin). */
-    int i;
-
-    for ( i=0; builtins[i].name!=NULL; ++i )
-	if ( strcmp(builtins[i].name,name)==0 )
-	    return( 0 );	/* Can't supercede a built in function */
-
-    for ( i=0; i<ud_cnt; ++i )
-	if ( strcmp(userdefined[i].name,name)==0 ) {
-	    userdefined[i].func = func;
-	    userdefined[i].nofontok = needs_font ? 0:1;
-	    return( 2 );
-	}
-
-    if ( ud_cnt >= ud_max ) {
-	/* create more space for +20 more user defined commands */
-	struct builtins *temp;
-	temp = realloc(userdefined,(ud_max+20)*sizeof(struct builtins));
-	if ( temp==NULL )
-	    return( 0 );
-	ud_max+=20;
-	userdefined = temp;
-    }
-
-    if ( (userdefined[ud_cnt].name=copy(name))==NULL )
-	return( 0 );
-    userdefined[ud_cnt].func = func;
-    userdefined[ud_cnt].nofontok = needs_font ? 0:1;
-    userdefined[ud_cnt].argcnt = 0;
-    userdefined[ud_cnt].argtype = 0;
-    return( true );
-}
-
-UserDefScriptFunc HasUserScriptingCommand(char *name) {
-    int i;
-
-    for ( i=0; i<ud_cnt; ++i )
-	if ( strcmp(userdefined[i].name,name)==0 )
-return( userdefined[i].func );
-
-return( NULL );
-}
 
 /* ******************************* Interpreter ****************************** */
 
@@ -9220,7 +8718,7 @@ static int AddScriptLine(FILE *script, const char *line)
     return getc(script);
 }
 
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) && defined(_NO_LIBREADLINE)
 
 static ssize_t getline(char **lineptr, size_t *n, FILE *stream)
 {
@@ -9705,13 +9203,6 @@ static void docall(Context *c,char *name,Val *val) {
 		found = &builtins[i];
 	break;
 	    }
-	if ( found==NULL && userdefined!=NULL ) {
-	    for ( i=0; i<ud_cnt; ++i )
-		if ( strcmp(userdefined[i].name,name)==0 ) {
-		    found = &userdefined[i];
-	    break;
-		}
-	}
 	if ( found!=NULL ) {
 	    if ( verbose>0 )
 		fflush(stdout);
@@ -9747,7 +9238,6 @@ static void docall(Context *c,char *name,Val *val) {
 			}
 		}
 	    }
-docall_dofunc:
 	    (found->func)(&sub);
 docall_skipfunc:
 	    switch (sub.error) { /* check if any error in results */
@@ -10968,6 +10458,8 @@ return( def_py );
 
 static void _CheckIsScript(int argc, char *argv[]) {
     int i, is_python = DefaultLangPython();
+    int run_python_init_files = true;
+    int import_python_plugins = true;
     char *pt;
 
     if ( argc==1 )
@@ -10977,6 +10469,10 @@ return;
 	if ( *pt=='-' && pt[1]=='-' && pt[2]!='\0' ) ++pt;
 	if ( strcmp(pt,"-nosplash")==0 || strcmp(pt,"-quiet")==0 )
 	    /* Skip it */;
+	else if ( strcmp(pt,"-SkipPythonInitFiles")==0 || strcmp(pt,"-skippyfile")==0 )
+	    run_python_init_files = false;
+	else if ( strcmp(pt,"-skippyplug")==0 )
+	    import_python_plugins = false;
 	else if ( strcmp(pt,"-lang=py")==0 )
 	    is_python = true;
 	else if ( strcmp(pt,"-lang=ff")==0 || strcmp(pt,"-lang=pe")==0 )
@@ -10988,11 +10484,11 @@ return;
 	} else if ( strcmp(argv[i],"-")==0 ) {	/* Someone thought that, of course, "-" meant read from a script. I guess it makes no sense with anything else... */
 #if !defined(_NO_FFSCRIPT) && !defined(_NO_PYTHON)
 	    if ( is_python )
-		PyFF_Stdin();
+		PyFF_Stdin(run_python_init_files, import_python_plugins);
 	    else
 		ProcessNativeScript(argc, argv,stdin);
 #elif !defined(_NO_PYTHON)
-	    PyFF_Stdin();
+	    PyFF_Stdin(run_python_init_files, import_python_plugins);
 #elif !defined(_NO_FFSCRIPT)
 	    ProcessNativeScript(argc, argv,stdin);
 #endif
@@ -11004,11 +10500,11 @@ return;
 	    if ( is_python ) {
                 if (strcmp(argv[i],"-c") == 0) /* Make command-line args and Fontforge module more conveniently available for command-line scripts */
                     argv[i + 1] = smprintf("from sys import argv; from fontforge import *; %s", argv[i + 1]);
-		PyFF_Main(argc,argv,i);
+		PyFF_Main(argc,argv,i,run_python_init_files, import_python_plugins);
 	    } else
 		ProcessNativeScript(argc, argv,NULL);
 #elif !defined(_NO_PYTHON)
-	    PyFF_Main(argc,argv,i);
+	    PyFF_Main(argc,argv,i,run_python_init_files, import_python_plugins);
 #elif !defined(_NO_FFSCRIPT)
 	    ProcessNativeScript(argc, argv,NULL);
 #endif
@@ -11025,17 +10521,21 @@ return;
 		if ( is_python==-1 )
 		    is_python = PythonLangFromExt(argv[i]);
 		if ( is_python )
-		    PyFF_Main(argc,argv,i);
+		    PyFF_Main(argc,argv,i,run_python_init_files, import_python_plugins);
 		else
 		    ProcessNativeScript(argc, argv,NULL);
 #elif !defined(_NO_PYTHON)
-		PyFF_Main(argc,argv,i);
+		PyFF_Main(argc,argv,i,run_python_init_files, import_python_plugins);
 #elif !defined(_NO_FFSCRIPT)
 		ProcessNativeScript(argc, argv,NULL);
 #endif
 	    }
 	}
     }
+    // Silence unused warnings, depending on ifdefs
+    (void)is_python;
+    (void)run_python_init_files;
+    (void)import_python_plugins;
 }
 #endif
 
