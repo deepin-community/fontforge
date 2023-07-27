@@ -1059,7 +1059,7 @@ static void InitChars(struct pschars *chars,char *line) {
     chars->cnt = strtol(line,NULL,10);
     if ( chars->cnt>0 ) {
 	chars->keys = calloc(chars->cnt,sizeof(char *));
-	chars->values = calloc(chars->cnt,sizeof(uint8 *));
+	chars->values = calloc(chars->cnt,sizeof(uint8_t *));
 	chars->lens = calloc(chars->cnt,sizeof(int));
 	ff_progress_change_total(chars->cnt);
     }
@@ -1290,7 +1290,7 @@ static void findnumbers(struct pschars *chars,char *str) {
 	val = strtol(str,&end,10);
 	chars->lens[index] = 0;
 	chars->keys[index] = copy(namestrt);
-	chars->values[index] = (void *) (intpt) val;
+	chars->values[index] = (void *) (intptr_t) val;
 	chars->next = index+1;
 	str = end;
 	while ( isspace(*str)) ++str;
@@ -1912,7 +1912,7 @@ return;
 	    if ( fp->fd->uniqueid==0 )
 		fp->fd->uniqueid = strtol(endtok,NULL,10);
 	} else if ( mycmp("UniqueId",line+1,endtok)==0 ) {
-	    LogError(_("This font contains a \"UniqueId\" variable, but the correct name for it is\n\t\"UniqueID\" (postscript is case concious)\n") );
+	    LogError(_("This font contains a \"UniqueId\" variable, but the correct name for it is\n\t\"UniqueID\" (postscript is case conscious)\n") );
 	    if ( fp->fd->uniqueid==0 )
 		fp->fd->uniqueid = strtol(endtok,NULL,10);
 	} else if ( mycmp("XUID",line+1,endtok)==0 ) {
@@ -2092,7 +2092,7 @@ static int glorpline(struct fontparse *fp, FILE *temp, char *rdtok) {
     char *rdline2 = "{string currentfile exch readhexstring pop}";
     char *tokpt = NULL, *rdpt;
     char temptok[255];
-    int intok, first;
+    int intok;
     int inPrivate = 0, inSubrs = 0;
     int wasminus=false, isminus, nibble=0, firstnibble=true, inhex;
     int willbehex = false;
@@ -2108,7 +2108,7 @@ return( 0 );
     }
     innum = inr = 0; wasspace = 0; inbinary = 0; rpt = NULL; rdpt = NULL;
     inhex = 0;
-    pt = buffer; binstart=NULL; binlen = 0; intok=0; sptok=0; first=1;
+    pt = buffer; binstart=NULL; binlen = 0; intok=0; sptok=0;
     temptok[0] = '\0';
     while ( (ch=getc(temp))!=EOF ) {
 	if ( pt>=end ) {
@@ -2175,7 +2175,7 @@ return( 0 );
     break;
 	        }
 	    } else if ( !strcmp("CharStrings", temptok) ) {
-	        if (fp->insubs) { /* break CharStrings onto a seperate line */
+	        if (fp->insubs) { /* break CharStrings onto a separate line */
 	            putBack(fp, temp, temptok, ch, &pt);
 	            putBack(fp, temp, "", '/', &pt);
 		    fp->insubs = 0;
@@ -2213,7 +2213,7 @@ return( 0 );
 	    if ( ch=='\n' || ch=='\r' )
     break;
 	    if ( inSubrs && matchFromBack(pt - 2, "array", pt - buffer - 1) )
-    break;  /* Subrs may be on same line with first RD def -- seperate them */
+    break;  /* Subrs may be on same line with first RD def -- separate them */
 	} else if ( wasspace && ch==*rdtok ) {
 	    nowr = 1;
 	    fp->useshexstrings = willbehex;
@@ -2253,7 +2253,6 @@ return( 0 );
 	}
 	innum = nownum; wasspace = nowspace; inr = nowr;
 	wasminus = isminus;
-	first = 0;
     } /* end while */
     *pt = '\0';
     if ( binstart==NULL ) {
@@ -2373,7 +2372,7 @@ static unsigned char *readt1str(FILE *temp,int offset,int len,int leniv) {
     unsigned short r = 4330;
     unsigned char plain, cypher;
     /* The CID spec doesn't mention this, but the type 1 strings are all */
-    /*  eexec encrupted (with the nested encryption). Remember leniv varies */
+    /*  eexec encrypted (with the nested encryption). Remember leniv varies */
     /*  from fd to fd (potentially) */
     /* I'm told (by Ian Kemmish) that leniv==-1 => no eexec encryption */
 
@@ -2408,9 +2407,9 @@ static void figurecids(struct fontparse *fp,FILE *temp) {
     int leniv;
     /* Some cid formats don't have any of these */
 
-    fd->cidstrs = malloc(cidcnt*sizeof(uint8 *));
-    fd->cidlens = malloc(cidcnt*sizeof(int16));
-    fd->cidfds = malloc((cidcnt+1)*sizeof(int16));
+    fd->cidstrs = malloc(cidcnt*sizeof(uint8_t *));
+    fd->cidlens = malloc(cidcnt*sizeof(int16_t));
+    fd->cidfds = malloc((cidcnt+1)*sizeof(int16_t));
     offsets = malloc((cidcnt+1)*sizeof(int));
     ff_progress_change_total(cidcnt);
 
@@ -2459,7 +2458,7 @@ static void figurecids(struct fontparse *fp,FILE *temp) {
 		(sdbytes=strtol(ssdbytes,NULL,10))>0 &&
 		(subrcnt=strtol(ssubrcnt,NULL,10))>0 ) {
 	    private->subrs->cnt = subrcnt;
-	    private->subrs->values = calloc(subrcnt,sizeof(uint8 *));
+	    private->subrs->values = calloc(subrcnt,sizeof(uint8_t *));
 	    private->subrs->lens = calloc(subrcnt,sizeof(int));
 	    leniv = private->leniv;
 	    offsets = malloc((subrcnt+1)*sizeof(int));
@@ -2679,7 +2678,8 @@ void PSCharsFree(struct pschars *chrs) {
 return;
     for ( i=0; i<chrs->next; ++i ) {
 	if ( chrs->keys!=NULL ) free(chrs->keys[i]);
-	free(chrs->values[i]);
+	if ( chrs->lens!=NULL && chrs->lens[i]!=0 )
+	    free(chrs->values[i]);
     }
     free(chrs->lens);
     free(chrs->keys);

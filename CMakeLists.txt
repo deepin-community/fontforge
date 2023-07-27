@@ -2,19 +2,19 @@
 
 cmake_minimum_required(VERSION 3.5)
 
+# Update the version for each new release
+project(fontforge VERSION 20230101 LANGUAGES C CXX)
+
 # No in source builds
-if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   message(FATAL_ERROR "In-source builds are disallowed. Create a build folder to run CMake from.")
 endif()
 
-# Update the version for each new release
-project(fontforge VERSION 20201107 LANGUAGES C CXX)
-
 # Add folder for custom cmake modules
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_SOURCE_DIR}/cmake/packages)
+list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake ${PROJECT_SOURCE_DIR}/cmake/packages)
 if(${CMAKE_VERSION} VERSION_LESS "3.15.7")
   # This could be more targeted, but keep it simple
-  list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/backports/3.15.7)
+  list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/backports/3.15.7)
 endif()
 
 # Include any required modules
@@ -33,9 +33,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_THREAD_PREFER_PTHREAD 1)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 set_default_build_type(RelWithDebInfo) # Sets CMAKE_BUILD_TYPE
 set_default_rpath()
@@ -51,7 +51,6 @@ build_option(ENABLE_PYTHON_SCRIPTING BOOL ON  "Enables FontForge's Python script
 build_option(ENABLE_PYTHON_EXTENSION AUTO ON  "Builds the Python models for use with system python")
 
 build_option(ENABLE_LIBSPIRO         BOOL ON  "Enables libspiro support")
-build_option(ENABLE_LIBUNINAMESLIST  BOOL ON  "Enables libuninameslist support")
 build_option(ENABLE_LIBGIF           AUTO ON  "Enables GIF support")
 build_option(ENABLE_LIBJPEG          AUTO ON  "Enables JPEG support")
 build_option(ENABLE_LIBPNG           AUTO ON  "Enables PNG support")
@@ -79,13 +78,18 @@ build_option(SPHINX_USE_VENV BOOL OFF "If building documentation and Sphinx\
 build_option(REAL_TYPE ENUM "double" "Sets the floating point type used." "double" "float")
 build_option(THEME     ENUM "tango"  "Sets the GUI theme." "tango" "2012")
 
+build_option(FONT_FAMILIES_SERIF     STRING "default"  "Serif font family names to use in the UI separated by commas")
+build_option(FONT_FAMILIES_UI        STRING "default"  "Font family names to use in the UI separated by commas (typically sans-serif)")
+build_option(FONT_FAMILIES_LABEL     STRING "default"  "Font family names for labeling unicode characters (very wide unicode coverage, e.g. unifont, recommended)")
+build_option(FONT_FAMILIES_MONO      STRING "default"  "Monospace font family names to use in the UI separated by commas")
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-  list(APPEND _test_flags CFLAGS -Werror=implicit-function-declaration -Werror=int-conversion)
+  list(APPEND _test_flags CFLAGS -Wall -Werror=implicit-function-declaration -Werror=int-conversion -Wno-misleading-indentation)
   if(CMAKE_GENERATOR STREQUAL "Ninja") # https://github.com/ninja-build/ninja/wiki/FAQ
     list(APPEND _test_flags BOTH -fdiagnostics-color=always)
   endif()
   set_supported_compiler_flags(FONTFORGE_DEFAULT_CFLAGS FONTFORGE_DEFAULT_CXXFLAGS ${_test_flags})
-  list(APPEND FONTFORGE_EXTRA_CFLAGS -Wall -Wextra -pedantic)
+  list(APPEND FONTFORGE_EXTRA_CFLAGS -Wextra -pedantic -Wno-unused-parameter)
   add_compile_options(
     "$<$<COMPILE_LANGUAGE:C>:${FONTFORGE_DEFAULT_CFLAGS}>"
     "$<$<COMPILE_LANGUAGE:CXX>:${FONTFORGE_DEFAULT_CXXFLAGS}>"
@@ -94,12 +98,21 @@ endif()
 
 enable_sanitizer("${ENABLE_SANITIZER}")
 
+set_font_family(serif "${FONT_FAMILIES_SERIF}")
+set_font_family(ui "${FONT_FAMILIES_UI}")
+set_font_family(label "${FONT_FAMILIES_LABEL}")
+set_font_family(mono "${FONT_FAMILIES_MONO}")
+
 # Required and default dependencies
 # Note: When adding a dependency, ensure it has an imported target (wherever appropriate) 
 find_package(Freetype 2.3.7 REQUIRED)
 find_package(Gettext REQUIRED)
 find_package_with_target(Intl REQUIRED)
-find_package(GLIB 2.6 REQUIRED COMPONENTS gio)
+if(UNIX AND NOT APPLE)
+  find_package(GLIB 2.6 REQUIRED COMPONENTS gio gobject)
+else()
+  find_package(GLIB 2.58 REQUIRED COMPONENTS gio gobject)
+endif()
 find_package(Iconv REQUIRED)
 find_package(LibXml2 REQUIRED)
 find_package(MathLib REQUIRED)
@@ -113,6 +126,9 @@ endif()
 # Requirements for options
 if(ENABLE_GUI)
   if(ENABLE_X11)
+    if(APPLE)
+      message(FATAL_ERROR "Using the X11 backend on MacOS is no longer supported.")
+    endif()
     find_package(Cairo 1.6 REQUIRED)
     find_package(Pango 1.10 COMPONENTS pangocairo pangoxft REQUIRED)
     find_package(X11 REQUIRED)
@@ -134,10 +150,9 @@ set(Python3_FIND_REGISTRY LAST)
 if(BUILD_SHARED_LIBS)
   set(Python3_USE_STATIC_LIBS FALSE)
 endif()
-find_package_auto(ENABLE_PYTHON_SCRIPTING Python3 3.3 COMPONENTS Development Interpreter)
+find_package_auto(ENABLE_PYTHON_SCRIPTING Python3 3.6 COMPONENTS Development Interpreter)
 find_package_auto(ENABLE_DOCS             Sphinx) # Should come after ENABLE_PYTHON_SCRIPTING
 find_package_auto(ENABLE_LIBSPIRO         Libspiro)
-find_package_auto(ENABLE_LIBUNINAMESLIST  Libuninameslist)
 find_package_auto(ENABLE_LIBGIF           GIF)
 find_package_auto(ENABLE_LIBJPEG          JPEG)
 find_package_auto(ENABLE_LIBPNG           PNG)

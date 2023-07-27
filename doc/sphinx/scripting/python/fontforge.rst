@@ -123,7 +123,7 @@ Module functions
 .. function:: loadEncodingFile(filename[, encname])
 
    Loads an encoding file, returns the name of the encoding or ``None``. When
-   loading encodings in Unicode consortium format, an encname has to be specefied
+   loading encodings in Unicode consortium format, an encname has to be specified
    or the encoding will be ignored and ``None`` will be returned.
 
 .. function:: loadNamelist(filename)
@@ -190,29 +190,26 @@ Module functions
 
    Return the number of Unicode Blocks as described by www.unicode.org.
    Currently, the blocks are {0..233}, spanning unicode values {uni0..uni10FFFF}.
-   If there is no value, or no library available, then return -1. This can
-   execute with no current font.
+   If there is no value, then return -1. This can execute with no current font.
 
 .. function:: UnicodeBlockEndFromLib(n)
 
    Returns the Unicode Block end value as described by www.unicode.org.
    Currently, the blocks are {0..233}, spanning unicode values {uni0..uni10FFFF}.
-   If there is no value, or no library available, then return -1. This can
-   execute with no current font.
+   If there is no value, then return -1. This can execute with no current font.
 
 .. function:: UnicodeBlockNameFromLib(n)
 
    Returns the Unicode Block Name as described by www.unicode.org.
    Currently, the blocks are {0..233}, spanning unicode values {uni0..uni10FFFF}.
-   If there is no value, or no library available, then return empty string "".
-   This can execute with no current font.
+   If there is no value, then return empty string "". This can execute with no
+   current font.
 
 .. function:: UnicodeBlockStartFromLib(n)
 
    Returns the Unicode Block start value as described by www.unicode.org.
    Currently, the blocks are {0..233}, spanning unicode values {uni0..uni10FFFF}.
-   If there is no value, or no library available, then return -1.
-   This can execute with no current font.
+   If there is no value, then return -1. This can execute with no current font.
 
 .. function:: unicodeFromName(glyphname)
 
@@ -222,57 +219,20 @@ Module functions
 .. function:: UnicodeNameFromLib(n)
 
    Returns the Unicode Name for this value as described by www.unicode.org.
-   If there is no unicode name for this value, or no library available, then
-   return empty string "". It can execute with no current font.
+   If there is no unicode name for this value, then return empty string "".
+   It can execute with no current font.
 
 .. function:: UnicodeNamesListVersion()
 
    Return the Unicode Nameslist Version (as described by www.unicode.org).
-   libuninameslist is released on a schedule that depends on when www.unicode.org
-   releases new information. These dates do not match FontForge release dates,
-   therefore users might not keep this optional library upto current updates.
-   This instruction can be used to test if the Nameslist library is recent for
-   your script. This function currently works only for libuninameslist
-   ver_0.3.20130501 or later, else it returns empty string "". This can execute
-   with no current font.
 
-.. function:: UnicodeNames2GetCntFromLib()
-
-   Return the Total Count of all Names that were corrected with a new name.
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. If there is no libuninameslist ver 0.5 or later
-   available, then return -1.
-
-.. function:: UnicodeNames2GetNxtFromLib(n)
-
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. With val==unicode value, this function returns -1
-   if no Names2 exists, or the Nth table location for this unicode value listed
-   in libuninameslist that was corrected to a new name. If there is no
-   libuninameslist ver 0.5 or later, then return -1.
-
-.. function:: UnicodeNames2NxtUniFromLib(n)
-
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. This function returns the Next Names2 listed in
-   libuninameslist internal table that was corrected to a new name. The internal
-   table of Unicode values is of size :func:`UnicodeNames2GetCntFromLib()`.
-   If there is no libuninameslist ver 0.5 or later, then return -1.
-
-.. function:: UnicodeNames2FrmTabFromLib(n)
-
-   Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. This function returns the Next Names2 listed in
-   libuninameslist internal table that was corrected to a new name. The internal
-   table of Unicode values is of size :func:`UnicodeNames2GetCntFromLib()`. If
-   there is no libuninameslist ver 0.5 or later, then return ``None``.
+   This can execute with no current font.
 
 .. function:: UnicodeNames2FromLib(val)
 
    Errors and corrections happen, therefore names can be corrected in the next
-   Unicode Nameslist version. This function returns the Names2 or ``None`` based
-   on the unicode value given. If there is no libuninameslist ver 0.5 or later,
-   then return ``None``.
+   Unicode Nameslist version. This function returns the formal alias for the
+   unicode value given, or an empty string if there is no such alias.
 
 .. function:: scriptFromUnicode(n)
 
@@ -286,113 +246,6 @@ Module functions
       font.addLookupSubtable("l1", "l1-1")
       font.addAnchorClass("l1-1", "top")
 
-.. function:: IsFraction(n)
-
-   Return 1 if n is a unicode fraction (either a vulgar fraction or other
-   fraction) as described by www.unicode.org. Return 0 if there is no fraction
-   for this value. It can execute with no current font.
-
-.. function:: IsLigature(n)
-
-   Return 1 if n is a ligature as described by www.unicode.org. Return 0 if there
-   is no unicode ligature for this value. It can execute with no current font.
-
-.. function:: IsOtherFraction(n)
-
-   Return 1 if n is a unicode fraction (not defined as vulgar fraction) as
-   described by www.unicode.org. Return 0 if there is no fraction for this
-   value. It can execute with no current font.
-
-.. function:: IsVulgarFraction(n)
-
-   Return 1 if n is a unicode vulgar fraction as described by www.unicode.org.
-   Return 0 if there is no fraction for this value. It can execute with no
-   current font.
-
-.. function:: ucFracChartGetCnt()
-
-   Returns total count of Fractions found in the Unicode chart as described by
-   www.unicode.org. It can execute with no current font. Note: Count depends on
-   chart version built into FontForge.
-
-.. function:: ucLigChartGetCnt()
-
-   Returns total count of Ligatures found in the Unicode chart as described by
-   www.unicode.org. It can execute with no current font. Note: Count depends on
-   chart version built into FontForge.
-
-.. function:: ucLigChartGetLoc(val)
-
-   Returns n for FontForge internal table Unicode ``val=Ligature[n]``. If val
-   does not exist in table, then return -1. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucLigChartGetNxt(n)
-
-   Returns FontForge internal table Unicode Ligature[n]. Return -1 if ``n<0``
-   or ``n>=ucLigChartGetCnt()``. It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucOFracChartGetCnt()
-
-   Returns total count of non-Vulgar Fractions found in the Unicode chart as
-   described by www.unicode.org. It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucOFracChartGetLoc(val)
-
-   Returns n for FontForge internal table Unicode ``val=OtherFraction[n]``. If
-   val does not exist in table, then return -1. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucOFracChartGetNxt(n)
-
-   Returns FontForge internal table Unicode (non-vulgar) Fraction[n]. Return -1
-   if ``n<0`` or ``n>=ucOFracChartGetCnt()``. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucVulChartGetCnt()
-
-   Returns total count of Vulgar Fractions found in the Unicode chart as
-   described by www.unicode.org. It can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucVulChartGetLoc(val)
-
-   Returns n for FontForge internal table Unicode ``val=VulgarFraction[n]``. If
-   val does not exist in table, then return -1. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
-.. function:: ucVulChartGetNxt(n)
-
-   Returns FontForge internal table Unicode Vulgar Fraction[n]. Returns -1 if
-   n<0 or ``n>=ucVulChartGetCnt()``. Can execute with no current font.
-
-   .. note::
-
-      Count depends on chart version built into FontForge.
-
 .. function:: SpiroVersion()
 
    Returns the version of LibSpiro available to FontForge. Versions 0.1 to 0.5
@@ -404,6 +257,83 @@ Module functions
 .. function:: version()
 
    Returns FontForge's version number. This will be a large number like 20070406.
+
+.. function:: loadPlugins()
+
+   Discovers and loads FontForge python plugins according to the current
+   configuration, if not already loaded. This is primarily intended when
+   importing FontForge into a python process but can also be when loading
+   is delayed by the ``-skippyplug`` command-line flag.
+
+.. function:: getPluginInfo()
+
+   Returns a list of dictionary objects describing configured and/or discovered
+   plugins. Configured plugins are listed first in loading order followed by
+   any newly discovered plugins. Each dictionary object will have the keys:
+
+   .. object:: name
+
+      The name of the plugin as defined by its author.
+
+   .. object:: enabled
+
+      "On" if the plugin is enabled, "Off" if it is disabled, "New" if the
+      user has not yet configured this plugin.
+
+   .. object:: status
+
+      "Not Found" if the plugin is configured but was not discovered.
+      "Couldn't Load" if the plugin was discovered and its load status is
+      "On" but the relevant module could not be imported. "Couldn't Start"
+      if the module could be imported but the initialization function
+      was missing or returned an error. "Unloaded" if the plugin was discovered
+      and its load status is "On" but loading has not been attempted (most
+      likely because of a configuration change or startup flag). ``None``
+      if the plugin was discovered but has load status "Off" or New" or if
+      it was loaded successfully.
+
+   .. object:: package_name
+
+      The name of the Python package containing the plugin.
+
+   .. object:: module_name
+
+      The name of the Python module carrying the initialization function.
+
+   .. object:: attrs
+
+      Additional sub-objects or properties of the module needed to pick
+      out the location of the initialization function (if any).
+
+   .. object:: prefs
+
+      A boolean indicating whether the plugin has configurable preferences.
+
+   .. object:: package_url
+
+      The "Home-page" URL listed in the package, if any.
+
+   .. object:: summary
+
+      The "Summary" line in the package's metadata with a brief description
+      of the plugin.
+
+   Some of these values will be ``None`` if the plugin has not been loaded
+   and a few more will be ``None`` if the plugin was not discovered.
+
+.. function:: configurePlugins([List of dictionaries])
+
+   This method allows plugins to be reconfigured using the Python API. It
+   accepts a list (or any other iterable object) of dictionaries similar to
+   those provided by ``getPluginInfo()`` except that only the ``name`` and
+   ``enabled`` fields are examined. The ``name`` value must be the name of a
+   known (currently configured or discovered) plugin.  The ``enabled`` value
+   must be "On" or "Off". The configuration will be updated to correspond to
+   the listed plugins in the specified order.
+
+   If a plugin that was *not* discovered is missing from the list it will be
+   removed from the configuration. Any missing but discovered plugins will
+   be added to the end of the configuration list with load status "New".
 
 .. function:: runInitScripts()
 
@@ -542,12 +472,15 @@ before the user directory.
    def nameGlyph(junk, glyph):
       print(glyph.glyphname)
 
-   fontforge.registerMenuItem(nameGlyph, None, None, "Glyph", None, "Print Glyph Name")
+   fontforge.registerMenuItem(callback=nameGlyph, context="Glyph",
+                              name=("Print Glyph Name", "MyExt_PrintGlyphName"))
 
    def neverEnableMe(junk, glyph):
       return False
 
-   fontforge.registerMenuItem(nameGlyph, neverEnableMe, None, "Glyph", None, "SubMenu", "Print Glyph Name")
+   fontforge.registerMenuItem(callback=nameGlyph, enable=neverEnableMe, context="Glyph",
+                              submenu=("SubMenu", "MyExt_SubMenu"),
+                              name=("Print Glyph Name", "MyExt_PrintGlyphName"))
 
    def importGlyph(junk, glyph, filename, toback):
       print("Import")
@@ -581,58 +514,130 @@ Not a very useful example.
 
    Returns ``True`` if this session of FontForge has a user interface
 
-.. function:: registerMenuItem(menu_function, enable_function, data, which_window, shortcut_string, {submenu_names, } menu_name_string)
+.. function:: registerMenuItem(callback, enable, data, context, hotkey, {submenu_names, } name)
+   (Positional interface)
 
-   If FontForge has a user interface this will add this menu item to FontForge's :ref:`Tool <toolsmenu.tools>`
-   menu, either in the font or the outline glyph view (or both).
+.. function:: registerMenuItem(callback=, enable=None, data=None, context=, hotkey=None, name=, submenu=None, keyword_only=False)
+   (Keyword interface)
+   :noindex:
+.. function:: registerMenuItem(context=, divider=, submenu=None)
+   (Divider interface)
+   :noindex:
 
-   .. object:: menu-function
+   If FontForge has a user interface this will add this menu item to the
+   FontForge menu(s) specified by the ``context`` parameter. This second
+   keyword interface is explained in the ``divider`` section.
+
+   We also recommend reading the :ref:`Menu <fontforge.plugin_menu>` section
+   of :doc:`Extending FontForge with Python </techref/pyextend>`
+
+   **Note:** The positional interface is forward-compatible with earlier
+   verions of FontForge.
+
+   .. object:: callback
 
       This is the function that will be called when the menu item is activated.
-      It will be passed two arguments, the first is the data value specified here
-      (which may be ``None``, indeed will probably usually be ``None``), and the
-      second is the glyph or font (depending on the window type) from which the
-      menu item was activated. Its return value is ignored.
+      It will be passed two arguments, the first is the data value specified
+      here (which defaults to ``None``) and the second is a :class:`fontforge.glyph`
+      or :class:`fontforge.font` object (depending on the ``context``).
+      The callback's return value is ignored.
 
-   .. object:: enable_function
+   .. object:: enable
 
-      This may be ``None`` -- in which case the menu item will always be enabled.
-      Otherwise it will be called before the menu pops up on the screen to
-      determine whether this item should be enabled. It will be passed the same
-      arguments as above. It should return ``True`` if the item should be
-      enabled and ``False`` otherwise.
+      When specified this function is called with the same arguments as ``callback``
+      right before the menu or submenu is diplayed. When it returns ``True``
+      the menu item will be enabled and when it returns``False`` it will be
+      disabled. (When ``enable`` is ``None`` the menu item is always enabled.)
 
    .. object:: data
 
-      This can be whatever you want (including ``None``). FontForge keeps track
-      of it and passes it to both of the above functions. Use it if you need to
-      provide some context for the menu item.
+      ``data`` can be whatever you want; it defaults to ``None``. FontForge
+      passes it to both of the above functions. It can be used to provide
+      context or default arguments for the function (so that one function can
+      be used for multiple menu items.)
 
-   .. object:: which_window
+   .. object:: context
 
-      May be either of the strings ``"Font"`` or ``"Glyph"`` (or the tuple
-      ``("Font", "Glyph")``) and it determines which type of window will have
-      this menu item in its "Tools" menu.
+      Currently this can the string ``"Font"``, the string ``"Glyph"``
+      or the tuple ``("Font", "Glyph")``). ``"Font"`` will add the menu item
+      to the FontView "Tools" menu or its submenu, while ``"Glyph"`` will
+      add it to the CharView tools menu or its submenu.
 
-   .. object:: shortcut-string
+   .. object:: hotkey
 
-      .. warning:: Deprecated?
+      ``hotkey`` must be either ``None`` or a string in hotkey format,
+      which is the same as the second part of a
+      :ref:`HotKey assignment <HotKeys.hotkeyassign>`.
+      Because hotkeys are a "limited
+      resource" this string is only a `suggestion`; it has no effect
+      when the specified HotKey is already taken. Therefore, before picking
+      a candidate HotKey you should at least verify that it is not already
+      used by the relevant window in FontForge.
 
-      May be ``None`` if you do not wish to supply a shortcut. Otherwise should
-      be a string like "Menu Name|Cntl-H" (the syntax is defined in the
-      translation section).
+      Even when the specified HotKey is taken a user can still specify their
+      own in the HotKeys file. You can make this easier to do, now and in the
+      future, by providing the full triplet of names for each "level" using
+      the current interface.
 
-   .. object:: submenu-names
+   .. object:: name
 
-      You may specify as many of these as you wish (including leaving them out
-      altogether), this allows you to organize the Tools menu into submenus. (If
-      a submenu of this name does not currently exist, FontForge will create it).
+      ``name`` can be a string but ideally it is a tuple of three strings
+      ``(localized_name, english_name, identifier_string)`` or of two strings
+      ``(english_name, identifier_string)``. Use the three-tuple version when
+      your plugin or other extension is localized and the two-tuple version
+      when it is not localized or the user has configured the base locale.
 
-   .. object:: menu-name
+      **Note:** The ``english_name`` and ``localized_name`` can and should
+      include a *mnemonic*, picked out by a leading underscore. However,
+      mnemonics at the top level (so the first ``submenu`` name or the ``name``
+      if ``submenu`` is ``None``) are taken as a suggestion, similar to the
+      ``hotkey`` argument. Please read the sections on Internationalization and
+      Localization and on Mnemonics in Extending FontForge with Python.
 
-      The name that will appear in the menu for this item. This will only affect
-      windows created after this command is executed. Normally the command will
-      be executed at startup and so it will affect all windows.
+      The ``identifier_string`` should be a single alphanumeric (plus
+      underscores, but no spaces) string to identify this menu item. In the
+      future this will serve as the representation of the menu item in menu
+      configuration files, allowing a user or administrator to put the item
+      where they like. It should include the name of your plugin or an
+      abbreviation of it. For a plugin called "Feature File Helpers" and an
+      item with (English) name "Save Fragment" a reasonable option would be
+      "FeatFileHelp_SaveFragment". (This is for the future, as configurable
+      menus are not yet supported by FontForge.)
+
+   .. object:: submenu
+
+      **Note:** ``submenu`` is a keyword-only argument.
+
+      ``submenu`` can be any of: ``None``, a string, a two-tuple or three-tuple
+      as with ``name``, or a Python *list* of any of these, with each
+      specifying a level of sub-menu. (You cannot specify muitple levels of
+      submenu with a tuple, as this would be ambiguous.) The tuple elements are
+      analogous to ``name``: a three-tuple of ``(localized_name, english_name,
+      identifier_string)``, a two-tuple of ``(english_name,
+      identifier_string)``, or a string which is treated as the
+      ``localized_name``. Submenus can and should also specify a *mnemonic*.
+
+      In the future the ``identfier_string`` will allow a whole submenu to be
+      moved to a different location in the menu hierarchy.
+
+   .. object:: submenu_names
+
+      When using the positional interface, each of these "intermediate" entries
+      can be a three-tuple, two-tuple, or string, corresponding to an entry
+      in the ``submenu`` list.
+
+   .. object:: keyword_only
+
+      When ``keyword_only`` is ``False`` (the default) the function will attempt
+      to fall back to the positional interface and any reported errors will be
+      relative to that interface. If you're having trouble with keyword parameters
+      set ``keyword_only`` to ``True`` to see a more specific error message.
+
+   .. object:: divider
+
+      This special form of the function adds a horizontal line to the menu.
+      The ``context`` keyword is required and ``divider`` must be set to ``True``.
+      If the ``submenu`` keyword is omitted the divider is added to the top level.
 
 .. function:: registerImportExport(import_function, export_function, data, name, extension, [extension_list])
 
@@ -761,7 +766,7 @@ Not a very useful example.
 
 .. function:: askString(title, question, [def_string])
 
-   Allows you to as the user a question for which a string is the answer.
+   Allows you to ask the user a question for which a string is the answer.
 
    The first argument is the dialog's title, the second is the question to be
    asked, the third is optional and specified a default answer.
@@ -771,7 +776,21 @@ Not a very useful example.
 
    Throws an exception if there is no user interface.
 
+.. function:: askMulti(title, specification)
 
+   This method raises a dialog with multiple questions for the user, optionally
+   organized into separate tabs.  The answers can be choices (similar to
+   :func:`fontforge.askChoices()`) a string (similar to
+   :func:`fontforge.askString()`) an existing filename (similar to
+   :func:`fontforge.openFilename()`) or a save filename (similar to
+   :func:`fontforge.saveFilename()`.
+
+   Due to the variety of potential ``specification`` parameters this facility is
+   explained in a separate :doc:`document </techref/askmulti>`.
+
+   The method throws an exception if there is no user interface or the
+   specification is not valid. Otherwise it either returns a dictionary of answers
+   or ``None`` if the user chose "Cancel" or closed the dialog without choosing "OK".
 
 Point
 -----
@@ -894,7 +913,7 @@ Two contours may be compared to see if they describe similar paths.
 
 .. attribute:: contour.is_quadratic
 
-   Whether the contour should be interpretted as a set of quadratic or cubic
+   Whether the contour should be interpreted as a set of quadratic or cubic
    splines. Setting this value has the side effect of converting the point list
    to the appropriate format.
 
@@ -1047,7 +1066,7 @@ Does not support the repeat concept.
 .. method:: contour.isClockwise()
 
    Returns whether the contour is drawn in a clockwise direction. A return
-   value of -1 indicates that no consistant direction could be found (the
+   value of -1 indicates that no consistent direction could be found (the
    contour self-intersects).
 
 .. method:: contour.reverseDirection()
@@ -1170,6 +1189,27 @@ Does not support the repeat concept.
 .. method:: contour.transform(matrix)
 
    Transforms the contour by the matrix
+   
+.. seealso::
+
+   `Curvatura documentation <https://github.com/linusromer/curvatura/blob/master/curvatura-doc.pdf>`_
+      Documentation for adding points of inflection, balancing and harmonizing.
+   
+.. method:: contour.addInflections()
+
+   If the curvature of a spline in the contour changes sign then break the 
+   spline so that there will be a point at all points of inflection. 
+   
+.. method:: contour.balance()
+
+   For all cubic bezier splines of the contour make the line between the control 
+   points parallel to the chord such that the area is preserved. This is an
+   improved version of the algorithm known as "tunnify".
+   
+.. method:: contour.harmonize()
+
+   For all bezier splines of the contour move the smooth on-curve points between 
+   its adjacent control points such that the adjacent curvatures become equal.
 
 
 Layer
@@ -1186,7 +1226,7 @@ Layers may be compared to see if their contours are similar.
 
 .. method:: layer.is_quadratic()
 
-   Whether the contours should be interpretted as a set of quadratic cubic
+   Whether the contours should be interpreted as a set of quadratic cubic
    splines. Setting this value has the side effect of converting the contour
    list to the appropriate format.
 
@@ -1225,7 +1265,7 @@ Layers may be compared to see if their contours are similar.
 
       As above but also merge away on-curve points which are very close to, but
       not on, an added extremum
-
+      
 .. method:: layer.cluster([within, max])
 
    Moves clustered coordinates to a standard central value.
@@ -1242,17 +1282,17 @@ Layers may be compared to see if their contours are similar.
    Exports the current layer (in outline format) to a file. The type of file is
    determined by the extension.
 
-   The following optional keywords modify the export process for various formats: 
+   The following optional keywords modify the export process for various formats:
 
    .. object:: usetransform (boolean, default=False)
 
       Flip the Y-axis of exported SVGs with a transform element rather than
-      modifying the individual Y values. 
+      modifying the individual Y values.
 
    .. object:: usesystem (boolean, default=False)
 
       Ignore the above keyword settings and use the values set by the user
-      in the Import options dialog. 
+      in the Import options dialog.
 
    .. object:: asksystem (boolean, default=False)
 
@@ -1263,7 +1303,7 @@ Layers may be compared to see if their contours are similar.
 
    Removes the excluded area from the current contours. See also
    :meth:`layer.removeOverlap()` and :meth:`layer.intersect()`.
-
+   
 .. method:: layer.intersect()
 
    Leaves only areas in the intersection of contours. See also
@@ -1412,6 +1452,18 @@ Layers may be compared to see if their contours are similar.
 .. method:: layer.draw(pen)
 
    Draw the layer to the :class:`pen <glyphPen>` argument.
+   
+.. method:: layer.addInflections()
+
+   Please see :meth:`contour.addInflections()`.
+   
+.. method:: layer.balance()
+
+   Please see :meth:`contour.balance()`.
+   
+.. method:: layer.harmonize()
+
+   Please see :meth:`contour.harmonize()`.
 
 
 .. rubric:: Sequence Protocol
@@ -1517,10 +1569,12 @@ This type may not be pickled.
    Ends the contour without closing it. This is only relevant if you are
    stroking contours.
 
-.. method:: glyphPen.addComponent(glyph_name, transform)
+.. method:: glyphPen.addComponent(glyph_name[, transform, selected])
 
    Adds a reference (a component) to the glyph. The PostScript transformation
-   matrix is a 6 element tuple.
+   matrix is a 6 element tuple (with a default of the identity transformation).
+   When ``selected`` is true the reference will be marked as selected in the
+   UI and related API calls.
 
 
 Glyph
@@ -1666,7 +1720,7 @@ must be created through the font.
    A tuple of tuples.
 
    This allows :ref:`constructing <math.GlyphConstruction>` very large versions
-   of the glyph by stacking the componants together. Some components may be
+   of the glyph by stacking the components together. Some components may be
    repeated so there is no bound on the size.
 
    This is different from horizontalVariants which expects prebuilt glyphs of
@@ -1708,7 +1762,7 @@ must be created through the font.
 .. attribute:: glyph.layers
 
    A dictionary like object containing the layers of the glyph. It may be
-   indexed by either a layer name, or an integer between 0 and
+   indexed by either a layer name or an integer between 0 and
    ``glyph.layer_cnt-1`` to produce a :class:`layer` object. Layer 0 is the
    background layer. Layer 1 is the foreground layer.
 
@@ -1776,8 +1830,10 @@ must be created through the font.
 
 .. attribute:: glyph.references
 
-   A tuple of tuples containing glyph-name and a transformation matrix for each
-   reference in the foreground. See also :attr:`glyph.foreground` and :attr:`glyph.layerrefs`.
+   A tuple of tuples containing, for each reference in the foreground, a
+   glyph-name, a transformation matrix, and whether the reference is currently
+   selected. When assigning to the object the matrix and ``selected`` values
+   are optional. See also :attr:`glyph.foreground` and :attr:`glyph.layerrefs`.
 
 .. attribute:: glyph.right_side_bearing
 
@@ -1972,7 +2028,7 @@ must be created through the font.
    A tuple of tuples.
 
    This allows :ref:`constructing <math.GlyphConstruction>` very large versions
-   of the glyph by stacking the componants together. Some components may be
+   of the glyph by stacking the components together. Some components may be
    repeated so there is no bound on the size.
 
    This is different from verticalVariants which expects prebuilt glyphs of
@@ -2041,10 +2097,11 @@ must be created through the font.
       As above but also merge away on-curve points which are very close to,
       but not on, an added extremum
 
-.. method:: glyph.addReference(glyph_name[, transform])
+.. method:: glyph.addReference(glyph_name[, transform, selected])
 
    Adds a reference to the specified glyph into the current glyph. Optionally
-   specifying a transformation matrix
+   specifying a transformation matrix and whether the reference is to be
+   marked selected in the UI and related API calls.
 
 .. method:: glyph.addHint(is_vertical, start, width)
 
@@ -2059,7 +2116,7 @@ must be created through the font.
             glyph.addPosSub(subtable_name, other_glyph_name, xoff1, yoff1, xadv1, yadv1, xoff2, yoff2, xadv2, yadv2)
 
    Adds position/substitution data to the glyph. The number and type of the
-   arguments vary acording to the type of the lookup containing the subtable.
+   arguments vary according to the type of the lookup containing the subtable.
 
    The first argument should always be a lookup subtable name.
 
@@ -2178,6 +2235,18 @@ must be created through the font.
    Orients all contours so that external ones are clockwise and internal
    counter-clockwise.
 
+.. method:: glyph.doUndoLayer([layer, redo])
+
+   When ``redo`` is False this method is equivalent to the "Undo" UI menu item.
+   It restores the last preserved layer state discarding the current state.
+   When ``redo`` is True it is equivalent to "Redo".  You may omit the
+   ``layer`` parameter, in which case the currently active layer will be used.
+   Otherwise it must either be a layer name or an integer between 0 and
+   ``glyph.layer_cnt-1``.
+
+   ``doUndoLayer`` is normally used in conjunction with
+   :meth:`glyph.preserveLayerAsUndo()`
+
 .. method:: glyph.exclude(excluded_layer)
 
    Removes the excluded area from the current glyph. Takes an argument which is
@@ -2188,7 +2257,7 @@ must be created through the font.
    Creates a file with the specified name containing a representation of
    the glyph. Uses the file's extension to determine output file type.
 
-   The following optional keywords modify the export process for various formats: 
+   The following optional keywords modify the export process for various formats:
 
    .. object:: layer (string or integer, default=glyph.activeLayer)
 
@@ -2205,12 +2274,12 @@ must be created through the font.
    .. object:: usetransform (boolean, default=False)
 
       Flip the Y-axis of exported SVGs with a transform element rather than
-      modifying the individual Y values. 
+      modifying the individual Y values.
 
    .. object:: usesystem (boolean, default=False)
 
       Ignore the above keyword settings and use the values set by the user
-      in the Import options dialog. 
+      in the Import options dialog.
 
    .. object:: asksystem (boolean, default=False)
 
@@ -2256,7 +2325,7 @@ must be created through the font.
 .. method:: glyph.importOutlines(filename, [KEYWORD])
 
    Uses the file's extension to determine behavior. Imports outline descriptions
-   (eps, svg, glif files) into the forground layer. Imports image descriptions
+   (eps, svg, glif files) into the foreground layer. Imports image descriptions
    (bmp, png, xbm, etc.) into the background layer. The following optional keywords modify the import process for various formats:
 
    .. object:: scale (boolean, default=True)
@@ -2289,15 +2358,15 @@ must be created through the font.
    .. object:: usesystem (boolean, default=False)
 
       Ignore the above keyword settings and use the values set by the user
-      in the Import options dialog. 
+      in the Import options dialog.
 
    .. object:: asksystem (boolean, default=False)
 
       If the UI is present show the Import options dialog to the user
       and use the chosen values (does nothing otherwise).
 
-   Note: The old PostScript correctdir/handle_eraser flag tuple is still 
-   supported but is not compatible with the other keywords. 
+   Note: The old PostScript correctdir/handle_eraser flag tuple is still
+   supported but is not compatible with the other keywords.
 
 .. method:: glyph.intersect()
 
@@ -2312,11 +2381,12 @@ must be created through the font.
 
 .. method:: glyph.preserveLayerAsUndo([layer, dohints])
 
-   Normally undo handling is turned off during python scripting. If you wish
-   you may tell fontforge to preserve the current state of a layer so that
-   whatever you do later can be undone by the user. You may omit the layer
-   parameter (in which case the currently active layer will be used). You may
-   also request that hints be preserved (they are not, by default).
+   Normally undo handling is turned off during python scripting. This method
+   preserves the current state of a layer so that whatever you do after can be
+   undone by the user. You may omit the ``layer`` parameter, in which case the
+   currently active layer will be used. Otherwise it must either be a layer name
+   or an integer between 0 and ``glyph.layer_cnt-1``. When ``dohints`` is True
+   then hints will also be preserved (they are not by default).
 
 .. method:: glyph.removeOverlap()
 
@@ -2587,7 +2657,7 @@ must be created through the font.
    .. object:: partialRefs
 
       Don't transform any references in the glyph, but do transform their offsets.
-      This is useful if the refered glyph will be (or has been) transformed.
+      This is useful if the referred glyph will be (or has been) transformed.
 
    .. object:: round
 
@@ -2638,6 +2708,18 @@ must be created through the font.
    Creates a new glyphPen which will draw into the current glyph. By default
    the pen will replace any existing contours and references, but setting the
    optional keyword argument, ``replace`` to false will retain the old contents.
+
+.. method:: glyph.addInflections()
+
+   Please see :meth:`contour.addInflections()`.
+
+.. method:: glyph.balance()
+
+   Please see :meth:`contour.balance()`.
+   
+.. method:: glyph.harmonize()
+
+   Please see :meth:`contour.harmonize()`.
 
 
 Selection
@@ -3330,7 +3412,7 @@ This type may not be pickled.
 
 .. attribute:: font.is_quadratic
 
-   Deprecated. Whether the contours should be interpretted as a set of quadratic
+   Deprecated. Whether the contours should be interpreted as a set of quadratic
    or cubic splines. Setting this value has the side effect of converting the
    entire font into the other format
 
@@ -3497,6 +3579,10 @@ This type may not be pickled.
 
 .. attribute:: font.os2_fstype
 
+
+.. attribute:: font.os2_stylemap
+
+   Write access to fsSelection, keep in sync with :attr:`font.macstyle`
 
 .. attribute:: font.os2_panose
 
@@ -4042,7 +4128,7 @@ This type may not be pickled.
       this example would match it the current glyph were named ``glyph-name3``
       and it were preceded by ``glyph-name2`` and that by ``glyph-name1`` and
       followed by ``glyph-name4``. If the match were successful then the lookup
-      named ``lookup-name`` would be applied. The ``@<>`` are litteral
+      named ``lookup-name`` would be applied. The ``@<>`` are literal
       characters and should be present in the rule.
 
       If the invoked lookup is a ligature lookup then it should be invoked
@@ -4052,7 +4138,7 @@ This type may not be pickled.
 
         e | f @<ff-lig> f l | o
 
-      would only apply the ``ff-lig`` lookup if the ``ffl`` were preceeded by
+      would only apply the ``ff-lig`` lookup if the ``ffl`` were preceded by
       ``e`` and followed by ``o``.
 
    .. object:: When type="class"
@@ -4065,7 +4151,7 @@ This type may not be pickled.
       we have class names here. It is possible to have different sets of class
       names in the three different sections (backtrack, match and lookahead).
       If you don't specify any class names then you must use numbers instead,
-      each number refering to the class at that position in the tuple (the first
+      each number referring to the class at that position in the tuple (the first
       class will be class 0, the second class 1, and so on).
 
    .. object:: When type="coverage"
@@ -4114,7 +4200,7 @@ This type may not be pickled.
 
    When it creates a new glyph it will name that glyph by appending ".sc" to
    the original lower case letter name (so "a" would become "a.sc") you may
-   change the extension used with ``letter_extension``. Similary symbols and
+   change the extension used with ``letter_extension``. Similarly symbols and
    digits will use the extension "taboldstyle", but you may change that with
    ``symbol_extension``.
 
@@ -4162,7 +4248,7 @@ This type may not be pickled.
 
 .. method:: font.buildOrReplaceAALTFeatures()
 
-   Removes any existing AALT features (and any lookups solely controled by such
+   Removes any existing AALT features (and any lookups solely controlled by such
    features) and creates new ones containing all possible single and alternate
    substutions available for each glyph.
 
@@ -4618,10 +4704,13 @@ This type may not be pickled.
 
    Merges the font in the file into the current font.
 
-.. method:: font.mergeFeature(filename)
+.. method:: font.mergeFeature(filename, boolean)
 
    Merge feature and lookup information from an adobe feature file, or metrics
-   information from the (afm,tfm,etc) file into the current font.
+   information from the (afm, tfm, etc) file into the current font. The
+   optional boolean will try to skip invalid feature lookups containing
+   replacement glyphs which do not exist in the font, which can help in reusing
+   large feature files.
 
 .. method:: font.mergeKern(filename)
 
@@ -4718,7 +4807,7 @@ This type may not be pickled.
 
 .. method:: font.replaceAll(srch, rpl[, error_bound])
 
-   Searches the font for all occurences of the srch contour (or layer) and
+   Searches the font for all occurrences of the srch contour (or layer) and
    replaces them with the replace contour (or layer).
 
 .. method:: font.revert()
@@ -4792,6 +4881,10 @@ See the :class:`selection` type for how to alter the selection.
 
    Extrema should be marked by on-curve points. If a curve in any selected
    glyph lacks a point at a significant extremum this command will add one.
+   
+.. method:: font.addInflections()
+
+   Please see :meth:`contour.addInflections()`. 
 
 .. method:: font.autoHint()
 
@@ -4808,7 +4901,7 @@ See the :class:`selection` type for how to alter the selection.
 .. method:: font.autoTrace()
 
    Auto traces any background images in all selected glyphs
-
+   
 .. method:: font.build()
 
    If any of the selected characters is a composite character, then this
@@ -4998,9 +5091,35 @@ See the :class:`selection` type for how to alter the selection.
    syntax and the :doc:`stroke </techref/stroke>` documentation for more general
    information.
 
-.. method:: font.transform(matrix)
+.. method:: font.transform(matrix[, flags])
 
-   Transforms all selected glyphs by the matrix.
+   Transforms all selected glyphs by the matrix. The optional flags argument
+   should be a tuple containing any of the following strings:
+
+   .. object:: activeLayer
+
+      Transform :attr:`font.activeLayer` only. (By default all layers are
+      transformed.)
+
+   .. object:: guide
+
+      Also transform :attr:`font.guide` layer.
+
+   .. object:: noWidth
+
+      Do not change :attr:`glyph.width`.
+
+   .. object:: round
+
+      Round to int after the transformation is done.
+
+   .. object:: simplePos
+
+      Also transform simple positioning features and kern pairs.
+
+   .. object:: kernClasses
+
+      Also transform kerning classes.
 
 .. method:: font.nltransform(xexpr, yexpr)
 

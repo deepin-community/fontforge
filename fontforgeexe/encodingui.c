@@ -32,7 +32,6 @@
 #include "encoding.h"
 #include "fontforgeui.h"
 #include "gfile.h"
-#include "gresource.h"
 #include "ustring.h"
 #include "utype.h"
 
@@ -179,7 +178,6 @@ return;
     GGadgetsCreate(gw,gcd);
     GTextInfoListFree(gcd[0].gd.u.list);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gw,true);
     while ( !done )
 	GDrawProcessOneEvent(NULL);
@@ -202,7 +200,7 @@ return(NULL);
     item->enc_name = name;
     item->only_1byte = item->has_1byte = true;
     item->char_cnt = map->enccount;
-    item->unicode = calloc(map->enccount,sizeof(int32));
+    item->unicode = calloc(map->enccount,sizeof(int32_t));
     for ( i=0; i<map->enccount; ++i ) if ( (gid = map->map[i])!=-1 && (sc=sf->glyphs[gid])!=NULL ) {
 	if ( sc->unicodeenc!=-1 )
 	    item->unicode[i] = sc->unicodeenc;
@@ -364,8 +362,9 @@ struct cidmap *AskUserForCIDMap(void) {
 	AddToBlock(&block,buffer,NULL);
     }
     FindMapsInDir(&block,".");
-    FindMapsInDir(&block,getFontForgeShareDir());
-    FindMapsInDir(&block,"/usr/share/fontforge");
+    char* sharedir = smprintf("%s/cidmap", getShareDir());
+    FindMapsInDir(&block,sharedir);
+    free(sharedir);
 
     choices = calloc(block.cur+2,sizeof(unichar_t *));
     choices[0] = copy(_("Browse..."));
@@ -583,7 +582,7 @@ return( NULL );
 
 Encoding *ParseEncodingNameFromList(GGadget *listfield) {
     const unichar_t *name = _GGadgetGetTitle(listfield);
-    int32 len;
+    int32_t len;
     GTextInfo **ti = GGadgetGetList(listfield,&len);
     int i;
     Encoding *enc = NULL;

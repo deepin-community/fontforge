@@ -29,25 +29,26 @@
 #include <fontforge-config.h>
 
 #include "autowidth2.h"
-#include "chardata.h"
 #include "cvundoes.h"
 #include "fontforgeui.h"
 #include "fvcomposite.h"
 #include "fvfonts.h"
 #include "gkeysym.h"
+#include "gresedit.h"
 #include "lookups.h"
 #include "namelist.h"
 #include "splinefill.h"
 #include "splineutil.h"
 #include "tottfgpos.h"
 #include "ttf.h"		/* For MAC_DELETED_GLYPH_NAME */
-#include "unicodelibinfo.h"
 #include "ustring.h"
 #include "utype.h"
 
 #include <math.h>
 
 extern int lookup_hideunused;
+
+GResFont glyphinfo_font = GRESFONT_INIT("400 12pt " MONO_UI_FAMILIES);
 
 static int last_gi_aspect = 0;
 
@@ -227,7 +228,7 @@ struct hi_data {
 static int HI_Ok(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	struct hi_data *hi = GDrawGetUserData(GGadgetGetWindow(g));
-	int32 i, len;
+	int32_t i, len;
 	GTextInfo **ti = GGadgetGetList(GWidgetGetControl(hi->gw,CID_HintMask),&len);
 
 	for ( i=0; i<len; ++i )
@@ -430,7 +431,7 @@ return( true );
 }
 
 static int CI_DeleteCounter(GGadget *g, GEvent *e) {
-    int32 len; int i,j, offset;
+    int32_t len; int i,j, offset;
     GTextInfo **old, **new_;
     GGadget *list;
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
@@ -549,7 +550,7 @@ return( true );
 }
 
 static void CI_ParseCounters(CharInfo *ci) {
-    int32 i,len;
+    int32_t i,len;
     GTextInfo **ti = GGadgetGetList(GWidgetGetControl(ci->gw,CID_List+600),&len);
     SplineChar *sc = ci->cachedsc;
 
@@ -950,8 +951,8 @@ return( false );
 	if ( lcpst->u.lcaret.carets!=NULL )
 	    free(lcpst->u.lcaret.carets);
 	lcpst->u.lcaret.cnt = pst->u.lcaret.cnt;
-	lcpst->u.lcaret.carets = malloc(pst->u.lcaret.cnt*sizeof(int16));
-	memcpy(lcpst->u.lcaret.carets,pst->u.lcaret.carets,pst->u.lcaret.cnt*sizeof(int16));
+	lcpst->u.lcaret.carets = malloc(pst->u.lcaret.cnt*sizeof(int16_t));
+	memcpy(lcpst->u.lcaret.carets,pst->u.lcaret.carets,pst->u.lcaret.cnt*sizeof(int16_t));
 	lcpst->ticked = true;
     }
 
@@ -1231,8 +1232,8 @@ static PST *CI_PSTCopy(PST *pst) {
 	    newpst->u.pair.vr[0].adjust = ValDevTabCopy(pst->u.pair.vr[0].adjust);
 	    newpst->u.pair.vr[1].adjust = ValDevTabCopy(pst->u.pair.vr[1].adjust);
 	} else if ( newpst->type==pst_lcaret ) {
-	    newpst->u.lcaret.carets = malloc(pst->u.lcaret.cnt*sizeof(int16));
-	    memcpy(newpst->u.lcaret.carets,pst->u.lcaret.carets,pst->u.lcaret.cnt*sizeof(int16));
+	    newpst->u.lcaret.carets = malloc(pst->u.lcaret.cnt*sizeof(int16_t));
+	    memcpy(newpst->u.lcaret.carets,pst->u.lcaret.carets,pst->u.lcaret.cnt*sizeof(int16_t));
 	} else if ( newpst->type==pst_substitution || newpst->type==pst_multiple || newpst->type==pst_alternate )
 	    newpst->u.subs.variant = copy(pst->u.subs.variant);
 	newpst->next = NULL;
@@ -1498,7 +1499,7 @@ return( false );
     ci->cachedsc->glyph_class = GGadgetGetFirstListSelectedItem(GWidgetGetControl(ci->gw,CID_GClass));
     val = GGadgetGetFirstListSelectedItem(GWidgetGetControl(ci->gw,CID_Color));
     if ( val!=-1 )
-	ci->cachedsc->color = (intpt) (std_colors[val].userdata);
+	ci->cachedsc->color = (intptr_t) (std_colors[val].userdata);
     CI_ParseCounters(ci);
     ci->cachedsc->tex_height = tex_height;
     ci->cachedsc->tex_depth  = tex_depth;
@@ -1539,7 +1540,7 @@ return( false );
 		ci->cachedsc->possub = pst;
 	    }
 	    if ( lc_cnt>pst->u.lcaret.cnt )
-		pst->u.lcaret.carets = realloc(pst->u.lcaret.carets,lc_cnt*sizeof(int16));
+		pst->u.lcaret.carets = realloc(pst->u.lcaret.carets,lc_cnt*sizeof(int16_t));
 	    for ( i=pst->u.lcaret.cnt; i<lc_cnt; ++i )
 		pst->u.lcaret.carets[i] = 0;
 	    pst->u.lcaret.cnt = lc_cnt;
@@ -1710,53 +1711,30 @@ static int CI_TileMarginChange(GGadget *g, GEvent *e) {
 return( true );
 }
 
-/* Generate default settings for the entries in ligature lookup
- * TODO: expand beyond (bmp) */
+/* Generate default settings for the entries in ligature lookup */
 static char *LigDefaultStr(int uni, char *name, int alt_lig ) {
     const unichar_t *alt=NULL, *pt;
-    char *components = NULL, *tmp;
+    char *components = NULL;
     int len;
     unichar_t hack[30], *upt;
     char buffer[80];
 
-    /* If it's not (bmp) unicode we have no info on it */
-    /*  Unless it looks like one of adobe's special ligature names */
-    if ( uni==-1 || uni>=0x10000 )
+    if ( uni==-1 )
 	/* Nope */;
-    else if ( isdecompositionnormative(uni) &&
-		unicode_alternates[uni>>8]!=NULL &&
-		(alt = unicode_alternates[uni>>8][uni&0xff])!=NULL ) {
-	if ( alt[1]=='\0' ||
-		Ligature_alt_getC(Ligature_find_N(uni))<=1 ||
-		Fraction_alt_getC(Fraction_find_N(uni))<=1 )
+    else if ( isdecompositionnormative(uni) && (alt = unialt(uni))!=NULL ) {
+	if ( alt[1]=='\0' )
 	    alt = NULL;		/* Single replacements aren't ligatures */
 	else if ( iscombining(alt[1]) && ( alt[2]=='\0' || iscombining(alt[2]))) {
 	    if ( alt_lig != -10 )	/* alt_lig = 10 => mac unicode decomp */
 		alt = NULL;		/* Otherwise, don't treat accented letters as ligatures */
-	} else if (! is_LIGATURE_or_VULGAR_FRACTION((uint32)(uni)) &&
+	} else if (! isligvulgfrac((uint32_t)(uni)) &&
 		uni!=0x152 && uni!=0x153 &&	/* oe ligature should not be standard */
 		uni!=0x132 && uni!=0x133 &&	/* nor ij */
 		(uni<0xfb2a || uni>0xfb4f) &&	/* Allow hebrew precomposed chars */
 		uni!=0x215f &&			/* exclude 1/ */
 		!((uni>=0x0958 && uni<=0x095f) || uni==0x929 || uni==0x931 || uni==0x934)) {
 	    alt = NULL;
-	} else if ( (tmp=unicode_name(65))==NULL ) { /* test for 'A' to see if library exists */
-	    if ( (uni>=0xbc && uni<=0xbe ) ||		/* Latin1 vulgar fractions */
-		    (uni>=0x2150 && uni<=0x215e ) ||	/* other vulgar fractions */
-		    (uni>=0x2189) ||			/* other vulgar fraction */
-		    (uni>=0xfb00 && uni<=0xfb06 ) ||	/* latin ligatures */
-		    (uni>=0xfb13 && uni<=0xfb17 ) ||	/* armenian ligatures */
-		    uni==0xfb1f ||			/* hebrew ligature */
-		    (uni>=0xfb2a && uni<=0xfb4f ) ||	/* hebrew precomposed chars */
-		    (uni>=0xfbea && uni<=0xfd3d ) ||	/* arabic ligatures */
-		    (uni>=0xfd50 && uni<=0xfdcf ) ||	/* arabic ligatures */
-		    (uni>=0xfdf0 && uni<=0xfdfb ) ||	/* arabic ligatures */
-		    (uni>=0xfef5 && uni<=0xfefc ))	/* arabic ligatures */
-		;	/* These are good */
-	    else
-		alt = NULL;
-	} else
-	    free(tmp); /* found 'A' means there is a library, now cleanup */
+	}
     }
     if ( alt==NULL ) {
 	if ( name==NULL || alt_lig )
@@ -1784,16 +1762,16 @@ return( NULL );
 		for ( upt=hack ; *upt ; ++upt ) {
 		    /* Make everything medial */
 		    if ( *upt>=0x600 && *upt<=0x6ff )
-			*upt = ArabicForms[*upt-0x600].medial;
+			*upt = arabicform(*upt)->medial;
 		}
 		if ( isarabisolated(uni) || isarabfinal(uni) ) {
 		    int len = upt-hack-1;
 		    if ( alt[len]>=0x600 && alt[len]<=0x6ff )
-			hack[len] = ArabicForms[alt[len]-0x600].final;
+			hack[len] = arabicform(alt[len])->final;
 		}
 		if ( isarabisolated(uni) || isarabinitial(uni) ) {
 		    if ( alt[0]>=0x600 && alt[0]<=0x6ff )
-			hack[0] = ArabicForms[alt[0]-0x600].initial;
+			hack[0] = arabicform(alt[0])->initial;
 		}
 		alt = hack;
 	    }
@@ -1858,7 +1836,7 @@ return( components );
 
 /* TODO: see what can be brought-in from is_Ligature_data.h tables, but this */
 /* also appears to run various features beyond ligatures and fractions too.  */
-uint32 LigTagFromUnicode(int uni) {
+uint32_t LigTagFromUnicode(int uni) {
     int tag = CHR('l','i','g','a');	/* standard */
 
     if ( (uni>=0xbc && uni<=0xbe) ||	/* latin1 vulgar fractions */
@@ -1937,8 +1915,7 @@ return( NULL );
     /* So if I want a 'smcp' feature I must convert "a" to "A.small" */
     /* And if I want a 'c2sc' feature I must convert "A" to "a.sc" */
     if ( cvt2lc ) {
-	if ( alt==NULL && sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 &&
-		isupper(sc->unicodeenc)) {
+	if ( alt==NULL && isupper(sc->unicodeenc)) {
 	    sprintf( namebuf, "uni%04X.%s", tolower(sc->unicodeenc), suffix );
 	    alt = SFGetChar(sf,-1,namebuf);
 	}
@@ -1947,8 +1924,7 @@ return( NULL );
 	    alt = SFGetChar(sf,-1,namebuf);
 	}
     } else {
-	if ( alt==NULL && sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 &&
-		islower(sc->unicodeenc)) {
+	if ( alt==NULL && islower(sc->unicodeenc)) {
 	    sprintf( namebuf, "uni%04X.%s", toupper(sc->unicodeenc), suffix );
 	    alt = SFGetChar(sf,-1,namebuf);
 	}
@@ -2013,9 +1989,9 @@ return;
 return;
     }
     if ( carets->u.lcaret.carets==NULL )
-	carets->u.lcaret.carets = (int16 *) calloc(lig_comp_max,sizeof(int16));
+	carets->u.lcaret.carets = (int16_t *) calloc(lig_comp_max,sizeof(int16_t));
     else {
-	carets->u.lcaret.carets = (int16 *) realloc(carets->u.lcaret.carets,lig_comp_max*sizeof(int16));
+	carets->u.lcaret.carets = (int16_t *) realloc(carets->u.lcaret.carets,lig_comp_max*sizeof(int16_t));
 	for ( i=carets->u.lcaret.cnt; i<lig_comp_max; ++i )
 	    carets->u.lcaret.carets[i] = 0;
     }
@@ -2092,7 +2068,7 @@ static void CI_SetNameList(CharInfo *ci,int val) {
     GGadget *g = GWidgetGetControl(ci->gw,CID_UName);
     int cnt;
 
-    if ( GGadgetGetUserData(g)==(void *) (intpt) val )
+    if ( GGadgetGetUserData(g)==(void *) (intptr_t) val )
 return;		/* Didn't change */
     {
 	GTextInfo **list = NULL;
@@ -2108,7 +2084,7 @@ return;		/* Didn't change */
 	list[cnt] = TIFromName(NULL);
 	GGadgetSetList(g,list,true);
     }
-    GGadgetSetUserData(g,(void *) (intpt) val);
+    GGadgetSetUserData(g,(void *) (intptr_t) val);
 }
 
 static int CI_UValChanged(GGadget *g, GEvent *e) {
@@ -2474,12 +2450,11 @@ static void enable_enum(GGadget *g, GMenuItem *mi, int r, int c) {
     int i,rows,j;
     struct matrix_data *possub;
     CharInfo *ci;
-    int sel,cols;
+    int cols;
 
     if ( c!=0 )
 return;
     ci = GDrawGetUserData(GGadgetGetWindow(g));
-    sel = GTabSetGetSel(GWidgetGetControl(ci->gw,CID_Tabs))-2;
     possub = GMatrixEditGet(g, &rows);
     cols = GMatrixEditGetColCnt(g);
 
@@ -2514,7 +2489,7 @@ void SCSubtableDefaultSubsCheck(SplineChar *sc, struct lookup_subtable *sub,
     SplineChar *alt;
     char buffer[8];
     int i;
-    static uint32 form_tags[] = { CHR('i','n','i','t'), CHR('m','e','d','i'), CHR('f','i','n','a'), CHR('i','s','o','l'), 0 };
+    static uint32_t form_tags[] = { CHR('i','n','i','t'), CHR('m','e','d','i'), CHR('f','i','n','a'), CHR('i','s','o','l'), 0 };
     real loff, roff;
 
     if ( lookup_type == gsub_single && sub->suffix != NULL ) {
@@ -2553,7 +2528,7 @@ return;
 		if ( alt==NULL )
 		    alt = SuffixCheckCase(sc,"sc",true);
 	    } else if ( fl->featuretag == CHR('r','t','l','a') ) {
-		if ( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 && tomirror(sc->unicodeenc)!=0 )
+		if ( tomirror(sc->unicodeenc)!=0 )
 		    alt = SFGetChar(sc->parent,tomirror(sc->unicodeenc),NULL);
 	    } else if ( sc->unicodeenc==0x3c3 && fl->featuretag==CHR('f','i','n','a') ) {
 		/* Greek final sigma */
@@ -2570,9 +2545,9 @@ return;
 	    if ( alt==NULL && sc->unicodeenc>=0x600 && sc->unicodeenc<0x700 ) {
 		/* Arabic forms */
 		for ( i=0; form_tags[i]!=0; ++i ) if ( form_tags[i]==fl->featuretag ) {
-		    if ( (&(ArabicForms[sc->unicodeenc-0x600].initial))[i]!=0 &&
-			    (&(ArabicForms[sc->unicodeenc-0x600].initial))[i]!=sc->unicodeenc &&
-			    (alt = SFGetChar(sc->parent,(&(ArabicForms[sc->unicodeenc-0x600].initial))[i],NULL))!=NULL )
+		    if ( (&(arabicform(sc->unicodeenc)->initial))[i]!=0 &&
+			    (&(arabicform(sc->unicodeenc)->initial))[i]!=sc->unicodeenc &&
+			    (alt = SFGetChar(sc->parent,(&(arabicform(sc->unicodeenc)->initial))[i],NULL))!=NULL )
 		break;
 		}
 	    }
@@ -2588,7 +2563,7 @@ return;
 		    if ( components==NULL )
 		break;
 		    for ( i=0; i<r; ++i ) {
-			if ( possub[i*col_cnt+0].u.md_ival == (intpt) sub &&
+			if ( possub[i*col_cnt+0].u.md_ival == (intptr_t) sub &&
 				strcmp(possub[i*col_cnt+1].u.md_str,components)==0 )
 		    break;
 		    }
@@ -2630,7 +2605,7 @@ return;
     sd.flags = sdf_dontedit;
     sub = SFNewLookupSubtableOfType(ci->sc->parent,pst2lookuptype[sel+1],&sd,ci->def_layer);
     if ( sub!=NULL ) {
-	possub[r*cols+0].u.md_ival = (intpt) sub;
+	possub[r*cols+0].u.md_ival = (intptr_t) sub;
 	ti = SFSubtableListOfType(ci->sc->parent, pst2lookuptype[sel+1], false, false);
 	GMatrixEditSetColumnChoices(g,0,ti);
 	GTextInfoListFree(ti);
@@ -2638,7 +2613,7 @@ return;
 	    SCSubtableDefaultSubsCheck(ci->sc,sub, possub, cols, r, CVLayer((CharViewBase *) (ci->cv)));
     } else if ( ci->old_sub!=NULL ) {
 	/* Restore old value */
-	possub[r*cols+0].u.md_ival = (intpt) ci->old_sub;
+	possub[r*cols+0].u.md_ival = (intptr_t) ci->old_sub;
     } else {
 	GMatrixEditDeleteRow(g,r);
     }
@@ -2690,7 +2665,7 @@ static void kernfinishedit(GGadget *g, int r, int c, int wasnew) {
 	finishedit(g,r,c,wasnew);
 }
 
-static int SubHasScript(uint32 script,struct lookup_subtable *sub) {
+static int SubHasScript(uint32_t script,struct lookup_subtable *sub) {
     FeatureScriptLangList *f;
     struct scriptlanglist *s;
 
@@ -2710,7 +2685,7 @@ static void kerninit(GGadget *g, int r) {
     GMenuItem *mi = GMatrixEditGetColumnChoices(g,0);
     int i,cols,rows;
     struct matrix_data *possub;
-    uint32 script;
+    uint32_t script;
 
     possub = GMatrixEditGet(g, &rows);
     cols = GMatrixEditGetColCnt(g);
@@ -2724,7 +2699,7 @@ static void kerninit(GGadget *g, int r) {
 	break;
 	}
 	if ( mi[i].ti.line || mi[i].ti.text!=NULL )
-	    possub[r*cols+0].u.md_ival = (intpt) mi[i].ti.userdata;
+	    possub[r*cols+0].u.md_ival = (intptr_t) mi[i].ti.userdata;
     }
 }
 
@@ -2732,7 +2707,7 @@ static void CI_DoHideUnusedSingle(CharInfo *ci) {
     GGadget *pstk = GWidgetGetControl(ci->gw,CID_List+(pst_position-1)*100);
     int rows, cols = GMatrixEditGetColCnt(pstk);
     struct matrix_data *old = GMatrixEditGet(pstk,&rows);
-    uint8 cols_used[20];
+    uint8_t cols_used[20];
     int r, col, tot;
 
     if ( lookup_hideunused ) {
@@ -2770,7 +2745,7 @@ static void CI_DoHideUnusedPair(CharInfo *ci) {
     GGadget *pstk = GWidgetGetControl(ci->gw,CID_List+(pst_pair-1)*100);
     int rows, cols = GMatrixEditGetColCnt(pstk);
     struct matrix_data *old = GMatrixEditGet(pstk,&rows);
-    uint8 cols_used[20];
+    uint8_t cols_used[20];
     int r, col, tot;
 
     if ( lookup_hideunused ) {
@@ -3483,7 +3458,7 @@ return;
     if ( !wasnew )
 return;
     /* If they added a new glyph to the sequence then set some defaults for it. */
-    /*  only the full advance has any likelyhood of being correct */
+    /*  only the full advance has any likelihood of being correct */
     ci = GDrawGetUserData(GGadgetGetWindow(g));
     is_horiz = GTabSetGetSel(GWidgetGetControl(ci->gw,CID_Tabs))-ci->vert_aspect;
     possub = GMatrixEditGet(g, &rows);
@@ -3512,7 +3487,7 @@ static GTextInfo truefalse[] = {
 static struct col_init extensionpart[] = {
     { me_string , NULL, NULL, NULL, N_("Glyph") },
     { me_enum, NULL, truefalse, NULL, N_("Extender") },
-/* GT: "Len" is an abreviation for "Length" */
+/* GT: "Len" is an abbreviation for "Length" */
     { me_int, NULL, NULL, NULL, N_("StartLen") },
     { me_int, NULL, NULL, NULL, N_("EndLen") },
     { me_int, NULL, NULL, NULL, N_("FullLen") },
@@ -3522,7 +3497,7 @@ static struct matrixinit mi_extensionpart =
     { sizeof(extensionpart)/sizeof(struct col_init)-1, extensionpart, 0, NULL, NULL, NULL, extpart_finishedit, NULL, NULL, NULL };
 
 static int isxheight(int uni) {
-    if ( uni>=0x10000 || !islower(uni))
+    if (!islower(uni))
 return( false );
 
     if ( uni=='a' || uni=='c' || uni=='e' || uni=='i' || uni=='j' ||
@@ -3573,20 +3548,16 @@ static int TeX_Default(GGadget *g, GEvent *e) {
 	basesc = ci->sc;
 	/* Try to align the top of lowercase (xheight) letters all at the */
 	/*  same height. Ditto for uppercase & ascender letters */
-	if ( cid==CID_TeX_HeightD && ci->sc->unicodeenc<0x10000 &&
-		isxheight(ci->sc->unicodeenc) &&
+	if ( cid==CID_TeX_HeightD && isxheight(ci->sc->unicodeenc) &&
 		(basesc = SFGetChar(sf,'x',NULL))!=NULL )
 	    /* Done */;
-	else if ( cid==CID_TeX_HeightD && ci->sc->unicodeenc<0x10000 &&
-		islower(ci->sc->unicodeenc) &&
+	else if ( cid==CID_TeX_HeightD && islower(ci->sc->unicodeenc) &&
 		(basesc = SFGetChar(sf,'l',NULL))!=NULL )
 	    /* Done */;
-	else if ( cid==CID_TeX_HeightD && ci->sc->unicodeenc<0x10000 &&
-		isupper(ci->sc->unicodeenc) &&
+	else if ( cid==CID_TeX_HeightD && isupper(ci->sc->unicodeenc) &&
 		(basesc = SFGetChar(sf,'I',NULL))!=NULL )
 	    /* Done */;
-	else if ( cid==CID_TeX_DepthD && ci->sc->unicodeenc<0x10000 &&
-		isbaseline(ci->sc->unicodeenc) &&
+	else if ( cid==CID_TeX_DepthD && isbaseline(ci->sc->unicodeenc) &&
 		(basesc = SFGetChar(sf,'I',NULL))!=NULL )
 	    /* Done */;
 	else
@@ -3813,17 +3784,17 @@ return;
 
 static void CI_SetColorList(CharInfo *ci,Color color) {
     int i;
-    uint16 junk;
+    uint16_t junk;
 
     std_colors[CUSTOM_COLOR].image = NULL;
     for ( i=0; std_colors[i].image!=NULL; ++i ) {
-	if ( std_colors[i].userdata == (void *) (intpt) color )
+	if ( std_colors[i].userdata == (void *) (intptr_t) color )
     break;
     }
     if ( std_colors[i].image==NULL ) {
 	std_colors[i].image = &customcolor_image;
 	customcolor_image.u.image->clut->clut[1] = color;
-	std_colors[i].userdata = (void *) (intpt) color;
+	std_colors[i].userdata = (void *) (intptr_t) color;
     }
     GGadgetSetList(GWidgetGetControl(ci->gw,CID_Color), GTextInfoArrayFromList(std_colors,&junk), false);
     GGadgetSelectOneListItem(GWidgetGetControl(ci->gw,CID_Color),i);
@@ -3915,9 +3886,9 @@ static int CI_PickColor(GGadget *g, GEvent *e) {
 	    } else /* Cancelled */
 		CI_SetColorList(ci,ci->real_last);
 	} else {
-	    if ( (intpt) ti->userdata!=COLOR_DEFAULT )
-		ci->last = (intpt) ti->userdata;
-	    ci->real_last = (intpt) ti->userdata;
+	    if ( (intptr_t) ti->userdata!=COLOR_DEFAULT )
+		ci->last = (intptr_t) ti->userdata;
+	    ci->real_last = (intptr_t) ti->userdata;
 	}
     }
 return( true );
@@ -3997,7 +3968,7 @@ static void CIFillup(CharInfo *ci) {
     memset(cnts,0,sizeof(cnts));
     for ( pst = sc->possub; pst!=NULL; pst=pst->next ) if ( pst->type!=pst_lcaret ) {
 	j = (cnts[pst->type]++ * mi[pst->type-1].col_cnt);
-	mds[pst->type][j+0].u.md_ival = (intpt) pst->subtable;
+	mds[pst->type][j+0].u.md_ival = (intptr_t) pst->subtable;
 	if ( pst->type==pst_position ) {
 	    mds[pst->type][j+SIM_DX].u.md_ival = pst->u.pos.xoff;
 	    mds[pst->type][j+SIM_DY].u.md_ival = pst->u.pos.yoff;
@@ -4023,7 +3994,7 @@ static void CIFillup(CharInfo *ci) {
     for ( isv=0; isv<2; ++isv ) {
 	for ( kp=isv ? sc->vkerns : sc->kerns; kp!=NULL; kp=kp->next ) {
 	    j = (cnts[pst_pair]++ * mi[pst_pair-1].col_cnt);
-	    mds[pst_pair][j+0].u.md_ival = (intpt) kp->subtable;
+	    mds[pst_pair][j+0].u.md_ival = (intptr_t) kp->subtable;
 	    mds[pst_pair][j+1].u.md_str = SCNameUniStr(kp->sc);
 	    if ( isv ) {
 		mds[pst_pair][j+PAIR_DY_ADV1].u.md_ival = kp->off;
@@ -4271,7 +4242,7 @@ return( true );
 }
 
 static void CI_DoCancel(CharInfo *ci) {
-    int32 i,len;
+    int32_t i,len;
     GTextInfo **ti = GGadgetGetList(GWidgetGetControl(ci->gw,CID_List+600),&len);
 
     for ( i=0; i<len; ++i )
@@ -4336,8 +4307,6 @@ void SCCharInfo(SplineChar *sc,int deflayer, EncMap *map,int enc) {
     GTabInfo aspects[17];
     static GBox smallbox = { bt_raised, bs_rect, 2, 1, 0, 0, 0, 0, 0, 0, COLOR_DEFAULT, COLOR_DEFAULT, 0, 0, 0, 0, 0, 0, 0 };
     static int boxset=0;
-    FontRequest rq;
-    static GFont *font=NULL;
 
     CharInfoInit();
 
@@ -4388,13 +4357,13 @@ return;
 	ugcd[0].gd.label = &ulabel[0];
 	ugcd[0].gd.pos.x = 5; ugcd[0].gd.pos.y = 5+4; 
 	ugcd[0].gd.flags = gg_enabled|gg_visible;
-	ugcd[0].gd.mnemonic = 'N';
+	ugcd[0].gd.mnemonic = 'y';
 	ugcd[0].creator = GLabelCreate;
 	uhvarray[0] = &ugcd[0];
 
 	ugcd[1].gd.pos.x = 85; ugcd[1].gd.pos.y = 5;
 	ugcd[1].gd.flags = gg_enabled|gg_visible;
-	ugcd[1].gd.mnemonic = 'N';
+	ugcd[1].gd.mnemonic = 'y';
 	ugcd[1].gd.cid = CID_UName;
 	ugcd[1].creator = GListFieldCreate;
 	ugcd[1].data = (void *) (-2);
@@ -5275,16 +5244,8 @@ return;
 
 	GHVBoxFitWindow(mbox[0].ret);
 
-	if ( font==NULL ) {
-	    memset(&rq,0,sizeof(rq));
-	    rq.utf8_family_name = MONO_UI_FAMILIES;
-	    rq.point_size = 12;
-	    rq.weight = 400;
-	    font = GDrawInstanciateFont(ci->gw,&rq);
-	    font = GResourceFindFont("GlyphInfo.Font",font);
-	}
 	for ( i=0; i<5; ++i )
-	    GGadgetSetFont(psgcd[i][0].ret,font);
+	    GGadgetSetFont(psgcd[i][0].ret,glyphinfo_font.fi);
 	for ( i=0; i<2; ++i ) {
 	    GCompletionFieldSetCompletion(vargcd[i][1].ret,CI_GlyphNameCompletion);
 	    GCompletionFieldSetCompletionMode(vargcd[i][1].ret,true);
@@ -5294,7 +5255,6 @@ return;
 
     CIFillup(ci);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(ci->gw,true);
 }
 

@@ -43,7 +43,6 @@
 #include "fvfonts.h"
 #include "gkeysym.h"
 #include "gresedit.h"
-#include "gresource.h"
 #include "hotkeys.h"
 #include "lookups.h"
 #include "mm.h"
@@ -57,7 +56,6 @@
 #include "splinesaveafm.h"
 #include "splineutil.h"
 #include "splineutil2.h"
-#include "unicodelibinfo.h"
 #include "ustring.h"
 #include "utype.h"
 #include "wordlistparser.h"
@@ -145,20 +143,18 @@ struct cvshows CVShowsPrevewToggleSavedState;
 #define CID_Base	      1001
 #define CID_getValueFromUser  CID_Base + 1
 
-
-// Note that the default values supplied in CVColInit over-ride these values.
 static Color pointcol = 0xff0000;
-static Color subcol = 0xffffff;
 static Color firstpointcol = 0x707000;
 static Color selectedpointcol = 0xc8c800;
 static int selectedpointwidth = 2;
-static Color extremepointcol = 0xCAA80A;
+static Color extremepointcol = 0xc00080;
 static Color pointofinflectioncol = 0x008080;
 static Color almosthvcol = 0x00ff80;
 Color nextcpcol = 0x007090;
 Color prevcpcol = 0xcc00cc;
 static Color selectedcpcol = 0xffffff;
 static Color coordcol = 0x808080;
+static Color ascentdescentcol = 0xff808080;
 Color widthcol = 0x000000;
 static Color widthselcol = 0x00ff00;
 static Color lbearingselcol = 0x00ff00;
@@ -171,7 +167,7 @@ static Color rastergridcol = 0xffb0b0ff;
 static Color rasterdarkcol = 0xff606060;
 static Color deltagridcol = 0xcc0000;
 static Color italiccoordcol = 0x909090;
-static Color metricslabelcol = 0x00000;
+static Color metricslabelcol = 0x000000;
 static Color hintlabelcol = 0x00cccc;
 static Color bluevalstipplecol = 0x808080ff;	/* Translucent */
 static Color fambluestipplecol = 0x80ff7070;	/* Translucent */
@@ -190,6 +186,7 @@ static Color templateoutlinecol = 0x009800;
 static Color oldoutlinecol = 0x008000;
 static Color transformorigincol = 0x000000;
 static Color guideoutlinecol = 0x808080;
+static Color guidedragcol = 0x000000;
 static Color gridfitoutlinecol = 0x009800;
 static Color backoutlinecol = 0x009800;
 static Color foreoutlinecol = 0x000000;
@@ -204,10 +201,23 @@ static Color DraggingComparisonOutlineColor = 0x8800BB00;
 static Color DraggingComparisonAlphaChannelOverride = 0x88000000;
 static Color foreoutthicklinecol = 0x20707070;
 static Color backoutthicklinecol = 0x20707070;
-int prefs_cv_outline_thickness = 1;
+static Color rulercurtickcol = 0xff0000;
+Color cvpalettefgcol = 0x000000;
+Color cvpalettebgcol = 0xf5fffa;
+Color cvpaletteactborcol;
 int cvbutton3d = 1;
 Color cvbutton3dedgelightcol = 0xe0e0e0;
 Color cvbutton3dedgedarkcol = 0x707070;
+static GResFont cv_labelfont = GRESFONT_INIT("400 10pt " SANS_UI_FAMILIES);
+static GResFont cv_iconfont = GRESFONT_INIT("400 24pt " SERIF_UI_FAMILIES);
+GResFont cv_pointnumberfont = GRESFONT_INIT("400 10px " SANS_UI_FAMILIES);
+GResFont cv_rulerfont = GRESFONT_INIT("400 10px " SANS_UI_FAMILIES);
+extern GResFont cv_measuretoolfont;
+extern GResFont layerspalette_font;
+extern GResFont toolspalette_font;
+
+
+int prefs_cv_outline_thickness = 1;
 
 // Format is 0x AA RR GG BB.
 
@@ -224,13 +234,11 @@ static void CVMenuSimplify(GWindow gw,struct gmenuitem *mi,GEvent *e);
 static void CVMenuSimplifyMore(GWindow gw,struct gmenuitem *mi,GEvent *e);
 static void CVPreviewModeSet(GWindow gw, int checked);
 static void CVExposeRulers(CharView *cv, GWindow pixmap);
+static void CVDrawGuideLine(CharView *cv, int guide_pos);
 
 static int cvcolsinited = false;
 
-// Note that the GResource names for these preferences are defined separately in CVColInit.
-// It would be wise to match any changes to these data structures with changes to the values in CVColInit.
-
-static struct resed charview_re[] = {
+static struct resed charviewpoints_re[] = {
     { N_("Point Color"), "PointColor", rt_color, &pointcol, N_("The color of an on-curve point"), NULL, { 0 }, 0, 0 },
     { N_("First Point Color"), "FirstPointColor", rt_color, &firstpointcol, N_("The color of the point which is the start of a contour"), NULL, { 0 }, 0, 0 },
     { N_("Selected Point Color"), "SelectedPointColor", rt_color, &selectedpointcol, N_("The color of a selected point"), NULL, { 0 }, 0, 0 },
@@ -241,12 +249,62 @@ static struct resed charview_re[] = {
     { N_("Next CP Color"), "NextCPColor", rt_color, &nextcpcol, N_("The color used to draw the \"next\" control point of an on-curve point"), NULL, { 0 }, 0, 0 },
     { N_("Prev CP Color"), "PrevCPColor", rt_color, &prevcpcol, N_("The color used to draw the \"previous\" control point of an on-curve point"), NULL, { 0 }, 0, 0 },
     { N_("Selected CP Color"), "SelectedCPColor", rt_color, &selectedcpcol, N_("The color used to draw a selected control point of an on-curve point"), NULL, { 0 }, 0, 0 },
-    { N_("Coordinate Line Color"), "CoordinateLineColor", rt_color, &coordcol, NULL, NULL, { 0 }, 0, 0 },
+    { N_("Anchor Color"), "AnchorColor", rt_color, &anchorcol, N_("The color of anchor stars"), NULL, { 0 }, 0, 0 },
+    { N_("LabelFont"), "LabelFont", rt_font, &cv_labelfont, N_("Used for point and contour names, anchor point names, etc."), NULL, { 0 }, 0, 0 },
+    { N_("IconFont"), "IconFont", rt_font, &cv_iconfont, N_("Used for window decoration icon when there is no existing spline or reference"), NULL, { 0 }, 0, 0 },
+    { N_("PointNumberFont"), "PointNumberFont", rt_font, &cv_pointnumberfont, N_("Used for point numbers, hints, etc."), NULL, { 0 }, 0, 0 },
+    RESED_EMPTY
+};
+
+static struct resed charviewlinesfills_re[] = {
+    { N_("Active Layer Color"), "ForegroundOutlineColor", rt_color, &foreoutlinecol, N_("The color of outlines in the active layer"), NULL, { 0 }, 0, 0 },
+    { N_("Active Thick Layer Color"), "ForegroundThickOutlineColor", rt_coloralpha, &foreoutthicklinecol, N_("The color of thick outlines in the active layer"), NULL, { 0 }, 0, 0 },
+    { N_("Fill Color"), "FillColor", rt_coloralpha, &fillcol, N_("The color used to fill the outline if that mode is active"), NULL, { 0 }, 0, 0 },
+    { N_("Preview Fill Color"), "PreviewFillColor", rt_coloralpha, &previewfillcol, N_("The color used to fill the outline when in preview mode"), NULL, { 0 }, 0, 0 },
+    { N_("Open Path Color"), "OpenPathColor", rt_coloralpha, &openpathcol, N_("The color of the open path"), NULL, { 0 }, 0, 0 },
+    { N_("Clip Path Color"), "ClipPathColor", rt_color, &clippathcol, N_("The color of the clip path"), NULL, { 0 }, 0, 0 },
+    { N_("Inactive Layer Color"), "BackgroundOutlineColor", rt_color, &backoutlinecol, N_("The color of outlines in inactive layers"), NULL, { 0 }, 0, 0 },
+    { N_("Inactive Thick Layer Color"), "BackgroundThickOutlineColor", rt_coloralpha, &backoutthicklinecol, N_("The color of thick outlines in inactive layers"), NULL, { 0 }, 0, 0 },
+    { N_("Width Color"), "WidthColor", rt_color, &widthcol, N_("The color of the line marking the advance width"), NULL, { 0 }, 0, 0 },
+    { N_("Selected Width Color"), "WidthSelColor", rt_color, &widthselcol, N_("The color of the line marking the advance width when it is selected"), NULL, { 0 }, 0, 0 },
+    { N_("Selected LBearing Color"), "LBearingSelColor", rt_color, &lbearingselcol, N_("The color of the line marking the left bearing when it is selected"), NULL, { 0 }, 0, 0 },
+    { N_("Ligature Caret Color"), "LigatureCaretColor", rt_color, &lcaretcol, N_("The color of the line(s) marking ligature carets"), NULL, { 0 }, 0, 0 },
+    { N_("Anchored Line Color"), "AnchoredOutlineColor", rt_color, &anchoredoutlinecol, N_("The color of another glyph drawn in the current view to show where it would be placed by an anchor lookup"), NULL, { 0 }, 0, 0 },
+    { N_("Coordinate Line Color"), "CoordinateLineColor", rt_color, &coordcol, N_("Color of the x=0 and y=0 lines"), NULL, { 0 }, 0, 0 },
+    { N_("Ascent/Descent Color"), "AscentDescentColor", rt_coloralpha, &ascentdescentcol, N_("Color of the ascent and descent lines"), NULL, { 0 }, 0, 0 },
     { N_("Italic Coord. Color"), "ItalicCoordColor", rt_color, &italiccoordcol, NULL, NULL, { 0 }, 0, 0 },
     { N_("Metrics Label Color"), "MetricsLabelColor", rt_color, &metricslabelcol, NULL, NULL, { 0 }, 0, 0 },
-    { N_("Hint Label Color"), "HintLabelColor", rt_color, &hintlabelcol,NULL, NULL, { 0 }, 0, 0 },
+    { N_("Template Outline Color"), "TemplateOutlineColor", rt_color, &templateoutlinecol, NULL, NULL, { 0 }, 0, 0 },
+    { N_("Ruler Big Tick Color"), "RulerBigTickColor", rt_color, &rulerbigtickcol, N_("The color used to draw the large tick marks in rulers."), NULL, { 0 }, 0, 0 },
+    { N_("Ruler Current Tick Color"), "RulerCurrentTickColor", rt_color, &rulercurtickcol, N_("The color used to draw a vertical and a horizontal tick corresponding to the mouse position."), NULL, { 0 }, 0, 0 },
+    { N_("Ruler Font"), "Ruler Font", rt_font, &cv_rulerfont, N_("Used for ruler numbers and other ruler notations."), NULL, { 0 }, 0, 0 },
+    { N_("Guide Layer Color"), "GuideOutlineColor", rt_color, &guideoutlinecol, NULL, NULL, { 0 }, 0, 0 },
+    { N_("Guide Drag Color"), "GuideDragColor", rt_color, &guidedragcol, N_("The color used to display a new guide line dragged from the ruler."), NULL, { 0 }, 0, 0 },
+    RESED_EMPTY
+};
+
+static struct resed charviewtools_re[] = {
+    { N_("Trace Color"), "TraceColor", rt_color, &tracecol, NULL, NULL, { 0 }, 0, 0 },
+    { N_("Old Outline Color"), "OldOutlineColor", rt_color, &oldoutlinecol, NULL, NULL, { 0 }, 0, 0 },
+    { N_("Transform Original Color"), "TransformOriginColor", rt_color, &transformorigincol, NULL, NULL, { 0 }, 0, 0 },
+    { N_("Dragging Comparison Outline Color"), "DraggingComparisonOutlineColor", rt_coloralpha, &DraggingComparisonOutlineColor, N_("The color used to draw the outline of the old spline when you are interactively modifying a glyph"), NULL, { 0 }, 0, 0 },
+    { N_("Dragging Comparison Alpha Channel"), "DraggingComparisonAlphaChannelOverride", rt_coloralpha, &DraggingComparisonAlphaChannelOverride, N_("Only the alpha value is used and if non zero it will set the alpha channel for the control points, bezier information and other non spline indicators for the Dragging Comparison Outline spline"), NULL, { 0 }, 0, 0 },
+    { N_("Measure Tool Line Color"), "MeasureToolLineColor", rt_color, &measuretoollinecol, N_("The color used to draw the measure tool line."), NULL, { 0 }, 0, 0 },
+    { N_("Measure Tool Point Color"), "MeasureToolPointColor", rt_color, &measuretoolpointcol, N_("The color used to draw the measure tool points."), NULL, { 0 }, 0, 0 },
+    { N_("Measure Tool Point Snapped Color"), "MeasureToolPointSnappedColor", rt_color, &measuretoolpointsnappedcol, N_("The color used to draw the measure tool points when snapped."), NULL, { 0 }, 0, 0 },
+    { N_("Measure Tool Canvas Number Color"), "MeasureToolCanvasNumbersColor", rt_color, &measuretoolcanvasnumberscol, N_("The color used to draw the measure tool numbers on the canvas."), NULL, { 0 }, 0, 0 },
+    { N_("Measure Tool Canvas Number Snapped Color"), "MeasureToolCanvasNumbersSnappedColor", rt_color, &measuretoolcanvasnumberssnappedcol, N_("The color used to draw the measure tool numbers on the canvas when snapped."), NULL, { 0 }, 0, 0 },
+    { N_("Measure Tool Windows Foreground Color"), "MeasureToolWindowForeground", rt_color, &measuretoolwindowforegroundcol, N_("The measure tool window foreground color."), NULL, { 0 }, 0, 0 },
+    { N_("Measure Tool Windows Background Color"), "MeasureToolWindowBackground", rt_color, &measuretoolwindowbackgroundcol, N_("The measure tool window background color."), NULL, { 0 }, 0, 0 },
+    { N_("MeasureToolFont"), "MeasureToolFont", rt_font, &cv_measuretoolfont, NULL, NULL, { 0 }, 0, 0 },
+    RESED_EMPTY
+};
+
+static struct resed charviewhints_re[] = {
     { N_("Blue Values Color"), "BlueValuesStippledColor", rt_coloralpha, &bluevalstipplecol, N_("The color used to mark blue zones in the blue values entry of the private dictionary"), NULL, { 0 }, 0, 0 },
     { N_("Family Blue Color"), "FamilyBlueStippledColor", rt_coloralpha, &fambluestipplecol, N_("The color used to mark blue zones in the family blues entry of the private dictionary"), NULL, { 0 }, 0, 0 },
+    { N_("Minimum Distance Hint Color"), "MDHintColor", rt_coloralpha, &mdhintcol, N_("The color used to draw minimum distance hints"), NULL, { 0 }, 0, 0 },
+    { N_("Hint Label Color"), "HintLabelColor", rt_color, &hintlabelcol,NULL, NULL, { 0 }, 0, 0 },
     { N_("Diagonal Hint Color"), "DHintColor", rt_coloralpha, &dhintcol, N_("The color used to draw diagonal hints"), NULL, { 0 }, 0, 0 },
     { N_("Horiz. Hint Color"), "HHintColor", rt_coloralpha, &hhintcol, N_("The color used to draw horizontal hints"), NULL, { 0 }, 0, 0 },
     { N_("Vert. Hint Color"), "VHintColor", rt_coloralpha, &vhintcol, N_("The color used to draw vertical hints"), NULL, { 0 }, 0, 0 },
@@ -255,48 +313,30 @@ static struct resed charview_re[] = {
     { N_("Conflict Hint Color"), "ConflictHintColor", rt_color, &conflicthintcol, N_("The color used to draw a hint which conflicts with another"), NULL, { 0 }, 0, 0 },
     { N_("HHint Active Color"), "HHintActiveColor", rt_color, &hhintactivecol, N_("The color used to draw the active horizontal hint which the Review Hints dialog is examining"), NULL, { 0 }, 0, 0 },
     { N_("VHint Active Color"), "VHintActiveColor", rt_color, &vhintactivecol, N_("The color used to draw the active vertical hint which the Review Hints dialog is examining"), NULL, { 0 }, 0, 0 },
-    { N_("Dragging Comparison Outline Color"), "DraggingComparisonOutlineColor", rt_coloralpha, &DraggingComparisonOutlineColor, N_("The color used to draw the outline of the old spline when you are interactively modifying a glyph"), NULL, { 0 }, 0, 0 },
-    { N_("Dragging Comparison Outline Color"), "DraggingComparisonAlphaChannelOverride", rt_coloralpha, &DraggingComparisonAlphaChannelOverride, N_("Only the alpha value is used and if non zero it will set the alpha channel for the control points, bezier information and other non spline indicators for the Dragging Comparison Outline spline"), NULL, { 0 }, 0, 0 },
+    { N_("Delta Grid Color"), "DeltaGridColor", rt_color, &deltagridcol, N_("Indicates a notable grid pixel when suggesting deltas."), NULL, { 0 }, 0, 0 },
     RESED_EMPTY
 };
 
-static struct resed charview2_re[] = {
-    { N_("Width Color"), "WidthColor", rt_color, &widthcol, N_("The color of the line marking the advance width"), NULL, { 0 }, 0, 0 },
-    { N_("Selected Width Color"), "WidthSelColor", rt_color, &widthselcol, N_("The color of the line marking the advance width when it is selected"), NULL, { 0 }, 0, 0 },
-    { N_("Selected LBearing Color"), "LBearingSelColor", rt_color, &lbearingselcol, N_("The color of the line marking the left bearing when it is selected"), NULL, { 0 }, 0, 0 },
-    { N_("Grid Fit Width Color"), "GridFitWidthColor", rt_color, &widthgridfitcol, N_("The color of the line marking the grid-fit advance width"), NULL, { 0 }, 0, 0 },
-    { N_("Ligature Caret Color"), "LigatureCaretColor", rt_color, &lcaretcol, N_("The color of the line(s) marking ligature carets"), NULL, { 0 }, 0, 0 },
-    { N_("Anchor Color"), "AnchorColor", rt_color, &anchorcol, N_("The color of anchor stars"), NULL, { 0 }, 0, 0 },
-    { N_("Anchored Line Color"), "AnchoredOutlineColor", rt_color, &anchoredoutlinecol, N_("The color of another glyph drawn in the current view to show where it would be placed by an anchor lookup"), NULL, { 0 }, 0, 0 },
-    { N_("Template Color"), "TemplateOutlineColor", rt_color, &templateoutlinecol, NULL, NULL, { 0 }, 0, 0 },
-    { N_("Old Outline Color"), "OldOutlineColor", rt_color, &oldoutlinecol, NULL, NULL, { 0 }, 0, 0 },
-    { N_("Original Color"), "TransformOriginColor", rt_color, &transformorigincol, NULL, NULL, { 0 }, 0, 0 },
-    { N_("Guide Layer Color"), "GuideOutlineColor", rt_color, &guideoutlinecol, NULL, NULL, { 0 }, 0, 0 },
+static struct resed charviewraster_re[] = {
     { N_("Grid Fit Color"), "GridFitOutlineColor", rt_color, &gridfitoutlinecol, N_("The color of grid-fit outlines"), NULL, { 0 }, 0, 0 },
-    { N_("Inactive Layer Color"), "BackgroundOutlineColor", rt_color, &backoutlinecol, N_("The color of outlines in inactive layers"), NULL, { 0 }, 0, 0 },
-    { N_("Active Layer Color"), "ForegroundOutlineColor", rt_color, &foreoutlinecol, N_("The color of outlines in the active layer"), NULL, { 0 }, 0, 0 },
-    { N_("Inactive Thick Layer Color"), "BackgroundThickOutlineColor", rt_coloralpha, &backoutthicklinecol, N_("The color of thick outlines in inactive layers"), NULL, { 0 }, 0, 0 },
-    { N_("Active Thick Layer Color"), "ForegroundThickOutlineColor", rt_coloralpha, &foreoutthicklinecol, N_("The color of thick outlines in the active layer"), NULL, { 0 }, 0, 0 },
-    { N_("Clip Path Color"), "ClipPathColor", rt_color, &clippathcol, N_("The color of the clip path"), NULL, { 0 }, 0, 0 },
-    { N_("Open Path Color"), "OpenPathColor", rt_coloralpha, &openpathcol, N_("The color of the open path"), NULL, { 0 }, 0, 0 },
-    { N_("Background Image Color"), "BackgroundImageColor", rt_coloralpha, &backimagecol, N_("The color used to draw bitmap (single bit) images which do not specify a clut"), NULL, { 0 }, 0, 0 },
-    { N_("Fill Color"), "FillColor", rt_coloralpha, &fillcol, N_("The color used to fill the outline if that mode is active"), NULL, { 0 }, 0, 0 },
-    { N_("Preview Fill Color"), "PreviewFillColor", rt_coloralpha, &previewfillcol, N_("The color used to fill the outline when in preview mode"), NULL, { 0 }, 0, 0 },
-    { N_("Trace Color"), "TraceColor", rt_color, &tracecol, NULL, NULL, { 0 }, 0, 0 },
+    { N_("Grid Fit Width Color"), "GridFitWidthColor", rt_color, &widthgridfitcol, N_("The color of the line marking the grid-fit advance width"), NULL, { 0 }, 0, 0 },
     { N_("Raster Color"), "RasterColor", rt_coloralpha, &rastercol, N_("The color of grid-fit (and other) raster blocks"), NULL, { 0 }, 0, 0 },
     { N_("Raster New Color"), "RasterNewColor", rt_coloralpha, &rasternewcol, N_("The color of raster blocks which have just been turned on (in the debugger when an instruction moves a point)"), NULL, { 0 }, 0, 0 },
     { N_("Raster Old Color"), "RasterOldColor", rt_coloralpha, &rasteroldcol, N_("The color of raster blocks which have just been turned off (in the debugger when an instruction moves a point)"), NULL, { 0 }, 0, 0 },
     { N_("Raster Grid Color"), "RasterGridColor", rt_coloralpha, &rastergridcol, NULL, NULL, { 0 }, 0, 0 },
     { N_("Raster Dark Color"), "RasterDarkColor", rt_coloralpha, &rasterdarkcol, N_("When debugging in grey-scale this is the color of a raster block which is fully covered."), NULL, { 0 }, 0, 0 },
-    { N_("Delta Grid Color"), "DeltaGridColor", rt_color, &deltagridcol, N_("Indicates a notable grid pixel when suggesting deltas."), NULL, { 0 }, 0, 0 },
-    { N_("Ruler Big Tick Color"), "RulerBigTickColor", rt_color, &rulerbigtickcol, N_("The color used to draw the large tick marks in rulers."), NULL, { 0 }, 0, 0 },
-    { N_("Measure Tool Line Color"), "MeasureToolLineColor", rt_color, &measuretoollinecol, N_("The color used to draw the measure tool line."), NULL, { 0 }, 0, 0 },
-    { N_("Measure Tool Point Color"), "MeasureToolPointColor", rt_color, &measuretoolpointcol, N_("The color used to draw the measure tool points."), NULL, { 0 }, 0, 0 },
-    { N_("Measure Tool Point Snapped Color"), "MeasureToolPointSnappedColor", rt_color, &measuretoolpointsnappedcol, N_("The color used to draw the measure tool points when snapped."), NULL, { 0 }, 0, 0 },
-    { N_("Measure Tool Canvas Number Color"), "MeasureToolCanvasNumbersColor", rt_color, &measuretoolcanvasnumberscol, N_("The color used to draw the measure tool numbers on the canvas."), NULL, { 0 }, 0, 0 },
-    { N_("Measure Tool Canvas Number Snapped Color"), "MeasureToolCanvasNumbersSnappedColor", rt_color, &measuretoolcanvasnumberssnappedcol, N_("The color used to draw the measure tool numbers on the canvas when snapped."), NULL, { 0 }, 0, 0 },
-    { N_("Measure Tool Windows Foreground Color"), "MeasureToolWindowForeground", rt_color, &measuretoolwindowforegroundcol, N_("The measure tool window foreground color."), NULL, { 0 }, 0, 0 },
-    { N_("Measure Tool Windows Background Color"), "MeasureToolWindowBackground", rt_color, &measuretoolwindowbackgroundcol, N_("The measure tool window background color."), NULL, { 0 }, 0, 0 },
+    { N_("Background Image Color"), "BackgroundImageColor", rt_coloralpha, &backimagecol, N_("The color used to draw bitmap (single bit) images which do not specify a clut"), NULL, { 0 }, 0, 0 },
+    RESED_EMPTY
+};
+
+static struct resed cvpalettes_re[] = {
+    { N_("Palette Foreground Color"), "CVPaletteForegroundColor", rt_color, &cvpalettefgcol, N_("When buttons are 3D, the light edge color"), NULL, { 0 }, 0, 0 },
+    { N_("Palette Background Color"), "CVPaletteBackgroundColor", rt_color, &cvpalettebgcol, N_("When buttons are 3D, the light edge color"), NULL, { 0 }, 0, 0 },
+    { N_("3D Light Edge Color"), "Button3DEdgeLightColor", rt_color, &cvbutton3dedgelightcol, N_("When buttons are 3D, the light edge color"), NULL, { 0 }, 0, 0 },
+    { N_("3D Dark Edge Color"), "Button3DEdgeDarkColor", rt_color, &cvbutton3dedgedarkcol, N_("When buttons are 3D, the dark edge color"), NULL, { 0 }, 0, 0 },
+    { N_("3D Buttons"), "Button3d", rt_bool, &cvbutton3d, N_("Whether buttons on the CharView pallettes have a 3D appearance"), NULL, { 0 }, 0, 0 },
+    {N_("LayersPalette.Font"), "LayersPalette.Font", rt_font, &layerspalette_font, N_("Font used in the outline view layers palette"), NULL, { 0 }, 0, 0 },
+    {N_("ToolsPalette.Font"), "ToolsPalette.Font", rt_font, &toolspalette_font, N_("Font used in the outline view tools palette"), NULL, { 0 }, 0, 0 },
     RESED_EMPTY
 };
 
@@ -378,85 +418,19 @@ static int shouldShowFilledUsingCairo(CharView *cv) {
     return 0;
 }
 
+extern GResInfo charviewpoints_ri, charviewlinesfills_ri, charviewtools_ri;
+extern GResInfo charviewhints_ri, charviewraster_ri, cvpalettes_ri;
 void CVColInit( void ) {
     if ( cvcolsinited )
-return;
-    GResEditFind( charview_re, "CharView.");
-    GResEditFind( charview2_re, "CharView.");
+	return;
+    GResEditDoInit(&charviewpoints_ri);
+    GResEditDoInit(&charviewlinesfills_ri);
+    GResEditDoInit(&charviewtools_ri);
+    GResEditDoInit(&charviewhints_ri);
+    GResEditDoInit(&charviewraster_ri);
+    GResEditDoInit(&cvpalettes_ri);
     cvcolsinited = true;
-
-  // These value over-ride the static initializers.
-  // Note that the base resource names are copied from charview_re and charview2_re.
-  pointcol = GResourceFindColor("CharView.PointColor",0xff0000);
-  firstpointcol = GResourceFindColor("CharView.FirstPointColor",0x707000);
-  selectedpointcol = GResourceFindColor("CharView.SelectedPointColor",0xc8c800);
-  selectedpointwidth = GResourceFindInt("CharView.SelectedPointWidth",2);
-  extremepointcol = GResourceFindColor("CharView.ExtremePointColor",0xc00080);
-  pointofinflectioncol = GResourceFindColor("CharView.PointOfInflectionColor",0x008080);
-  almosthvcol = GResourceFindColor("CharView.AlmostHVColor",0x00ff80);
-  nextcpcol = GResourceFindColor("CharView.NextCPColor",0x007090);
-  prevcpcol = GResourceFindColor("CharView.PointColor",0xcc00cc);
-  selectedcpcol = GResourceFindColor("CharView.SelectedCPColor",0xffffff);
-  coordcol = GResourceFindColor("CharView.CoordinateColor",0x808080);
-  widthcol = GResourceFindColor("CharView.WidthColor",0x000000);
-  widthselcol = GResourceFindColor("CharView.WidthSelColor",0x00ff00);
-  lbearingselcol = GResourceFindColor("CharView.LBearingSelColor",0x00ff00);
-  widthgridfitcol = GResourceFindColor("CharView.GridFitWidthColor",0x009800);
-  lcaretcol = GResourceFindColor("CharView.LigatureCaretColor",0x909040);
-  rastercol = GResourceFindColor("CharView.RasterColor",0xffa0a0a0);		/* Translucent */
-  rasternewcol = GResourceFindColor("CharView.RasterNewColor",0xff909090);
-  rasteroldcol = GResourceFindColor("CharView.RasterOldColor",0xffc0c0c0);
-  rastergridcol = GResourceFindColor("CharView.RasterGridColor",0xffb0b0ff);
-  rasterdarkcol = GResourceFindColor("CharView.RasterDarkColor",0xff606060);
-  deltagridcol = GResourceFindColor("CharView.DeltaGridColor",0xcc0000);
-  italiccoordcol = GResourceFindColor("CharView.ItalicCoordColor",0x909090);
-  metricslabelcol = GResourceFindColor("CharView.MetricsLabelColor",0x00000);
-  hintlabelcol = GResourceFindColor("CharView.HintLabelColor",0x00cccc);
-  bluevalstipplecol = GResourceFindColor("CharView.BlueValuesStippledColor",0x808080ff);	/* Translucent */
-  fambluestipplecol = GResourceFindColor("CharView.FamilyBlueStippledColor",0x80ff7070);	/* Translucent */
-  mdhintcol = GResourceFindColor("CharView.xxxxxx",0x80e04040);		/* Translucent */
-  dhintcol = GResourceFindColor("CharView.DHintColor",0x80d0a0a0);		/* Translucent */
-  hhintcol = GResourceFindColor("CharView.HHintColor",0x80a0d0a0);		/* Translucent */
-  vhintcol = GResourceFindColor("CharView.VHintColor",0x80c0c0ff);		/* Translucent */
-  hflexhintcol = GResourceFindColor("CharView.HFlexHintColor",0x00ff00);
-  vflexhintcol = GResourceFindColor("CharView.VFlexHintColor",0x00ff00);
-  conflicthintcol = GResourceFindColor("CharView.ConflictHintColor",0x00ffff);
-  hhintactivecol = GResourceFindColor("CharView.HHintActiveColor",0x00a000);
-  vhintactivecol = GResourceFindColor("CharView.VHintActiveColor",0x0000ff);
-  anchorcol = GResourceFindColor("CharView.AnchorColor",0x0040ff);
-  anchoredoutlinecol = GResourceFindColor("CharView.AnchoredOutlineColor",0x0040ff);
-  templateoutlinecol = GResourceFindColor("CharView.TemplateOutlineColor",0x009800);
-  oldoutlinecol = GResourceFindColor("CharView.OldOutlineColor",0x008000);
-  transformorigincol = GResourceFindColor("CharView.TransformOriginColor",0x000000);
-  guideoutlinecol = GResourceFindColor("CharView.GuideOutlineColor",0x808080);
-  gridfitoutlinecol = GResourceFindColor("CharView.GridFitOutlineColor",0x009800);
-  backoutlinecol = GResourceFindColor("CharView.BackgroundOutlineColor",0x009800);
-  foreoutlinecol = GResourceFindColor("CharView.ForegroundOutlineColor",0x000000);
-  clippathcol = GResourceFindColor("CharView.ClipPathColor",0x0000ff);
-  openpathcol = GResourceFindColor("CharView.OpenPathColor",0x40660000);
-  backimagecol = GResourceFindColor("CharView.BackgroundImageColor",0x707070);
-  fillcol = GResourceFindColor("CharView.FillColor",0x80707070);		/* Translucent */
-  tracecol = GResourceFindColor("CharView.TraceColor",0x008000);
-  rulerbigtickcol = GResourceFindColor("CharView.RulerBigTickColor",0x008000);
-  // previewfillcol = GResourceFindColor(,0x0f0f0f);
-  // The code below defaults differently from the static initializer (from which we copied this value).
-    if( GResourceFindColor("CharView.PreviewFillColor", COLOR_UNKNOWN) == COLOR_UNKNOWN ) {
-	// no explicit previewfillcolor
-	previewfillcol = fillcol;
-	if( GResourceFindColor("CharView.FillColor", COLOR_UNKNOWN) == COLOR_UNKNOWN ) {
-	    // no explicit fill color either
-	    previewfillcol = 0x000000;
-	}
-    }
-  DraggingComparisonOutlineColor = GResourceFindColor("CharView.DraggingComparisonOutlineColor",0x8800BB00);
-  DraggingComparisonAlphaChannelOverride = GResourceFindColor("CharView.DraggingComparisonAlphaChannelOverride",0x88000000);
-  foreoutthicklinecol = GResourceFindColor("CharView.ForegroundThickOutlineColor",0x20707070);
-  backoutthicklinecol = GResourceFindColor("CharView.BackgroundThickOutlineColor",0x20707070);
-  cvbutton3d = GResourceFindInt("CharView.Button3D", 1);
-  cvbutton3dedgelightcol = GResourceFindColor("CharView.Button3DEdgeLightColor", 0xe0e0e0);
-  cvbutton3dedgedarkcol = GResourceFindColor("CharView.Button3DEdgeDarkColor", 0x707070);
 }
-
 
 GDevEventMask input_em[] = {
 	/* Event masks for wacom devices */
@@ -910,7 +884,7 @@ static void DrawPoint( CharView *cv, GWindow pixmap, SplinePoint *sp,
     }
 
     col = MaybeMaskColorToAlphaChannelOverride( col, AlphaChannelOverride );
-    Color subcolmasked    = MaybeMaskColorToAlphaChannelOverride( subcol, AlphaChannelOverride );
+    Color subcolmasked;
     Color nextcpcolmasked = MaybeMaskColorToAlphaChannelOverride( nextcpcol, AlphaChannelOverride );
     Color prevcpcolmasked = MaybeMaskColorToAlphaChannelOverride( prevcpcol, AlphaChannelOverride );
     Color selectedpointcolmasked = MaybeMaskColorToAlphaChannelOverride( selectedpointcol, AlphaChannelOverride );
@@ -1430,7 +1404,7 @@ static void CVDrawPointName(CharView *cv, GWindow pixmap, SplinePoint *sp, Color
 {
     CharViewTab* tab = CVGetActiveTab(cv);
     if (sp->name && *sp->name) {
-	int32 theight;
+	int32_t theight;
 
 	GDrawSetFont(pixmap, cv->normal);
 	theight = GDrawGetText8Height(pixmap, sp->name, -1);
@@ -1714,7 +1688,7 @@ void CVDrawSplineSetSpecialized( CharView *cv, GWindow pixmap, SplinePointList *
                 strokefg = (strokefg | 0x01000000) & 0x01ffffff;
             }
 
-            int16 oldwidth = GDrawGetLineWidth( pixmap );
+            int16_t oldwidth = GDrawGetLineWidth( pixmap );
             GDrawSetLineWidth( pixmap, strokeWidth );
             GDrawPushClipOnly( pixmap );
 
@@ -2892,8 +2866,8 @@ static void CVExpose(CharView *cv, GWindow pixmap, GEvent *event ) {
 	    Color lbcolor = (!cv->inactive && cv->lbearingsel) ? lbearingselcol : coordcol;
 	    DrawVLine(cv,pixmap,0,lbcolor,false,NULL,NULL);
 	    DrawLine(cv,pixmap,-8096,0,8096,0,coordcol);
-	    DrawLine(cv,pixmap,-8096,sf->ascent,8096,sf->ascent,coordcol);
-	    DrawLine(cv,pixmap,-8096,-sf->descent,8096,-sf->descent,coordcol);
+	    DrawLine(cv,pixmap,-8096,sf->ascent,8096,sf->ascent,ascentdescentcol);
+	    DrawLine(cv,pixmap,-8096,-sf->descent,8096,-sf->descent,ascentdescentcol);
 	}
 	if ( cv->showvmetrics ) {
 	    /*DrawLine(cv,pixmap,(sf->ascent+sf->descent)/2,-8096,(sf->ascent+sf->descent)/2,8096,coordcol);
@@ -3128,6 +3102,10 @@ static void CVExpose(CharView *cv, GWindow pixmap, GEvent *event ) {
     }
     CVRulerExpose(pixmap,cv);
 
+    if (cv->guide_pos != -1) {
+        CVDrawGuideLine(cv, cv->guide_pos);
+    }
+
     GDrawPopClip(pixmap,&old);
 }
 
@@ -3291,6 +3269,7 @@ static void CVNewScale(CharView *cv) {
     if ( cv->showrulers )
 	GDrawRequestExpose(cv->gw,NULL,false);
     GDrawGetPointerPosition(cv->v,&e);
+    CVRulerLingerMove(cv);
     CVUpdateInfo(cv,&e);
 }
 
@@ -3417,6 +3396,9 @@ static GWindow CharIcon(CharView *cv, FontView *fv) {
 	    bdfc = bdf->glyphs[sc->orig_pos];
     }
 
+    // Leaving the hard-coded colors here because this stuff is window-system
+    // dependent and not necessarily user-configurable (although it might or
+    // might not be appropriate to make them theme-configurable)
     if ( bdfc!=NULL ) {
 	GClut clut;
 	struct _GImage base;
@@ -3448,19 +3430,13 @@ static GWindow CharIcon(CharView *cv, FontView *fv) {
 	base.height = bdfc->ymax-bdfc->ymin+1;
 	GDrawDrawImage(icon,&gi,NULL,(r.width-base.width)/2,(r.height-base.height)/2);
     } else if ( sc->unicodeenc!=-1 ) {
-	FontRequest rq;
-	GFont *font;
+	if ( cv_iconfont.fi==NULL )
+	    GResEditDoInit(&charviewpoints_ri);
 	unichar_t text[2];
 	int as, ds, ld, width;
-
-	memset(&rq,0,sizeof(rq));
-	rq.utf8_family_name = SERIF_UI_FAMILIES;
-	rq.point_size = 24;
-	rq.weight = 400;
-	font = GDrawInstanciateFont(NULL,&rq);
-	GDrawSetFont(icon,font);
+	GDrawSetFont(icon,cv_iconfont.fi);
 	text[0] = sc->unicodeenc; text[1] = 0;
-	GDrawWindowFontMetrics(icon,font,&as,&ds,&ld);
+	GDrawWindowFontMetrics(icon,cv_iconfont.fi,&as,&ds,&ld);
 	width = GDrawGetTextWidth(icon,text,1);
 	GDrawDrawText(icon,(r.width-width)/2,(r.height-as-ds)/2+as,text,1,0xffffff);
     }
@@ -3469,9 +3445,6 @@ return( icon );
 
 static int CVCurEnc(CharView *cv)
 {
-    if ( cv->map_of_enc == ((FontView *) (cv->b.fv))->b.map && cv->enc!=-1 )
-        return( cv->enc );
-
     return( ((FontView *) (cv->b.fv))->b.map->backmap[cv->b.sc->orig_pos] );
 }
 
@@ -3496,7 +3469,7 @@ static char *CVMakeTitles(CharView *cv,char *buf,size_t len) {
 
     if (used < len) {
 	/* Enhance 'buf' description with Nameslist.txt unicode name definition */
-	if ( (uniname=unicode_name(sc->unicodeenc))!=NULL ) {
+	if ( (uniname=uniname_name(sc->unicodeenc))!=NULL ) {
 	    used += snprintf(buf+used, len-used, " %s", uniname);
 	    free(uniname);
 	}
@@ -3882,9 +3855,9 @@ static void CVDoFindInFontView(CharView *cv) {
     GDrawRaise(((FontView *) (cv->b.fv))->gw);
 }
 
-static uint16 HaveModifiers = 0;
-static uint16 PressingTilde = 0;
-static uint16 PrevCharEventWasCharUpOnControl = 0;
+static uint16_t HaveModifiers = 0;
+static uint16_t PressingTilde = 0;
+static uint16_t PrevCharEventWasCharUpOnControl = 0;
 
 
 static void CVCharUp(CharView *cv, GEvent *event ) {
@@ -3895,9 +3868,9 @@ static void CVCharUp(CharView *cv, GEvent *event ) {
 
     int oldactiveModifierControl = cv->activeModifierControl;
     int oldactiveModifierAlt = cv->activeModifierAlt;
-    cv->activeModifierControl &= ~( event->u.chr.keysym == GK_Control_L || event->u.chr.keysym == GK_Control_R
+    cv->activeModifierControl = cv->activeModifierControl && !( event->u.chr.keysym == GK_Control_L || event->u.chr.keysym == GK_Control_R
 				    || event->u.chr.keysym == GK_Meta_L || event->u.chr.keysym == GK_Meta_R );
-    cv->activeModifierAlt     &= ~( event->u.chr.keysym == GK_Alt_L || event->u.chr.keysym == GK_Alt_R
+    cv->activeModifierAlt = cv->activeModifierAlt && !( event->u.chr.keysym == GK_Alt_L || event->u.chr.keysym == GK_Alt_R
 				    || event->u.chr.keysym == GK_Mode_switch );
     // helps with keys on the mac
     if( (event->u.chr.state&ksm_meta) )
@@ -4172,22 +4145,39 @@ static void CVInfoDrawRulers(CharView *cv, GWindow pixmap ) {
     GDrawPushClip(pixmap, &rh, &oldrh);
     rh.x = cv->olde.x; rh.y = 0; rh.width = 1;
     GDrawDrawPixmap(pixmap, cv->hruler, &rh, cv->rulerh + cv->olde.x, rstart);
-    GDrawDrawLine(pixmap,cv->e.x+cv->rulerh,rstart,cv->e.x+cv->rulerh,rstart+cv->rulerh,0xff0000);
+    GDrawDrawLine(pixmap,cv->e.x+cv->rulerh,rstart,cv->e.x+cv->rulerh,rstart+cv->rulerh,rulercurtickcol);
     GDrawPopClip(pixmap, &oldrh);
 
     GDrawPushClip(pixmap, &rv, &oldrv);
     rv.x = 0; rv.y = cv->olde.y; rv.height = 1;
     GDrawDrawPixmap(pixmap, cv->vruler, &rv, 0, cv->rulerh + rstart + cv->olde.y);
-    GDrawDrawLine(pixmap,0,cv->e.y+rstart+cv->rulerh,cv->rulerh,cv->e.y+rstart+cv->rulerh,0xff0000);
+    GDrawDrawLine(pixmap,0,cv->e.y+rstart+cv->rulerh,cv->rulerh,cv->e.y+rstart+cv->rulerh,rulercurtickcol);
     GDrawPopClip(pixmap, &oldrv);
 
     cv->olde = cv->e;
 }
 
 void CVInfoDraw(CharView *cv, GWindow pixmap ) {
-    CVInfoDrawText(cv,pixmap);
-    if ( cv->showrulers )
-	CVInfoDrawRulers(cv,pixmap);
+    GRect r;
+    r.x = 0;
+    r.y = cv->mbh+cv->charselectorh;
+    r.width = cv->width;
+    r.height = cv->infoh-1;
+    GDrawRequestExpose(pixmap, &r, false);
+    if (cv->showrulers) {
+        int rstart = cv->mbh+cv->charselectorh+cv->infoh;
+        r.x = cv->rulerh;
+        r.y = rstart;
+        r.height = cv->rulerh;
+        r.width = cv->width;
+        GDrawRequestExpose(pixmap, &r, false);
+
+        r.x = 0;
+        r.y = rstart + cv->rulerh;
+        r.width = cv->rulerh;
+        r.height = cv->height;
+        GDrawRequestExpose(pixmap, &r, false);
+    }
 }
 
 static void CVCrossing(CharView *cv, GEvent *event ) {
@@ -4365,7 +4355,7 @@ return( true );
 return( fs->p->anysel );
 }
 
-static int16 MouseToCX( CharView *cv, int16 mx )
+static int16_t MouseToCX( CharView *cv, int16_t mx )
 {
     CharViewTab* tab = CVGetActiveTab(cv);
     return( mx - tab->xoff ) / tab->scale;
@@ -4727,7 +4717,7 @@ static void CVSwitchActiveSC( CharView *cv, SplineChar* sc, int idx )
 	    uc_strcat( p, "/" );
 
 	// only update when the selection has changed.
-	// updating this string is a non reversable operation if the
+	// updating this string is a non reversible operation if the
 	// user is part way through typing some text.
 	if( !Wordlist_selectionsEqual( srctxt, p ))
 	{
@@ -4773,8 +4763,8 @@ return;		/* I treat this more like a modifier key change than a button press */
 	   (cv->showing_tool == cvt_pointer),
 	   cv->activeModifierControl, cv->activeModifierAlt );
 
-    int8 override_showing_tool = cvt_none;
-    int8 old_showing_tool = cv->showing_tool;
+    int8_t override_showing_tool = cvt_none;
+    int8_t old_showing_tool = cv->showing_tool;
     if( cv->showing_tool == cvt_pointer
 	&& cv->activeModifierControl
 	&& cv->activeModifierAlt )
@@ -4911,7 +4901,6 @@ return;		/* I treat this more like a modifier key change than a button press */
 		if( !xc && cv->additionalCharsToShowActiveIndex > 0 )
 		{
 		    xc = cv->additionalCharsToShow[cv->additionalCharsToShowActiveIndex-1];
-		    int offset = xc->width;
 		    int cumulativeLeftSideBearing = 0;
 //	        TRACE("first offset:%d original cx:%f \n", offset, fsadjusted.p->cx );
 		    int lidx = cv->additionalCharsToShowActiveIndex-1;
@@ -4958,7 +4947,6 @@ return;		/* I treat this more like a modifier key change than a button press */
 			    break;
 			}
 
-			offset = xc->width;
 		    }
 		}
 
@@ -5388,7 +5376,9 @@ return;
 	p.cx = p.spiro->x;
 	p.cy = p.spiro->y;
     } else {
-	CVDoSnaps(cv,&fs);
+	// Require some movement before snapping objects with the pointer tool
+	if ( !RealNear(cv->info.x,cv->p.cx) || !RealNear(cv->info.y,cv->p.cy) )
+	    CVDoSnaps(cv,&fs);
     }
     cx = (p.cx -cv->p.cx) / tab->scale;
     cy = (p.cy - cv->p.cy) / tab->scale;
@@ -5666,7 +5656,7 @@ static void CVTimer(CharView *cv,GEvent *event) {
 
 static void CVDrop(CharView *cv,GEvent *event) {
     /* We should get a list of character names. Add each as a RefChar */
-    int32 len;
+    int32_t len;
     int ch, first = true;
     char *start, *pt, *cnames;
     SplineChar *rsc;
@@ -5774,6 +5764,7 @@ return( GGadgetDispatchEvent(cv->vsb,event));
 		GDrawSetGIC(gw,cv->gic,0,20);
 	}
       break;
+      default: break;
     }
 return( true );
 }
@@ -6054,6 +6045,7 @@ static void CVHScrollSetPos( CharView *cv, int newpos )
 	cv->back_img_out_of_date = true;
 	GScrollBarSetPos(cv->hsb,-newpos);
 	GDrawScroll(cv->v,NULL,diff,0);
+	CVRulerLingerMove(cv);
 	if (( cv->showhhints && cv->b.sc->hstem!=NULL ) || cv->showblues || cv->showvmetrics ) {
 	    GRect r;
 	    r.y = 0; r.height = cv->height;
@@ -6153,6 +6145,7 @@ static void CVVScroll(CharView *cv, struct sbevent *sb) {
 	cv->back_img_out_of_date = true;
 	GScrollBarSetPos(cv->vsb,newpos-cv->height);
 	GDrawScroll(cv->v,NULL,0,diff);
+	CVRulerLingerMove(cv);
 	if (( cv->showvhints && cv->b.sc->vstem!=NULL) || cv->showhmetrics ) {
 	    GRect r;
 	    RefChar *lock = HasUseMyMetrics(cv->b.sc,CVLayer((CharViewBase *) cv));
@@ -6207,7 +6200,7 @@ static void CVLogoExpose(CharView *cv,GWindow pixmap,GEvent *event) {
 	    cv->b.layerheads[cv->b.drawmode]->background ? dm_back : dm_fore );
 }
 
-static void CVDrawGuideLine(CharView *cv, int old_guide_pos, int guide_pos) {
+static void CVDrawGuideLine(CharView *cv, int guide_pos) {
     GWindow pixmap = cv->v;
 
     if ( guide_pos<0 )
@@ -6216,17 +6209,9 @@ return;
     GDrawSetLineWidth(pixmap,0);
 
     if ( cv->ruler_pressedv ) {
-        if (old_guide_pos >= 0) {
-            GRect r = {.x = old_guide_pos, .y = 0, .width = 1, .height = cv->height};
-            GDrawRequestExpose(pixmap,&r,false);
-        }
-	GDrawDrawLine(pixmap,guide_pos,0,guide_pos,cv->height,0x000000);
+	GDrawDrawLine(pixmap,guide_pos,0,guide_pos,cv->height,guidedragcol);
     } else {
-        if (old_guide_pos >= 0) {
-            GRect r = {.x = 0, .y = old_guide_pos, .width = cv->width, .height = 1};
-            GDrawRequestExpose(pixmap,&r,false);
-        }
-	GDrawDrawLine(pixmap,0,guide_pos,cv->width,guide_pos,0x000000);
+	GDrawDrawLine(pixmap,0,guide_pos,cv->width,guide_pos,guidedragcol);
     }
     GDrawSetDashedLine(pixmap,0,0,0);
 }
@@ -6310,6 +6295,7 @@ return( GGadgetDispatchEvent(cv->vsb,event));
 	    else
 		CVVScroll(cv,&event->u.control.u.sb);
 	  break;
+	  default: break;
 	}
       break;
       case et_map:
@@ -6369,7 +6355,6 @@ return( GGadgetDispatchEvent(cv->vsb,event));
 		}
 		cv->guide_pos = -1;
 	    } else if ( event->type==et_mouseup && cv->ruler_pressed ) {
-		CVDrawGuideLine(cv,-1,cv->guide_pos);
 		cv->guide_pos = -1;
 		cv->showing_tool = cvt_none;
 		CVToolsSetCursor(cv,event->u.mouse.state&~(1<<(7+event->u.mouse.button)),event->u.mouse.device);		/* X still has the buttons set in the state, even though we just released them. I don't want em */
@@ -6386,7 +6371,6 @@ return( GGadgetDispatchEvent(cv->vsb,event));
       break;
       case et_mousemove:
 	if ( cv->ruler_pressed ) {
-        int old_pos = cv->guide_pos;
         CharViewTab* tab = CVGetActiveTab(cv);
 	    cv->e.x = event->u.mouse.x - cv->rulerh;
 	    cv->e.y = event->u.mouse.y-(cv->mbh+cv->charselectorh+cv->infoh+cv->rulerh);
@@ -6396,7 +6380,7 @@ return( GGadgetDispatchEvent(cv->vsb,event));
 		cv->guide_pos = cv->e.x;
 	    else
 		cv->guide_pos = cv->e.y;
-	    CVDrawGuideLine(cv,old_pos,cv->guide_pos);
+	    GDrawRequestExpose(cv->v,NULL,false);
 	    CVInfoDraw(cv,cv->gw);
 	}
     else if ( event->u.mouse.y > cv->mbh )
@@ -6439,6 +6423,7 @@ return( GGadgetDispatchEvent(cv->vsb,event));
 #endif
 	}
       break;
+      default: break;
     }
 return( true );
 }
@@ -6579,6 +6564,9 @@ return( true );
 #define MID_CheckSelf		2253
 #define MID_GlyphSelfIntersects	2254
 #define MID_ReverseDir		2255
+#define MID_AddInflections	2256
+#define MID_Balance	2257
+#define MID_Harmonize	2258
 #define MID_Corner	2301
 #define MID_Tangent	2302
 #define MID_Curve	2303
@@ -8701,7 +8689,7 @@ static void _CVJoin(CharView *cv) {
 
     CVAnySel(cv,&anyp,NULL,NULL,NULL);
     CVPreserveState(&cv->b);
-    cv->b.layerheads[cv->b.drawmode]->splines = SplineSetJoin(cv->b.layerheads[cv->b.drawmode]->splines,!anyp,joinsnap/tab->scale,&changed);
+    cv->b.layerheads[cv->b.drawmode]->splines = SplineSetJoin(cv->b.layerheads[cv->b.drawmode]->splines,!anyp,joinsnap/tab->scale,&changed,true);
     if ( changed )
 	CVCharChangedUpdate(&cv->b);
 }
@@ -8871,7 +8859,7 @@ static void _CVUnlinkRef(CharView *cv) {
 	}
 	CVSetCharChanged(cv,true);
 	SCUpdateAll(cv->b.sc);
-	/* Don't need to update dependancies, their splines won't have changed*/
+	/* Don't need to update dependencies, their splines won't have changed*/
     }
 }
 
@@ -9062,7 +9050,6 @@ static char* getValueFromUser( CharView *cv, const char* windowTitle, const char
     GWidgetIndicateFocusGadget(GWidgetGetControl(gw,CID_getValueFromUser));
     GTextFieldSelect(GWidgetGetControl(gw,CID_getValueFromUser),0,-1);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gw,true);
     while ( !DATA.done )
 	GDrawProcessOneEvent(NULL);
@@ -9266,7 +9253,7 @@ static void cv_ptlistcheck(CharView *cv, struct gmenuitem *mi) {
     SplinePoint *selpt=NULL;
     int notimplicit = -1;
     int acceptable = -1;
-    uint16 junk;
+    uint16_t junk;
     int i;
 
     if ( cv->showing_spiro_pt_menu != (cv->b.sc->inspiro && hasspiro())) {
@@ -9791,18 +9778,10 @@ static void CVMenuPatternTile(GWindow gw, struct gmenuitem *UNUSED(mi), GEvent *
 static void _CVMenuOverlap(CharView *cv,enum overlap_type ot) {
     /* We know it's more likely that we'll find a problem in the overlap code */
     /*  than anywhere else, so let's save the current state against a crash */
-    int layer = cv->b.drawmode == dm_grid ? ly_grid :
-		cv->b.drawmode == dm_back ? ly_back
-					: cv->b.layerheads[dm_fore] - cv->b.sc->layers;
 
     DoAutoSaves();
-#if 0
-    // We await testing on the necessity of this operation.
-    if ( !SCRoundToCluster(cv->b.sc,layer,false,.03,.12))
-	CVPreserveState(&cv->b);	/* SCRound2Cluster does this when it makes a change, not otherwise */
-#else
     CVPreserveState(&cv->b);
-#endif // 0
+
     if ( cv->b.drawmode==dm_fore ) {
 	MinimumDistancesFree(cv->b.sc->md);
 	cv->b.sc->md = NULL;
@@ -10009,6 +9988,26 @@ static void _CVMenuAddExtrema(CharView *cv) {
 static void CVMenuAddExtrema(GWindow gw, struct gmenuitem *UNUSED(mi), GEvent *UNUSED(e)) {
     CharView *cv = (CharView *) GDrawGetUserData(gw);
     _CVMenuAddExtrema(cv);
+}
+
+static void _CVMenuAction(GWindow gw, void (*func)(SplineChar*, SplineSet*, int)) {
+    CharView *cv = (CharView *) GDrawGetUserData(gw);
+    int anysel = CVAnySel(cv,NULL,NULL,NULL,NULL);
+    CVPreserveState(&cv->b);
+    func(cv->b.sc,cv->b.layerheads[cv->b.drawmode]->splines,anysel);
+    CVCharChangedUpdate(&cv->b);
+}
+
+static void CVMenuAddInflections(GWindow gw, struct gmenuitem *UNUSED(mi), GEvent *UNUSED(e)) {
+    _CVMenuAction(gw,&SplineCharAddInflections);
+}
+
+static void CVMenuBalance(GWindow gw, struct gmenuitem *UNUSED(mi), GEvent *UNUSED(e)) {
+    _CVMenuAction(gw,&SplineCharBalance);
+}
+
+static void CVMenuHarmonize(GWindow gw, struct gmenuitem *UNUSED(mi), GEvent *UNUSED(e)) {
+    _CVMenuAction(gw,&SplineCharHarmonize);
 }
 
 static void CVSimplify(CharView *cv,int type) {
@@ -10323,7 +10322,7 @@ return( true );
 static int IOSA_FocusChange(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_textfocuschanged ) {
 	struct insertonsplineat *iosa = GDrawGetUserData(GGadgetGetWindow(g));
-	int cid = (intpt) GGadgetGetUserData(g);
+	int cid = (intptr_t) GGadgetGetUserData(g);
 	GGadgetSetChecked(GWidgetGetControl(iosa->gw,cid),true);
     }
 return( true );
@@ -10332,7 +10331,7 @@ return( true );
 static int IOSA_RadioChange(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_radiochanged ) {
 	struct insertonsplineat *iosa = GDrawGetUserData(GGadgetGetWindow(g));
-	int cid = (intpt) GGadgetGetUserData(g);
+	int cid = (intptr_t) GGadgetGetUserData(g);
 	GWidgetIndicateFocusGadget(GWidgetGetControl(iosa->gw,cid));
 	GTextFieldSelect(GWidgetGetControl(iosa->gw,cid),0,-1);
     }
@@ -10603,13 +10602,10 @@ void CVAddAnchor(CharView *cv) {
 
     if ( AnchorClassUnused(cv->b.sc,&waslig)==NULL ) {
         SplineFont *sf = cv->b.sc->parent;
-        AnchorClass *ac;
-        GTextInfo **ti;
-        int j;
         char *name = gwwv_ask_string(_("Anchor Class Name"),"",_("Please enter the name of a Anchor point class to create"));
         if ( name==NULL )
 return;
-        ac = SFFindOrAddAnchorClass(sf,name,NULL);
+        SFFindOrAddAnchorClass(sf,name,NULL);
         free(name);
 	if ( AnchorClassUnused(cv->b.sc,&waslig)==NULL )
 return;
@@ -10954,10 +10950,14 @@ static void cv_ellistcheck(CharView *cv, struct gmenuitem *mi) {
 	  case MID_RegenBitmaps: case MID_RemoveBitmaps:
 	    mi->ti.disabled = cv->b.fv->sf->bitmaps==NULL;
 	  break;
-	  case MID_AddExtrema:
+	  case MID_AddExtrema: case MID_AddInflections: case MID_Harmonize:
 	    mi->ti.disabled = cv->b.layerheads[cv->b.drawmode]->splines==NULL || (cv->b.sc->inspiro && hasspiro());
 	  /* Like Simplify, always available, but may not do anything if */
 	  /*  all extrema have points. I'm not going to check for that, too hard */
+	  break;
+	  case MID_Balance:
+	    mi->ti.disabled = cv->b.layerheads[cv->b.drawmode]->splines==NULL || (cv->b.sc->inspiro && hasspiro())
+	    || cv->b.layerheads[cv->b.drawmode]->order2;
 	  break;
 	  case MID_Simplify:
 	    mi->ti.disabled = cv->b.layerheads[cv->b.drawmode]->splines==NULL || (cv->b.sc->inspiro && hasspiro());
@@ -11764,7 +11764,10 @@ static GMenuItem2 fllist[] = {
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, 0, '\0' }, NULL, NULL, NULL, NULL, 0 }, /* line */
 #endif
     { { (unichar_t *) N_("Pr_eferences..."), (GImage *) "fileprefs.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("Preferences...|No Shortcut"), NULL, NULL, MenuPrefs, 0 },
-    { { (unichar_t *) N_("_X Resource Editor..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("X Resource Editor...|No Shortcut"), NULL, NULL, MenuXRes, 0 },
+    { { (unichar_t *) N_("Appea_rance Editor..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("Appearance Editor...|No Shortcut"), NULL, NULL, MenuXRes, 0 },
+#if !defined(_NO_PYTHON)
+    { { (unichar_t *) N_("Config_ure Plugins..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'u' }, H_("Configure Plugins...|No Shortcut"), NULL, NULL, MenuPlug, 0 },
+#endif
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, 0, '\0' }, NULL, NULL, NULL, NULL, 0 }, /* line */
     { { (unichar_t *) N_("_Quit"), (GImage *) "filequit.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'Q' }, H_("Quit|No Shortcut"), NULL, NULL, MenuExit, MID_Quit },
     GMENUITEM2_EMPTY
@@ -12025,6 +12028,9 @@ static GMenuItem2 ellist[] = {
     { { (unichar_t *) N_("O_verlap"), (GImage *) "overlaprm.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'v' }, H_("Overlap|No Shortcut"), rmlist, NULL, NULL, MID_RmOverlap },
     { { (unichar_t *) N_("_Simplify"), (GImage *) "elementsimplify.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'S' }, H_("Simplify|No Shortcut"), smlist, smlistcheck, NULL, MID_Simplify },
     { { (unichar_t *) N_("Add E_xtrema"), (GImage *) "elementaddextrema.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'x' }, H_("Add Extrema|No Shortcut"), NULL, NULL, CVMenuAddExtrema, MID_AddExtrema },
+    { { (unichar_t *) N_("Add Points Of I_nflection"), (GImage *) "elementaddinflections.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'n' }, H_("Add Points Of Inflection|No Shortcut"), NULL, NULL, CVMenuAddInflections, MID_AddInflections },
+    { { (unichar_t *) N_("_Balance"), (GImage *) "elementbalance.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'b' }, H_("Balance|No Shortcut"), NULL, NULL, CVMenuBalance, MID_Balance },
+    { { (unichar_t *) N_("Harmoni_ze"), (GImage *) "elementharmonize.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'z' }, H_("Harmonize|No Shortcut"), NULL, NULL, CVMenuHarmonize, MID_Harmonize },
     { { (unichar_t *) N_("Autot_race"), (GImage *) "elementautotrace.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'r' }, H_("Autotrace|No Shortcut"), NULL, NULL, CVMenuAutotrace, MID_Autotrace },
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, 0, '\0' }, NULL, NULL, NULL, NULL, 0 }, /* line */
     { { (unichar_t *) N_("A_lign"), (GImage *) "elementalign.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'l' }, H_("Align|No Shortcut"), allist, allistcheck, NULL, MID_Align },
@@ -12331,7 +12337,7 @@ static GMenuItem2 vwlist[] = {
 
 static void CVMenuShowMMMask(GWindow gw, struct gmenuitem *mi, GEvent *UNUSED(e)) {
     CharView *cv = (CharView *) GDrawGetUserData(gw);
-    uint32 changemask = (uint32) (intpt) mi->ti.userdata;
+    uint32_t changemask = (uint32_t) (intptr_t) mi->ti.userdata;
     /* Change which mms get displayed in the "background" */
 
     if ( mi->mid==MID_MMAll ) {
@@ -12355,7 +12361,7 @@ static void mvlistcheck(GWindow gw, struct gmenuitem *mi, GEvent *UNUSED(e)) {
     CharView *cv = (CharView *) GDrawGetUserData(gw);
     int i, base, j;
     MMSet *mm = cv->b.sc->parent->mm;
-    uint32 submask;
+    uint32_t submask;
     SplineFont *sub;
     GMenuItem2 *mml;
 
@@ -12376,15 +12382,15 @@ static void mvlistcheck(GWindow gw, struct gmenuitem *mi, GEvent *UNUSED(e)) {
 	    mml[i].ti.text = uc_copy(sub->fontname);
 	    mml[i].ti.checkable = true;
 	    mml[i].ti.checked = (cv->mmvisible & (1<<j))?1:0;
-	    mml[i].ti.userdata = (void *) (intpt) (1<<j);
+	    mml[i].ti.userdata = (void *) (intptr_t) (1<<j);
 	    mml[i].invoke = CVMenuShowMMMask;
 	    mml[i].ti.fg = mml[i].ti.bg = COLOR_DEFAULT;
 	    if ( sub==cv->b.sc->parent )
 		submask = (1<<j);
 	}
 	/* All */
-	mml[0].ti.userdata = (void *) (intpt) ((1<<j)-1);
-	mml[0].ti.checked = (cv->mmvisible == (uint32) (intpt) mml[0].ti.userdata);
+	mml[0].ti.userdata = (void *) (intptr_t) ((1<<j)-1);
+	mml[0].ti.checked = (cv->mmvisible == (uint32_t) (intptr_t) mml[0].ti.userdata);
 	    /* None */
 	mml[1].ti.checked = (cv->mmvisible == 0 || cv->mmvisible == submask);
     }
@@ -12478,9 +12484,6 @@ static GMenuItem2 mblist[] = {
 #ifndef _NO_PYTHON
     { { (unichar_t *) N_("_Tools"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'l' }, H_("Tools|No Shortcut"), NULL, cvpy_tllistcheck, NULL, 0 },
 #endif
-#ifdef NATIVE_CALLBACKS
-    { { (unichar_t *) N_("Tools_2"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'l' }, H_("Tools2|No Shortcut"), NULL, cv_tl2listcheck, NULL, 0},
-#endif
     { { (unichar_t *) N_("H_ints"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'H' }, H_("Hints|No Shortcut"), htlist, htlistcheck, NULL, 0 },
     { { (unichar_t *) N_("_View"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'V' }, H_("View|No Shortcut"), vwlist, vwlistcheck, NULL, 0 },
     { { (unichar_t *) N_("_Metrics"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'M' }, H_("Metrics|No Shortcut"), mtlist, mtlistcheck, NULL, 0 },
@@ -12499,9 +12502,6 @@ static GMenuItem2 mblist_nomm[] = {
 #ifndef _NO_PYTHON
     { { (unichar_t *) N_("_Tools"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 1, 0, 0, 0, 0, 0, 1, 1, 0, 'l' }, H_("Tools|No Shortcut"), NULL, cvpy_tllistcheck, NULL, 0 },
 #endif
-#ifdef NATIVE_CALLBACKS
-    { { (unichar_t *) N_("Tools_2"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 1, 0, 0, 0, 0, 0, 1, 1, 0, 'l' }, H_("Tools2|No Shortcut"), NULL, cv_tl2listcheck, NULL, 0},
-#endif
     { { (unichar_t *) N_("H_ints"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'H' }, H_("Hints|No Shortcut"), htlist, htlistcheck, NULL, 0 },
     { { (unichar_t *) N_("_View"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'V' }, H_("View|No Shortcut"), vwlist, vwlistcheck, NULL, 0 },
     { { (unichar_t *) N_("_Metrics"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'M' }, H_("Metrics|No Shortcut"), mtlist, mtlistcheck, NULL, 0 },
@@ -12516,16 +12516,13 @@ static void _CharViewCreate(CharView *cv, SplineChar *sc, FontView *fv,int enc,i
     GWindowAttrs wattrs;
     GGadgetData gd;
     int sbsize;
-    FontRequest rq;
     int as, ds, ld;
     extern int updateflex;
-    static char *infofamily=NULL;
     GTextBounds textbounds;
     /* extern int cv_auto_goto; */
     extern enum cvtools cv_b1_tool, cv_cb1_tool, cv_b2_tool, cv_cb2_tool;
 
-    if ( !cvcolsinited )
-	CVColInit();
+    CVColInit();
 
     static int firstCharView = 1;
     if( firstCharView )
@@ -12620,27 +12617,13 @@ static void _CharViewCreate(CharView *cv, SplineChar *sc, FontView *fv,int enc,i
 	/* Success! They've got a wacom tablet */
     }
 
-    if ( infofamily==NULL ) {
-	infofamily = copy(GResourceFindString("CharView.InfoFamily"));
-	/* FontConfig doesn't have access to all the X11 bitmap fonts */
-	/*  so the font I used to use isn't found, and a huge monster is */
-	/*  inserted instead */
-	if ( infofamily==NULL )
-	    infofamily = SANS_UI_FAMILIES;
-    }
-
-    memset(&rq,0,sizeof(rq));
-    rq.utf8_family_name = infofamily;
-    rq.point_size = GResourceFindInt("CharView.Rulers.FontSize", -10);
-    rq.weight = 400;
-    cv->small = GDrawInstanciateFont(cv->gw,&rq);
+    cv->small = cv_pointnumberfont.fi;
     GDrawWindowFontMetrics(cv->gw,cv->small,&as,&ds,&ld);
     cv->sfh = as+ds; cv->sas = as;
     GDrawSetFont(cv->gw,cv->small);
     GDrawGetText8Bounds(cv->gw,"0123456789",10,&textbounds);
     cv->sdh = textbounds.as+textbounds.ds+1;
-    rq.point_size = 10;
-    cv->normal = GDrawInstanciateFont(cv->gw,&rq);
+    cv->normal = cv_labelfont.fi;
     GDrawWindowFontMetrics(cv->gw,cv->normal,&as,&ds,&ld);
     cv->nfh = as+ds; cv->nas = as;
 
@@ -12678,7 +12661,6 @@ static void _CharViewCreate(CharView *cv, SplineChar *sc, FontView *fv,int enc,i
     cv->ft_dpi = 72; cv->ft_pointsizex = cv->ft_pointsizey = 12.0;
     cv->ft_ppemx = cv->ft_ppemy = 12;
 
-    /*GWidgetHidePalettes();*/
     /*cv->tools = CVMakeTools(cv);*/
     /*cv->layers = CVMakeLayers(cv);*/
 
@@ -12759,10 +12741,10 @@ static int CV_OnCharSelectorTextChanged( GGadget *g, GEvent *e )
 
 	if ( pos!=-1 )
 	{
-	    int32 len;
+	    int32_t len;
 	    GTextInfo **ti = GGadgetGetList(g,&len);
 	    GTextInfo *cur = ti[pos];
-	    int type = (intpt) cur->userdata;
+	    int type = (intptr_t) cur->userdata;
 	    if ( type < 0 )
 	    {
 		TRACE("load wordlist...! pos:%d\n",pos);
@@ -12870,7 +12852,6 @@ GTextInfo cv_charselector_init[] = {
     GTEXTINFO_EMPTY
 };
 
-
 CharView *CharViewCreateExtended(SplineChar *sc, FontView *fv,int enc, int show )
 {
     CharView *cv = calloc(1,sizeof(CharView));
@@ -12937,19 +12918,6 @@ CharView *CharViewCreateExtended(SplineChar *sc, FontView *fv,int enc, int show 
     memset(&gd,0,sizeof(gd));
     gd.flags = gg_visible | gg_enabled;
     helplist[0].invoke = CVMenuContextualHelp;
-#ifndef _NO_PYTHON
-    if ( cvpy_menu!=NULL )
-	mblist[4].ti.disabled = mblist_nomm[4].ti.disabled = false;
-    mblist[4].sub = mblist_nomm[4].sub = cvpy_menu;
-#define CALLBACKS_INDEX 5 /* FIXME: There has to be a better way than this. */
-#else
-#define CALLBACKS_INDEX 4 /* FIXME: There has to be a better way than this. */
-#endif		/* _NO_PYTHON */
-#ifdef NATIVE_CALLBACKS
-    if ( cv_menu!=NULL )
-	mblist[CALLBACKS_INDEX].ti.disabled = mblist_nomm[CALLBACKS_INDEX].ti.disabled = false;
-    mblist[CALLBACKS_INDEX].sub = mblist_nomm[CALLBACKS_INDEX].sub = cv_menu;
-#endif		/* NATIVE_CALLBACKS */
     gd.u.menu2 = sc->parent->mm==NULL ? mblist_nomm : mblist;
     cv->mb = GMenu2BarCreate( gw, &gd, NULL);
     GGadgetGetSize(cv->mb,&gsize);
@@ -13098,6 +13066,16 @@ void CharViewFinishNonStatic() {
   CharViewFinish();
 }
 
+#ifndef _NO_PYTHON
+void CVSetToolsSubmenu(GMenuItem2 *py_menu) {
+    mblist[4].ti.disabled = mblist_nomm[4].ti.disabled = (py_menu == NULL);
+    mblist[4].sub = mblist_nomm[4].sub = py_menu;
+}
+static GMenuItem2 *CVGetToolsSubmenu(void) {
+    return mblist[4].sub;
+}
+#endif
+
 static void CharViewInit(void) {
     int i;
     // static int done = false; // superseded by charview_ready.
@@ -13107,7 +13085,17 @@ return;
     charview_ready = true;
 //    TRACE("CharViewInit(top) mblist[0].text before translation: %s\n", mblist[0].ti.text );
 
+// The tools menu handles its own translation. I would rather do this by testing
+// whether ti.text_untranslated is already null but there are hundreds of missing
+// initializers for that field in the menu layout code.
+#ifndef _NO_PYTHON
+    GMenuItem2 *t = CVGetToolsSubmenu();
+    CVSetToolsSubmenu(NULL);
+#endif
     mb2DoGetText(mblist);
+#ifndef _NO_PYTHON
+    CVSetToolsSubmenu(t);
+#endif
 
 //    TRACE("CharViewInit(2) mblist[0].text after    translation: %s\n", u_to_c(mblist[0].ti.text) );
 //    TRACE("CharViewInit(2) mblist[0].text_untranslated notrans: %s\n", mblist[0].ti.text_untranslated );
@@ -13149,6 +13137,7 @@ static int nested_cv_e_h(GWindow gw, GEvent *event) {
 	    else
 		CVVScroll(cv,&event->u.control.u.sb);
 	  break;
+	  default: break;
 	}
       break;
       case et_map:
@@ -13171,6 +13160,7 @@ static int nested_cv_e_h(GWindow gw, GEvent *event) {
 	GGadgetEndPopup();
 	CVPaletteActivate(cv);
       break;
+      default: break;
     }
 return( true );
 }
@@ -13191,7 +13181,7 @@ void SVCharViewInits(SearchView *sv) {
     sv->mbh = gsize.height;
 
     pos.y = sv->mbh+sv->fh+10; pos.height = 220;
-    pos.width = pos.height; pos.x = 10+pos.width+20;	/* Do replace first so palettes appear propperly */
+    pos.width = pos.height; pos.x = 10+pos.width+20;	/* Do replace first so palettes appear properly */
     sv->rpl_x = pos.x; sv->cv_y = pos.y;
     sv->cv_height = pos.height; sv->cv_width = pos.width;
     memset(&wattrs,0,sizeof(wattrs));
@@ -13456,38 +13446,129 @@ struct cv_interface gdraw_cv_interface = {
     CV_LayerPaletteCheck
 };
 
+
+int CVPalettesRIInit(GResInfo *ri) {
+    extern GBox _ggadget_Default_Box;
+    extern GResInfo ggadget_ri;
+    if ( ri->is_initialized )
+	return false;
+    GResEditDoInit(&ggadget_ri);
+    cvpalettefgcol = GDrawGetDefaultForeground(NULL);
+    cvpalettebgcol = GDrawGetDefaultBackground(NULL);
+    cvpaletteactborcol = _ggadget_Default_Box.active_border;
+    return _GResEditInitialize(ri);
+}
+
 extern GResInfo bitmapview_ri;
-GResInfo charview2_ri = {
+GResInfo cvpalettes_ri = {
     &bitmapview_ri, NULL,NULL, NULL,
     NULL,
     NULL,
     NULL,
-    charview2_re,
-    N_("Outline View 2"),
-    N_("This window displays a single outline glyph (more data)"),
+    cvpalettes_re,
+    N_("Palettes"),
+    N_("Colors, etc. of the Outline, Bitmap, and Layer palettes"),
     "CharView",
     "fontforge",
     false,
+    false,
     0,
+    GBOX_EMPTY,
+    GBOX_EMPTY,
     NULL,
+    CVPalettesRIInit,
+    NULL
+};
+GResInfo charviewraster_ri = {
+    &cvpalettes_ri, NULL,NULL, NULL,
+    NULL,
+    NULL,
+    NULL,
+    charviewraster_re,
+    N_("Outline Raster"),
+    N_("Colors related to images and font rasterizing"),
+    "CharView",
+    "fontforge",
+    false,
+    false,
+    0,
+    GBOX_EMPTY,
     GBOX_EMPTY,
     NULL,
     NULL,
     NULL
 };
-GResInfo charview_ri = {
-    &charview2_ri, NULL,NULL, NULL,
+GResInfo charviewhints_ri = {
+    &charviewraster_ri, NULL,NULL, NULL,
     NULL,
     NULL,
     NULL,
-    charview_re,
-    N_("Outline View"),
-    N_("This window displays a single outline glyph"),
+    charviewhints_re,
+    N_("Outline Hints"),
+    N_("Colors related to CFF/PostScript hints"),
     "CharView",
     "fontforge",
     false,
+    false,
     0,
+    GBOX_EMPTY,
+    GBOX_EMPTY,
     NULL,
+    NULL,
+    NULL
+};
+GResInfo charviewtools_ri = {
+    &charviewhints_ri, NULL,NULL, NULL,
+    NULL,
+    NULL,
+    NULL,
+    charviewtools_re,
+    N_("Outline Tools"),
+    N_("Colors, etc. related to tool use in outline window"),
+    "CharView",
+    "fontforge",
+    false,
+    false,
+    0,
+    GBOX_EMPTY,
+    GBOX_EMPTY,
+    NULL,
+    NULL,
+    NULL
+};
+GResInfo charviewlinesfills_ri = {
+    &charviewtools_ri, NULL,NULL, NULL,
+    NULL,
+    NULL,
+    NULL,
+    charviewlinesfills_re,
+    N_("Outline Lines/Fills"),
+    N_("Colors of lines and fills in outline window"),
+    "CharView",
+    "fontforge",
+    false,
+    false,
+    0,
+    GBOX_EMPTY,
+    GBOX_EMPTY,
+    NULL,
+    NULL,
+    NULL
+};
+GResInfo charviewpoints_ri = {
+    &charviewlinesfills_ri, NULL,NULL, NULL,
+    NULL,
+    NULL,
+    NULL,
+    charviewpoints_re,
+    N_("Outline Points"),
+    N_("Colors, etc of points in glyph outline window"),
+    "CharView",
+    "fontforge",
+    false,
+    false,
+    0,
+    GBOX_EMPTY,
     GBOX_EMPTY,
     NULL,
     NULL,

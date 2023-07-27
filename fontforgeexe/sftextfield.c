@@ -27,7 +27,6 @@
 
 #include <fontforge-config.h>
 
-#include "chardata.h"
 #include "fontforgeui.h"
 #include "gkeysym.h"
 #include "langfreq.h"
@@ -41,11 +40,32 @@
 #include <math.h>
 
 static GBox sftextarea_box = GBOX_EMPTY; /* Don't initialize here */
-static int sftextarea_inited = false;
-static FontInstance *sftextarea_font;
+static GResFont sftextarea_font = GRESFONT_INIT("400 10pt " MONO_UI_FAMILIES);
+extern GBox _ggadget_Default_Box;
+#define MAIN_FOREGROUND (_ggadget_Default_Box.main_foreground)
 
 static unichar_t nullstr[] = { 0 }, 
 	newlinestr[] = { '\n', 0 }, tabstr[] = { '\t', 0 };
+
+GResInfo sftextarea_ri = {
+    NULL, &ggadget_ri,NULL, NULL,
+    &sftextarea_box,
+    &sftextarea_font,
+    NULL,
+    NULL,
+    N_("SFTextArea"),
+    N_("SFTextArea"),
+    "SFTextArea",
+    "fontforge",
+    false,
+    false,
+    omf_padding|box_active_border_inner,
+    { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    GBOX_EMPTY,
+    NULL,
+    NULL,
+    NULL
+};
 
 static int SFTextArea_Show(SFTextArea *st, int pos);
 static void GTPositionGIC(SFTextArea *st);
@@ -341,7 +361,7 @@ static int SFTextArea_Show(SFTextArea *st, int pos) {
 return( refresh );
 }
 
-static void *genunicodedata(void *_gt,int32 *len) {
+static void *genunicodedata(void *_gt,int32_t *len) {
     SFTextArea *st = _gt;
     unichar_t *temp;
     *len = st->sel_end-st->sel_start + 1;
@@ -352,7 +372,7 @@ static void *genunicodedata(void *_gt,int32 *len) {
 return( temp );
 }
 
-static void *genutf8data(void *_gt,int32 *len) {
+static void *genutf8data(void *_gt,int32_t *len) {
     SFTextArea *st = _gt;
     unichar_t *temp =u_copyn(st->li.text+st->sel_start,st->sel_end-st->sel_start);
     char *ret = u2utf8_copy(temp);
@@ -361,7 +381,7 @@ static void *genutf8data(void *_gt,int32 *len) {
 return( ret );
 }
 
-static void *ddgenunicodedata(void *_gt,int32 *len) {
+static void *ddgenunicodedata(void *_gt,int32_t *len) {
     void *temp = genunicodedata(_gt,len);
     SFTextArea *st = _gt;
     _SFTextAreaReplace(st,nullstr);
@@ -369,7 +389,7 @@ static void *ddgenunicodedata(void *_gt,int32 *len) {
 return( temp );
 }
 
-static void *genlocaldata(void *_gt,int32 *len) {
+static void *genlocaldata(void *_gt,int32_t *len) {
     SFTextArea *st = _gt;
     unichar_t *temp =u_copyn(st->li.text+st->sel_start,st->sel_end-st->sel_start);
     char *ret = u2def_copy(temp);
@@ -378,7 +398,7 @@ static void *genlocaldata(void *_gt,int32 *len) {
 return( ret );
 }
 
-static void *ddgenlocaldata(void *_gt,int32 *len) {
+static void *ddgenlocaldata(void *_gt,int32_t *len) {
     void *temp = genlocaldata(_gt,len);
     SFTextArea *st = _gt;
     _SFTextAreaReplace(st,nullstr);
@@ -420,7 +440,7 @@ static void SFTextAreaGrabSelection(SFTextArea *st, enum selnames sel ) {
 	unichar_t *temp;
 	char *ctemp;
 	int i;
-	uint16 *u2temp;
+	uint16_t *u2temp;
 
 	GDrawGrabSelection(st->g.base,sel);
 	temp = malloc((st->sel_end-st->sel_start + 2)*sizeof(unichar_t));
@@ -430,7 +450,7 @@ static void SFTextAreaGrabSelection(SFTextArea *st, enum selnames sel ) {
 	GDrawAddSelectionType(st->g.base,sel,"text/plain;charset=ISO-10646-UCS-4",temp,u_strlen(temp),
 		sizeof(unichar_t),
 		NULL,NULL);
-	u2temp = malloc((st->sel_end-st->sel_start + 2)*sizeof(uint16));
+	u2temp = malloc((st->sel_end-st->sel_start + 2)*sizeof(uint16_t));
 	for ( i=0; temp[i]!=0; ++i )
 	    u2temp[i] = temp[i];
 	u2temp[i] = 0;
@@ -480,7 +500,7 @@ static int SFTextAreaSelForeword(unichar_t *text,int end) {
 return( end );
 }
 
-static void SFTextAreaSelectWord(SFTextArea *st,int mid, int16 *start, int16 *end) {
+static void SFTextAreaSelectWord(SFTextArea *st,int mid, int16_t *start, int16_t *end) {
     unichar_t *text = st->li.text;
     unichar_t ch = text[mid];
 
@@ -508,7 +528,7 @@ static void SFTextAreaSelectWord(SFTextArea *st,int mid, int16 *start, int16 *en
 }
 
 static void SFTextAreaSelectWords(SFTextArea *st,int last) {
-    int16 ss, se;
+    int16_t ss, se;
     SFTextAreaSelectWord(st,st->sel_base,&st->sel_start,&st->sel_end);
     if ( last!=st->sel_base ) {
 	SFTextAreaSelectWord(st,last,&ss,&se);
@@ -521,7 +541,7 @@ static void SFTextAreaPaste(SFTextArea *st,enum selnames sel) {
     if ( GDrawSelectionHasType(st->g.base,sel,"UTF8_STRING") ||
 	    GDrawSelectionHasType(st->g.base,sel,"text/plain;charset=UTF-8")) {
 	unichar_t *temp; char *ctemp;
-	int32 len;
+	int32_t len;
 	if ( GDrawSelectionHasType(st->g.base,sel,"UTF8_STRING") )
 	    ctemp = GDrawRequestSelection(st->g.base,sel,"UTF8_STRING",&len);
 	else
@@ -533,7 +553,7 @@ static void SFTextAreaPaste(SFTextArea *st,enum selnames sel) {
 	}
     } else if ( GDrawSelectionHasType(st->g.base,sel,"text/plain;charset=ISO-10646-UCS-4")) {
 	unichar_t *temp;
-	int32 len;
+	int32_t len;
 	temp = GDrawRequestSelection(st->g.base,sel,"text/plain;charset=ISO-10646-UCS-4",&len);
 	/* Bug! I don't handle byte reversed selections. But I don't think there should be any anyway... */
 	if ( temp!=NULL )
@@ -542,8 +562,8 @@ static void SFTextAreaPaste(SFTextArea *st,enum selnames sel) {
     } else if ( GDrawSelectionHasType(st->g.base,sel,"Unicode") ||
 	    GDrawSelectionHasType(st->g.base,sel,"text/plain;charset=ISO-10646-UCS-2")) {
 	unichar_t *temp;
-	uint16 *temp2;
-	int32 len;
+	uint16_t *temp2;
+	int32_t len;
 	temp2 = GDrawRequestSelection(st->g.base,sel,"text/plain;charset=ISO-10646-UCS-2",&len);
 	if ( temp2==NULL || len==0 )
 	    temp2 = GDrawRequestSelection(st->g.base,sel,"Unicode",&len);
@@ -559,7 +579,7 @@ static void SFTextAreaPaste(SFTextArea *st,enum selnames sel) {
 	free(temp2);
     } else if ( GDrawSelectionHasType(st->g.base,sel,"STRING")) {
 	unichar_t *temp; char *ctemp;
-	int32 len;
+	int32_t len;
 	ctemp = GDrawRequestSelection(st->g.base,sel,"STRING",&len);
 	if ( ctemp!=NULL ) {
 	    temp = def2u_copy(ctemp);
@@ -596,7 +616,7 @@ return( true );
 	if ( st->li.oldtext!=NULL ) {
 	    unichar_t *temp = st->li.text;
 	    struct fontlist *ofl = st->li.fontlist;
-	    int16 s;
+	    int16_t s;
 	    st->li.text = st->li.oldtext; st->li.oldtext = temp;
 	    st->li.fontlist = st->li.oldfontlist; st->li.oldfontlist = ofl;
 	    s = st->sel_start; st->sel_start = st->sel_oldstart; st->sel_oldstart = s;
@@ -627,6 +647,7 @@ return( true );
 	    SFTextAreaSelectWord(st,st->sel_start,&st->sel_start,&st->sel_end);
 	SFTextArea_Replace(st,nullstr);
 return( true );
+      case ec_search: case ec_backsearch: case ec_max: break;
     }
 return( false );
 }
@@ -686,7 +707,7 @@ static void SFTextAreaInsertRandom(SFTextArea *st) {
     struct fontlist *fl, *prev;
     char **scriptlangs;
     int i,cnt;
-    uint32 script, lang;
+    uint32_t script, lang;
     char *utf8_str;
     unichar_t *str;
     int start, pos;
@@ -1210,9 +1231,48 @@ return;
     GDrawSetGIC(st->g.base,st->gic,st->g.inner.x+x,st->g.inner.y+y+st->as);
 }
 
-static void gt_draw_cursor(GWindow pixmap, SFTextArea *st) {
-    GRect old;
+static void gt_set_dd_cursor(SFTextArea *st, int pos) {
+    st->has_dd_cursor = true;
+    st->dd_cursor_pos = pos;
+}
+
+static void gt_request_redraw_cursor(GWindow pixmap, SFTextArea *st) {
+    GRect clip;
     int x, y, fh;
+
+    gt_cursor_pos(st,&x,&y,&fh);
+
+    if ( x<0 || x>=st->g.inner.width )
+return;
+
+    clip.x = st->g.inner.x + x;
+    clip.y = st->g.inner.y + y;
+    clip.width = 1;
+    clip.height = fh + 1;
+
+    GDrawRequestExpose(pixmap, &clip, false);
+}
+
+static void gt_draw_cursor(GWindow pixmap, SFTextArea *st) {
+    int x, y, fh, l;
+
+    if (st->has_dd_cursor) {
+        st->has_dd_cursor = false;
+        l = SFTextAreaFindLine(st, st->dd_cursor_pos);
+        y = st->li.lineheights[l].y - st->li.lineheights[st->loff_top].y;
+        if (y < 0 || y > st->g.inner.height)
+            return;
+        x = SFTextAreaGetXPosFromOffset(st, l, st->dd_cursor_pos);
+        if (x < 0 || x >= st->g.inner.width)
+            return;
+
+        GDrawSetLineWidth(st->g.base,0);
+        GDrawSetDashedLine(st->g.base,2,2,0);
+        GDrawDrawLine(st->g.base,st->g.inner.x+x,st->g.inner.y+y,
+            st->g.inner.x+x,st->g.inner.y+y+st->li.lineheights[l].fh,MAIN_FOREGROUND);
+        GDrawSetDashedLine(st->g.base,0,0,0);
+        return;
+    }
 
     if ( !st->cursor_on || st->sel_start != st->sel_end )
 return;
@@ -1220,39 +1280,13 @@ return;
 
     if ( x<0 || x>=st->g.inner.width )
 return;
-    GDrawPushClip(pixmap,&st->g.inner,&old);
-    GDrawSetDifferenceMode(pixmap);
-    GDrawDrawLine(pixmap, st->g.inner.x+x,st->g.inner.y+y,
-	    st->g.inner.x+x,st->g.inner.y+y+fh, COLOR_WHITE);
-    GDrawPopClip(pixmap,&old);
-}
-
-static void SFTextAreaDrawDDCursor(SFTextArea *st, int pos) {
-    GRect old;
-    int x, y, l;
-
-    l = SFTextAreaFindLine(st,pos);
-    y = st->li.lineheights[l].y - st->li.lineheights[st->loff_top].y;
-    if ( y<0 || y>st->g.inner.height )
-return;
-    x = SFTextAreaGetXPosFromOffset(st,l,pos);
-    if ( x<0 || x>=st->g.inner.width )
-return;
-
-    GDrawPushClip(st->g.base,&st->g.inner,&old);
-    GDrawSetDifferenceMode(st->g.base);
-    GDrawDrawLine(st->g.base,st->g.inner.x+x,st->g.inner.y+y,
-	    st->g.inner.x+x,st->g.inner.y+y+st->li.lineheights[l].fh,
-        COLOR_WHITE);
-    GDrawPopClip(st->g.base,&old);
-    GDrawSetDashedLine(st->g.base,0,0,0);
-    st->has_dd_cursor = !st->has_dd_cursor;
-    st->dd_cursor_pos = pos;
+    GDrawDrawLine(pixmap,st->g.inner.x+x,st->g.inner.y+y,
+	    st->g.inner.x+x,st->g.inner.y+y+fh, MAIN_FOREGROUND);
 }
 
 static int sftextarea_expose(GWindow pixmap, GGadget *g, GEvent *event) {
     SFTextArea *st = (SFTextArea *) g;
-    GRect old1, old2, *r = &g->r, selr;
+    GRect old1, old2, old3, *r = &g->r, selr;
     Color fg,sel;
     int y,x,p,i,dotext,j,xend;
     struct opentype_str **line;
@@ -1260,13 +1294,23 @@ static int sftextarea_expose(GWindow pixmap, GGadget *g, GEvent *event) {
     if ( g->state == gs_invisible || st->dontdraw )
 return( false );
 
-    GDrawPushClip(pixmap,r,&old1);
+    GDrawPushClip(pixmap,&event->u.expose.rect, &old1);
+    GDrawPushClip(pixmap,r,&old2);
 
-    GBoxDrawBackground(pixmap,r,g->box,
-	    g->state==gs_enabled? gs_pressedactive: g->state,false);
-    GBoxDrawBorder(pixmap,r,g->box,g->state,false);
+    if (!GDrawClipContains(pixmap, &g->inner, true)) {
+        GBoxDrawBackground(pixmap,r,g->box,
+            g->state==gs_enabled? gs_pressedactive: g->state,false);
+        GBoxDrawBorder(pixmap,r,g->box,g->state,false);
+    } else {
+        // It's clipped enough that the border shape doesn't matter, so do a rect fill for speed
+        enum border_shape old = g->box->border_shape;
+        g->box->border_shape = bs_rect;
+        GBoxDrawBackground(pixmap,r,g->box,
+           g->state==gs_enabled? gs_pressedactive: g->state,false);
+        g->box->border_shape = old;
+    }
 
-    GDrawPushClip(pixmap,&g->inner,&old2);
+    GDrawPushClip(pixmap,&g->inner,&old3);
     GDrawSetFont(pixmap,st->font);
     GDrawSetDither(NULL, false);	/* on 8 bit displays we don't want any dithering */
     GDrawSetLineWidth(pixmap,0);
@@ -1327,21 +1371,18 @@ return( false );
     }
 
     GDrawSetDither(NULL, true);
+    gt_draw_cursor(pixmap, st);
+    GDrawPopClip(pixmap,&old3);
     GDrawPopClip(pixmap,&old2);
     GDrawPopClip(pixmap,&old1);
-    gt_draw_cursor(pixmap, st);
 return( true );
 }
 
 static int SFTextAreaDoDrop(SFTextArea *st,GEvent *event,int endpos) {
-
-    if ( st->has_dd_cursor )
-	SFTextAreaDrawDDCursor(st,st->dd_cursor_pos);
-
     if ( event->type == et_mousemove ) {
 	if ( GGadgetInnerWithin(&st->g,event->u.mouse.x,event->u.mouse.y) ) {
 	    if ( endpos<st->sel_start || endpos>=st->sel_end )
-		SFTextAreaDrawDDCursor(st,endpos);
+		gt_set_dd_cursor(st, endpos);
 	} else if ( !GGadgetWithin(&st->g,event->u.mouse.x,event->u.mouse.y) ) {
 	    GDrawPostDragEvent(st->g.base,event,et_drag);
 	}
@@ -1393,8 +1434,8 @@ static int SFTextAreaDoDrop(SFTextArea *st,GEvent *event,int endpos) {
 	}
 	st->drag_and_drop = false;
 	GDrawSetCursor(st->g.base,st->old_cursor);
-	_ggadget_redraw(&st->g);
     }
+    _ggadget_redraw(&st->g);
 return( false );
 }
 
@@ -1569,10 +1610,7 @@ return( false );
 	st->hidden_cursor = true;
 	_GWidget_SetGrabGadget(g);	/* so that we get the next mouse movement to turn the cursor on */
     }
-    if( st->cursor_on ) {	/* undraw the blinky text cursor if it is drawn */
-	gt_draw_cursor(g->base, st);
-	st->cursor_on = false;
-    }
+    st->cursor_on = false; // Hide the cursor
 
     ret = SFTextAreaDoChange(st,event);
     if ( st->changefontcallback )
@@ -1620,14 +1658,9 @@ static int sftextarea_timer(GGadget *g, GEvent *event) {
 
     if ( !g->takes_input || (g->state!=gs_enabled && g->state!=gs_active && g->state!=gs_focused ))
 return(false);
-    if ( st->cursor == event->u.timer.timer ) {
-	if ( st->cursor_on ) {
-	    gt_draw_cursor(g->base, st);
-	    st->cursor_on = false;
-	} else {
-	    st->cursor_on = true;
-	    gt_draw_cursor(g->base, st);
-	}
+    if ( st->cursor == event->u.timer.timer && st->sel_start == st->sel_end ) {
+	st->cursor_on = !st->cursor_on;
+	gt_request_redraw_cursor(g->base, st);
 return( true );
     }
     if ( st->pressed == event->u.timer.timer ) {
@@ -1701,8 +1734,6 @@ return( true );
 return( false );
     }
 
-    if ( st->has_dd_cursor )
-	SFTextAreaDrawDDCursor(st,st->dd_cursor_pos);
     GDrawSetFont(g->base,st->font);
     for ( i=st->loff_top ; i<st->li.lcnt-1 && st->li.lineheights[i+1].y-st->li.lineheights[st->loff_top].y<
 	    event->u.drag_drop.y-g->inner.y; ++i );
@@ -1712,7 +1743,7 @@ return( false );
     else
 	end = SFTextAreaGetOffsetFromXPos(st,i,event->u.drag_drop.x - st->g.inner.x - st->xoff_left);
     if ( event->type == et_drag ) {
-	SFTextAreaDrawDDCursor(st,end);
+	gt_set_dd_cursor(st, end);
     } else if ( event->type == et_dragout ) {
 	/* this event exists simply to clear the dd cursor line. We've done */
 	/*  that already */ 
@@ -1720,10 +1751,10 @@ return( false );
 	st->sel_start = st->sel_end = st->sel_base = end;
 	SFTextAreaPaste(st,sn_drag_and_drop);
 	SFTextArea_Show(st,st->sel_start);
-	_ggadget_redraw(&st->g);
     } else
 return( false );
 
+_ggadget_redraw(&st->g);
 return( true );
 }
 
@@ -1815,7 +1846,7 @@ static void sftextarea_redraw(GGadget *g) {
     _ggadget_redraw(g);
 }
 
-static void sftextarea_move(GGadget *g, int32 x, int32 y ) {
+static void sftextarea_move(GGadget *g, int32_t x, int32_t y ) {
     SFTextArea *st = (SFTextArea *) g;
     if ( st->vsb!=NULL )
 	_ggadget_move((GGadget *) (st->vsb),x+(st->vsb->g.r.x-g->r.x),y);
@@ -1824,7 +1855,7 @@ static void sftextarea_move(GGadget *g, int32 x, int32 y ) {
     _ggadget_move(g,x,y);
 }
 
-static void sftextarea_resize(GGadget *g, int32 width, int32 height ) {
+static void sftextarea_resize(GGadget *g, int32_t width, int32_t height ) {
     SFTextArea *st = (SFTextArea *) g;
     int gtwidth=width, gtheight=height, oldheight=0;
     int l;
@@ -2079,21 +2110,6 @@ struct gfuncs sftextarea_funcs = {
     NULL
 };
 
-static void SFTextAreaInit() {
-    FontRequest rq;
-
-    GGadgetInit();
-    GDrawDecomposeFont(_ggadget_default_font,&rq);
-    rq.utf8_family_name = MONO_UI_FAMILIES;
-    sftextarea_font = GDrawInstanciateFont(NULL,&rq);
-    sftextarea_font = GResourceFindFont("SFTextArea.Font",sftextarea_font);
-    _GGadgetCopyDefaultBox(&sftextarea_box);
-    sftextarea_box.padding = 3;
-    sftextarea_box.flags = box_active_border_inner;
-    sftextarea_font = _GGadgetInitDefaultBox("SFTextArea.",&sftextarea_box,sftextarea_font);
-    sftextarea_inited = true;
-}
-
 static void SFTextAreaAddVSb(SFTextArea *st) {
     GGadgetData gd;
 
@@ -2204,16 +2220,13 @@ static void SFTextAreaFit(SFTextArea *st) {
 
 static SFTextArea *_SFTextAreaCreate(SFTextArea *st, struct gwindow *base, GGadgetData *gd,void *data, GBox *def) {
 
-    if ( !sftextarea_inited )
-	SFTextAreaInit();
+    GResEditDoInit(&sftextarea_ri);
     st->g.funcs = &sftextarea_funcs;
     _GGadget_Create(&st->g,base,gd,data,def);
 
     st->g.takes_input = true; st->g.takes_keyboard = true; st->g.focusable = true;
     if ( gd->label!=NULL ) {
-	if ( gd->label->text_in_resource )	/* This one use of GStringGetResource is ligit */
-	    st->li.text = u_copy((unichar_t *) GStringGetResource((intpt) gd->label->text,&st->g.mnemonic));
-	else if ( gd->label->text_is_1byte )
+	if ( gd->label->text_is_1byte )
 	    st->li.text = utf82u_copy((char *) gd->label->text);
 	else
 	    st->li.text = u_copy(gd->label->text);
@@ -2221,7 +2234,7 @@ static SFTextArea *_SFTextAreaCreate(SFTextArea *st, struct gwindow *base, GGadg
     }
     if ( st->li.text==NULL )
 	st->li.text = calloc(1,sizeof(unichar_t));
-    st->font = sftextarea_font;
+    st->font = sftextarea_font.fi;
     if ( gd->label!=NULL && gd->label->font!=NULL )
 	st->font = gd->label->font;
     SFTextAreaFit(st);
@@ -2356,7 +2369,7 @@ int SFTFSetAntiAlias(GGadget *g, int start, int end, int antialias) {
 return( true );
 }
 
-int SFTFSetScriptLang(GGadget *g, int start, int end, uint32 script, uint32 lang) {
+int SFTFSetScriptLang(GGadget *g, int start, int end, uint32_t script, uint32_t lang) {
     SFTextArea *st = (SFTextArea *) g;
     struct fontlist *fl;
 
@@ -2376,7 +2389,7 @@ int SFTFSetScriptLang(GGadget *g, int start, int end, uint32 script, uint32 lang
 return( true );
 }
 
-int SFTFSetFeatures(GGadget *g, int start, int end, uint32 *features) {
+int SFTFSetFeatures(GGadget *g, int start, int end, uint32_t *features) {
     SFTextArea *st = (SFTextArea *) g;
     struct fontlist *fl;
 
@@ -2393,7 +2406,7 @@ return( true );
 }
 
 void SFTFRegisterCallback(GGadget *g, void *cbcontext,
-	void (*changefontcallback)(void *,SplineFont *,enum sftf_fonttype,int size,int aa, uint32 script, uint32 lang, uint32 *feats)) {
+	void (*changefontcallback)(void *,SplineFont *,enum sftf_fonttype,int size,int aa, uint32_t script, uint32_t lang, uint32_t *feats)) {
     SFTextArea *st = (SFTextArea *) g;
 
     st->cbcontext = cbcontext;

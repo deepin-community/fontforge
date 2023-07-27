@@ -43,10 +43,10 @@
 # endif
 
 /* 'PfEd' table format is as follows...				 */
-/* uint32  version number 0x00010000				 */
-/* uint32  subtable count					 */
-/* struct { uint32 tab, offset } tag/offset for first subtable	 */
-/* struct { uint32 tab, offset } tag/offset for second subtable	 */
+/* uint32_t  version number 0x00010000				 */
+/* uint32_t  subtable count					 */
+/* struct { uint32_t tab, offset } tag/offset for first subtable	 */
+/* struct { uint32_t tab, offset } tag/offset for second subtable	 */
 /* ...								 */
 
 /* 'PfEd' 'fcmt' font comment subtable format			 */
@@ -61,9 +61,9 @@
  /*  struct { short start-glyph, end-glyph, short offset }	 */
  /*  ...							 */
  /*  foreach glyph >=start-glyph, <=end-glyph(+1)		 */
- /*   uint32 offset		to glyph comment string (in UCS2)*/
+ /*   uint32_t offset		to glyph comment string (in UCS2)*/
  /*  ...							 */
- /*  And one last offset pointing beyong the end of the last string to enable length calculations */
+ /*  And one last offset pointing beyond the end of the last string to enable length calculations */
  /*  String table in UCS2 (NUL terminated). All offsets from start*/
  /*   of subtable */
 
@@ -74,9 +74,9 @@
 /*  struct { short start-glyph, end-glyph, short offset }	 */
 /*  ...								 */
 /*  foreach glyph >=start-glyph, <=end-glyph(+1)		 */
-/*   uint32 offset		to glyph comment string (in utf8)*/
+/*   uint32_t offset		to glyph comment string (in utf8)*/
 /*  ...								 */
-/*  And one last offset pointing beyong the end of the last string to enable length calculations */
+/*  And one last offset pointing beyond the end of the last string to enable length calculations */
 /*  String table in utf8 (NUL terminated). All offsets from start*/
 /*   of subtable */
 
@@ -91,7 +91,7 @@
 /* 'PfEd' 'colr' glyph colour subtable				 */
 /*  short  version number 0					 */
 /*  short  count-of-ranges					 */
-/*  struct { short start-glyph, end-glyph, uint32 colour (rgb) } */
+/*  struct { short start-glyph, end-glyph, uint32_t colour (rgb) } */
 
 /* 'PfEd' 'GPOS' GPOS lookup/subtable/anchor names		 */
 /*  short  version number 0					 */
@@ -116,7 +116,7 @@
 /*  struct { ushort offset; ushort name-off}[contour-count]	 */
 /*  struct { ??? }[image-count]					 */
 /* Each contour consists of one byte of command and a random     */
-/*  amount of data dependant on the command.			 */
+/*  amount of data dependent on the command.			 */
 /* See below for a description of the command verbs		 */
 /* string data in utf8 */
 /*  (offsets relative to start of glyph_layer structure )	 */
@@ -136,15 +136,15 @@
 /* 'PfEd' 'layr' layer data					 */
 /*  short  version number 0					 */
 /*  short  layer-count						 */
-/*  struct { short typeflags; short offset-name; uint32 offset-to-layer-data; } */
+/*  struct { short typeflags; short offset-name; uint32_t offset-to-layer-data; } */
 /*   the layer type is 2=>quadratic, 3=>PostScript, 1=>spiro	 */
 /*                     0x102=>quadratic fore, 0x103=>PS fore	 */
 /* A layer:							 */
 /*  short  count-of-ranges					 */
-/*  struct { short start-glyph, end-glyph, uint32 offset }	 */
+/*  struct { short start-glyph, end-glyph, uint32_t offset }	 */
 /*  ...								 */
 /*  foreach glyph >=start-glyph, <=end-glyph			 */
-/*   uint32 offset		to per-glyph outline data        */
+/*   uint32_t offset		to per-glyph outline data        */
 /*  many glyph_layers						 */
 /* (all offsets, except those in the glyph_layers, relative to start of subtable) */
 
@@ -167,7 +167,7 @@
 
 
 /* The layer commands used to draw quadratic and cubic layers have two   */
-/*  componants: A verb, which says what to do, and a modifier which says */
+/*  components: A verb, which says what to do, and a modifier which says */
 /*  how the data are stored. So a command looks like (verb)|(modifier)   */
 /* A moveto command with byte data looks like (V_MoveTo|V_B)             */
 /*  The two commands to end a contour (V_Close and V_End) take no data   */

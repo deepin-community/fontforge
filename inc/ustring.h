@@ -31,7 +31,6 @@
 #include <fontforge-config.h>
 
 #include "basics.h"
-#include "charset.h"
 
 #include <memory.h>
 #include <stdarg.h>
@@ -47,6 +46,8 @@
 #else
 #  define PRINTF_FORMAT_ATTRIBUTE(x, y)
 #endif
+
+extern bool SetupUCharMap(const char* unichar_name, const char* local_name, bool is_local_utf8);
 
 extern char *copy(const char *);
 extern char *copyn(const char *,long);
@@ -122,13 +123,13 @@ extern unichar_t *u_strstartmatch(const unichar_t *initial, const unichar_t *ful
 extern unichar_t *cu_strstartmatch(const char *initial, const unichar_t *full);
 
 #define utf82u_strncpy utf82U_strncpy
-extern int32 utf8_ildb(const char **utf8_text);
+extern int32_t utf8_ildb(const char **utf8_text);
 #define UTF8IDPB_NOZERO 1	/* Allow for 0 encoded as a non-zero utf8 0xc0:0x80 char */
 #define UTF8IDPB_OLDLIMIT 2	/* Today's utf8 is agreed to be limited to {0..0x10FFFF} */
 #define UTF8IDPB_UCS2 8		/* Encode {0...0xffff} as 16bit ucs2 type values */
 #define UTF8IDPB_UTF16 16	/* Encode {0...0x10ffff} as 16bit utf16 type values */
 #define UTF8IDPB_UTF32 32	/* Encode {0...0x10ffff} as 32bit utf32 type values */
-extern char *utf8_idpb(char *utf8_text,uint32 ch,int flags);
+extern char *utf8_idpb(char *utf8_text,uint32_t ch,int flags);
 extern char *utf8_db(char *utf8_text);
 extern char *utf8_ib(char *utf8_text);
 extern int utf8_valid(const char *str);
@@ -152,8 +153,6 @@ extern char *u2utf8_strcpy(char *utf8buf,const unichar_t *ubuf);
 extern char *u2utf8_strncpy(char *utf8buf,const unichar_t *ubuf,int len);
 extern char *u2utf8_copy(const unichar_t *ubuf);
 extern char *u2utf8_copyn(const unichar_t *ubuf,int len);
-extern unichar_t *encoding2u_strncpy(unichar_t *uto, const char *from, int n, enum encoding cs);
-extern char *u2encoding_strncpy(char *to, const unichar_t *ufrom, size_t n, enum encoding cs);
 extern unichar_t *def2u_strncpy(unichar_t *uto, const char *from, size_t n);
 extern char *u2def_strncpy(char *to, const unichar_t *ufrom, size_t n);
 extern unichar_t *def2u_copy(const char *from);
@@ -207,7 +206,7 @@ extern int u_startswith(const unichar_t *haystack,const unichar_t *needle);
 extern int uc_startswith(const unichar_t *haystack,const char* needle);
 
 /**
- * In the string 's' replace all occurances of 'orig' with 'replacement'.
+ * In the string 's' replace all occurrences of 'orig' with 'replacement'.
  * If you set free_s to true then the string 's' will be freed by this function.
  * Normally you want to set free_s to 0 to avoid that. The case you will want to
  * use free_s to 1 is chaining many calls like:

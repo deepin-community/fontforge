@@ -876,8 +876,8 @@ return;
 		pt.y = ((m->s->splines[1].a*m->tstart+m->s->splines[1].b)*m->tstart+
 			m->s->splines[1].c)*m->tstart+m->s->splines[1].d;
 	    }
-	/* t may not be perfectly correct (because the correct value isn't expressable) */
-	/* so evalutating the spline at t may produce a slight variation */
+	/* t may not be perfectly correct (because the correct value isn't expressible) */
+	/* so evaluating the spline at t may produce a slight variation */
 	/* now if t is a double and inter.x/y are floats that doesn't matter */
 	/* but if both are doubles then it does */
 	/*  Similar behavior seems needed above and below where we test against m->start/m->end */
@@ -2062,7 +2062,10 @@ return( false );	/* But otherwise, don't create a new tiny spline */
 	    temp = t2s[1]; t2s[1] = t2s[0]; t2s[0] = temp;
 	}
 	diff = (t1s[1]-t1s[0])/16;
-	for ( t=t1s[0]+diff; t<t1s[1]-diff/4; t += diff ) {
+	for ( int i = 1; i <= 16; ++i ) {
+	    t = t1s[0] + diff*i;
+	    if ( t >= t1s[1]-diff/4 )
+		break;
 	    BasePoint here, slope;
 	    here.x = ((m1->s->splines[0].a*t+m1->s->splines[0].b)*t+m1->s->splines[0].c)*t+m1->s->splines[0].d;
 	    here.y = ((m1->s->splines[1].a*t+m1->s->splines[1].b)*t+m1->s->splines[1].c)*t+m1->s->splines[1].d;
@@ -2297,7 +2300,7 @@ static Intersection *FindIntersections(Monotonic **ms, enum overlap_type ot) {
 	continue;		/* Can't intersect since they don't have overlapping bounding boxes */
 	    // ValidateMonotonic(m1); ValidateMonotonic(m2);
 	    if ( CoincidentIntersect(m1,m2,pts,t1s,t2s) ) {
-		// If the splines are nearly coincident , we add up to 4 preintersections with the close flag.
+		// If the splines are nearly coincident, we add up to 4 preintersections with the close flag.
 		for ( i=0; i<4 && t1s[i]!=-1; ++i ) {
 		    if ( t1s[i]>=m1->tstart && t1s[i]<=m1->tend &&
 			    t2s[i]>=m2->tstart && t2s[i]<=m2->tend ) {
@@ -2305,8 +2308,11 @@ static Intersection *FindIntersections(Monotonic **ms, enum overlap_type ot) {
 		    }
 		}
 	    } else if ( m1->s->knownlinear || m2->s->knownlinear ) {
-		// We add the intersections for non-coincident splines.
-		// Why we limit to 4 intersections is beyond me.
+		// The splines are non-coincident and linear.
+		// We look for all intersections between the splines.
+		// Assignment to specific monotonics happens in TurnPreInter2Inter.
+		// SplinesIntersect returns a maximum of four intersections.
+		// That is okay if one spline is linear. Otherwise, there may be more.
 		if ( SplinesIntersect(m1->s,m2->s,pts,t1s,t2s)>0 )
 		    for ( i=0; i<4 && t1s[i]!=-1; ++i ) {
 			if ( t1s[i]>=m1->tstart && t1s[i]<=m1->tend &&
@@ -2485,7 +2491,7 @@ int MonotonicFindAt(Monotonic *ms,int which, extended test, Monotonic **space ) 
     break;
 	/* If the next monotonic continues in the same direction, and we found*/
 	/*  it too, then don't count both. They represent the same intersect */
-	/* If they are in oposite directions then they cancel each other out */
+	/* If they are in opposite directions then they cancel each other out */
 	/*  and that is correct */
 	if ( mm!=m &&	/* Should always be true */
 		(&mm->xup)[which]==(&m->xup)[which] ) {
@@ -2586,7 +2592,8 @@ static Intersection *TryHarderWhenClose(int which, Monotonic **space,int cnt, In
 			    m2 = m2->next;
 			ilist = SplitMonotonicsAt(m1,m2,which,high,ilist);
 		    }
-		    if ( (&m1->xup)[which]!=(&m2->xup)[which] ) {
+		    if ( (&m1->xup)[which]!=(&m2->xup)[which] &&
+			!m1->mutual_collapse && !m2->mutual_collapse ) {
 			/* the two monotonics cancel each other out */
 			/* (they are close together, and go in opposite directions) */
 			m1->mutual_collapse = m1->isunneeded = true;
@@ -2704,7 +2711,7 @@ static void FigureNeeds(Monotonic *ms,int which, extended test, Monotonic **spac
 	/*  would appear after reversing the two. So... */
 	/* needed -- means the current mono is needed with the current order */
 	/* nneeded -- next mono is needed with the current order */
-	/* nineeded -- next mono is needed with reveresed order */
+	/* nineeded -- next mono is needed with reversed order */
 	/* inneeded -- cur mono is needed with reversed order */
 	niwinding = winding; niew = ew;
 	nnwinding = nwinding; nnew = new;
@@ -2974,7 +2981,6 @@ static void MonoFigure(Spline *s,extended firstt,extended endt, SplinePoint *fir
     Spline1D temp;
 
     f = endt - firstt;
-    first->nonextcp = false; end->noprevcp = false;
     if ( s->order2 ) {
 	/*temp.d = first->me.x;*/
 	/*temp.a = 0;*/
@@ -3008,7 +3014,6 @@ static void MonoFigure(Spline *s,extended firstt,extended endt, SplinePoint *fir
     if ( SplineIsLinear(first->next)) {
 	first->nextcp = first->me;
 	end->prevcp = end->me;
-	first->nonextcp = end->noprevcp = true;
 	SplineRefigure(first->next);
     }
 }
@@ -3093,9 +3098,7 @@ static SplinePoint *MonoFollowForward(Intersection **curil, MList *ml,
 	if ( mstart->tstart==0 && m->tend==1.0 ) {
 	    /* I check for this special case to avoid rounding errors */
 	    last->nextcp = m->s->from->nextcp;
-	    last->nonextcp = m->s->from->nonextcp;
 	    mid->prevcp = m->s->to->prevcp;
-	    mid->noprevcp = m->s->to->noprevcp;
 	    SplineMake(last,mid,m->s->order2);
 	} else {
 	    MonoFigure(m->s,mstart->tstart,m->tend,last,mid);
@@ -3138,9 +3141,7 @@ static SplinePoint *MonoFollowBackward(Intersection **curil, MList *ml,
 	if ( mstart->tend==1.0 && m->tstart==0 ) {
 	    /* I check for this special case to avoid rounding errors */
 	    last->nextcp = m->s->to->prevcp;
-	    last->nonextcp = m->s->to->noprevcp;
 	    mid->prevcp = m->s->from->nextcp;
-	    mid->noprevcp = m->s->from->nonextcp;
 	    SplineMake(last,mid,m->s->order2);
 	} else {
 	    MonoFigure(m->s,mstart->tend,m->tstart,last,mid);
@@ -3522,10 +3523,8 @@ static SplineSet *SSRemoveTiny(SplineSet *base) {
 			// If the next point has a next control point, we copy it to the next control point for this point.
 			if ( nsp->nonextcp ) {
 			    sp->nextcp = sp->me;
-			    sp->nonextcp = true;
 			} else {
 			    sp->nextcp = nsp->nextcp;
-			    sp->nonextcp = false;
 			}
 			sp->nextcpdef = nsp->nextcpdef;
 			sp->next = nsp->next; // Change the spline reference.
@@ -3609,9 +3608,7 @@ static SplineSet *SSRemoveTiny(SplineSet *base) {
 		refigure = true;
 	    }
 	    if ( sp->me.x==sp->prevcp.x && sp->me.y==sp->prevcp.y ) {
-		// We disable the control point if necessary.
-		sp->noprevcp = true;
-		if ((sp->prev) && (sp->prev->order2) && (sp->prev->from)) sp->prev->from->nonextcp = true;
+		if ((sp->prev) && (sp->prev->order2) && (sp->prev->from)) sp->prev->from->nextcp = sp->prev->from->me;
 	    }
 	    if ( refigure )
 		SplineRefigure(sp->prev);
@@ -3633,9 +3630,7 @@ static SplineSet *SSRemoveTiny(SplineSet *base) {
 		refigure = true;
 	    }
 	    if ( sp->me.x==sp->nextcp.x && sp->me.y==sp->nextcp.y ) {
-		// We disable the control point if necessary.
-		sp->nonextcp = true;
-		if ((sp->next) && (sp->next->order2) && (sp->next->to)) sp->next->to->noprevcp = true;
+		if ((sp->next) && (sp->next->order2) && (sp->next->to)) sp->next->to->prevcp = sp->next->to->me;
 	    }
 	    if ( refigure )
 		SplineRefigure(sp->next);
@@ -3806,10 +3801,13 @@ return;
 		    SplinePointFree(isp);
 		    SplinePointFree(sp);
 		    if ( psp->next->order2 ) {
-			psp->nextcp.x = nsp->prevcp.x = (psp->nextcp.x+nsp->prevcp.x)/2;
-			psp->nextcp.y = nsp->prevcp.y = (psp->nextcp.y+nsp->prevcp.y)/2;
-			if ( psp->nonextcp || nsp->noprevcp )
-			    psp->nonextcp = nsp->noprevcp = true;
+			if ( psp->nonextcp || nsp->noprevcp ) {
+			    psp->nextcp = psp->me;
+			    nsp->prevcp = nsp->me;
+			} else {
+			    psp->nextcp.x = nsp->prevcp.x = (psp->nextcp.x+nsp->prevcp.x)/2;
+			    psp->nextcp.y = nsp->prevcp.y = (psp->nextcp.y+nsp->prevcp.y)/2;
+			}
 		    }
 		    SplineRefigure(psp->next);
 		    if ( ss->first==sp )
@@ -3829,10 +3827,13 @@ return;
 		    SplinePointFree(isp);
 		    SplinePointFree(sp);
 		    if ( psp->next->order2 ) {
-			psp->nextcp.x = nsp->prevcp.x = (psp->nextcp.x+nsp->prevcp.x)/2;
-			psp->nextcp.y = nsp->prevcp.y = (psp->nextcp.y+nsp->prevcp.y)/2;
-			if ( psp->nonextcp || nsp->noprevcp )
-			    psp->nonextcp = nsp->noprevcp = true;
+			if ( psp->nonextcp || nsp->noprevcp ) {
+			    psp->nextcp = psp->me;
+			    nsp->prevcp = nsp->me;
+			} else {
+			    psp->nextcp.x = nsp->prevcp.x = (psp->nextcp.x+nsp->prevcp.x)/2;
+			    psp->nextcp.y = nsp->prevcp.y = (psp->nextcp.y+nsp->prevcp.y)/2;
+			}
 		    }
 		    SplineRefigure(nsp->prev);
 		    if ( ss->first==sp )
@@ -3930,7 +3931,7 @@ static SplineSet *SSRemoveReversals(SplineSet *base) {
 			    /* We have a line that backtracks, but doesn't cover */
 			    /*  the entire spline, so we intersect */
 			    /* We want to remove sp, the shorter of sp->next, sp->prev */
-			    /*  and a bit of the other one. Also reomve one of nsp,psp */
+			    /*  and a bit of the other one. Also remove one of nsp,psp */
 			    if ( isp==psp )
 			    {
 				RemoveNextSP(psp,sp,nsp,base);

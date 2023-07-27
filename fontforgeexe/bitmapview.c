@@ -36,10 +36,8 @@
 #include "fvfonts.h"
 #include "gkeysym.h"
 #include "gresedit.h"
-#include "gresource.h"
 #include "splinefill.h"
 #include "splinesaveafm.h"
-#include "unicodelibinfo.h"
 #include "ustring.h"
 #include "utype.h"
 
@@ -204,7 +202,7 @@ static char *BVMakeTitles(BitmapView *bv, BDFChar *bc,char *buf) {
     title = copy(buf);
 
     /* Enhance 'buf' description with Nameslist.txt unicode name definition */
-    if ( (uniname=unicode_name(sc->unicodeenc))!=NULL ) {
+    if ( (uniname=uniname_name(sc->unicodeenc))!=NULL ) {
 	strcat(buf, " ");
 	strcpy(buf+strlen(buf), uniname);
 	free(uniname);
@@ -408,7 +406,7 @@ static void BVDrawTempPoint(BitmapView *bv,int x, int y,void *pixmap) {
 }
 
 static void BVDrawRefBorder(BitmapView *bv, BDFChar *bc, GWindow pixmap,
-	uint8 selected, int8 xoff, int8 yoff) {
+	uint8_t selected, int8_t xoff, int8_t yoff) {
     int i, j;
     int isblack, lw, rw, tw, bw;
     int tx, ty;
@@ -645,7 +643,7 @@ void BCGeneralFunction(BitmapView *bv,
 }
 
 static void BVDrawRefName(BitmapView *bv,GWindow pixmap,BDFRefChar *ref,int fg) {
-    int x,y, len;
+    int x,y;
     GRect size;
     char *refinfo;
     IBounds bb;
@@ -670,12 +668,11 @@ return;
     GDrawLayoutInit(pixmap,refinfo,-1,bv->small);
     GDrawLayoutExtents(pixmap,&size);
     GDrawLayoutDraw(pixmap,x-size.width/2,y,fg);
-    len = size.width;
     free(refinfo);
 }
 
 static void BVDrawGlyph(BitmapView *bv, BDFChar *bc, GWindow pixmap, GRect *pixel,
-	uint8 is_ref, uint8 selected, int8 xoff, int8 yoff) {
+	uint8_t is_ref, uint8_t selected, int8_t xoff, int8_t yoff) {
     int i, j;
     BDFFont *bdf = bv->bdf;
     BDFRefChar *cur;
@@ -807,9 +804,9 @@ static void BVExpose(BitmapView *bv, GWindow pixmap, GEvent *event ) {
 	    pixel.x =  bv->xoff + xmin*bv->scale;
 	    pixel.y = bv->height-bv->yoff-(ymax+1)*bv->scale;
 	    GDrawSetDashedLine(pixmap,3,3,0);
-	    GDrawDrawRect(pixmap,&pixel,0xffffff);
+	    GDrawDrawRect(pixmap,&pixel,GDrawGetDefaultBackground(NULL));
 	    GDrawSetDashedLine(pixmap,3,3,3);
-	    GDrawDrawRect(pixmap,&pixel,0x000000);
+	    GDrawDrawRect(pixmap,&pixel,GDrawGetDefaultForeground(NULL));
 	    GDrawSetDashedLine(pixmap,0,0,0);
 	}
     }
@@ -881,7 +878,8 @@ return;
 	GDrawDrawImage(pixmap,&gi,NULL, 5,bv->mbh+(bv->infoh-base.height)/2);
 
 	GDrawPopClip(pixmap,&old2);
-
+    }
+    if (event->u.expose.rect.y < bv->mbh + bv->infoh - 1) {
 	GDrawDrawImage(pixmap,&GIcon_rightpointer,NULL,bv->infoh+RPT_BASE,bv->mbh+8);
 	GDrawDrawImage(pixmap,&GIcon_press2ptr,NULL,bv->infoh+RPT_BASE,bv->mbh+18+bv->sfh);
 	BVInfoDrawText(bv,pixmap );
@@ -904,7 +902,10 @@ return;
 }
 
 static void BVShowInfo(BitmapView *bv) {
-    BVInfoDrawText(bv,bv->gw );
+    GRect r;
+    r.x = bv->infoh+RPT_DATA; r.width = 39;
+    r.y = bv->mbh; r.height = 36 /* bv->infoh-1 */;
+    GDrawRequestExpose(bv->gw, &r, false);
 }
 
 static void BVResize(BitmapView *bv, GEvent *event ) {
@@ -1498,6 +1499,7 @@ return( GGadgetDispatchEvent(bv->vsb,event));
 	    else
 		BVVScroll(bv,&event->u.control.u.sb);
 	  break;
+	  default: break;
 	}
       break;
       case et_destroy:
@@ -1525,6 +1527,7 @@ return( GGadgetDispatchEvent(bv->vsb,event));
       break;
       case et_focus:
       break;
+      default: break;
     }
 return( true );
 }
@@ -1826,7 +1829,7 @@ return;
 
 static void _BVUnlinkRef(BitmapView *bv) {
     int anyrefs = false;
-    BDFRefChar *ref, *next, *prev = NULL;
+    BDFRefChar *ref, *next;
 
     if ( bv->bc->refs!=NULL ) {
 	BCPreserveState(bv->bc);
@@ -1838,8 +1841,7 @@ static void _BVUnlinkRef(BitmapView *bv) {
 		BCPasteInto( bv->bc,ref->bdfc,ref->xoff,ref->yoff,false,false );
 		BCMergeReferences( bv->bc,ref->bdfc,ref->xoff,ref->yoff );
 		BCRemoveDependent( bv->bc,ref );
-	    } else
-		prev = ref;
+	    }
 	}
 	BCCharChangedUpdate(bv->bc);
     }
@@ -2105,7 +2107,7 @@ static struct resed bitmapview_re[] = {
     { N_("FG Color"), "BitmapColor", rt_color, &bitmap_color, N_("The color of the large bitmap"), NULL, { 0 }, 0, 0 },
     { N_("Overview FG Color"), "OverviewColor", rt_color, &overview_fg_color, N_("The color of the small bitmap view"), NULL, { 0 }, 0, 0 },
     { N_("Guide Color"), "GuideColor", rt_color, &guide_color, N_("The color of the guide lines for glyph metrics"), NULL, { 0 }, 0, 0 },
-    { N_("Width Guide Color"), "GuideColor", rt_color, &width_guide_color, N_("The color of the guide line for the advance width"), NULL, { 0 }, 0, 0 },
+    { N_("Width Guide Color"), "WidthGuideColor", rt_color, &width_guide_color, N_("The color of the guide line for the advance width"), NULL, { 0 }, 0, 0 },
     { N_("Grid Color"), "GridColor", rt_color, &grid_color, N_("The color of the guide lines for the bitmap grid"), NULL, { 0 }, 0, 0 },
     { N_("Outline Color"), "OutlineColor", rt_color, &outline_color, N_("The color of the outline"), NULL, { 0 }, 0, 0 },
     { N_("Active Tool Color"), "ActiveToolColor", rt_color, &active_tool_color, N_("The color of the preview for drawing lines, rectangles, and ellipses"), NULL, { 0 }, 0, 0 },
@@ -2129,8 +2131,9 @@ GResInfo bitmapview_ri = {
     "BitmapView",
     "fontforge",
     false,
+    false,
     0,
-    NULL,
+    GBOX_EMPTY,
     GBOX_EMPTY,
     NULL,
     NULL,
@@ -2138,13 +2141,9 @@ GResInfo bitmapview_ri = {
 };
 
 void BVColInit(void) {
-    static bool cinit = false;
-
-    if (cinit)
-	return;
-
-    cinit = true;
-    GResEditFind(bitmapview_re, "BitmapView.");
+    extern GResInfo charviewpoints_ri;
+    GResEditDoInit(&bitmapview_ri);
+    GResEditDoInit(&charviewpoints_ri);
 }
 
 static GMenuItem2 wnmenu[] = {
@@ -2202,7 +2201,10 @@ static GMenuItem2 fllist[] = {
     { { (unichar_t *) N_("_Revert File"), (GImage *) "filerevert.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'R' }, H_("Revert File|Ctl+Shft+R"), NULL, NULL, BVMenuRevert, MID_Revert },
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, 0, '\0' }, NULL, NULL, NULL, NULL, 0 }, /* line */
     { { (unichar_t *) N_("Pr_eferences..."), (GImage *) "fileprefs.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'P' }, H_("Preferences...|No Shortcut"), NULL, NULL, MenuPrefs, 0 },
-    { { (unichar_t *) N_("_X Resource Editor..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("X Resource Editor...|No Shortcut"), NULL, NULL, MenuXRes, 0 },
+    { { (unichar_t *) N_("Appea_rance Editor..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'e' }, H_("Appearance Editor...|No Shortcut"), NULL, NULL, MenuXRes, 0 },
+#ifndef _NO_PYTHON
+    { { (unichar_t *) N_("Config_ure Plugins..."), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'u' }, H_("Configure Plugins...|No Shortcut"), NULL, NULL, MenuPlug, 0 },
+#endif
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, 0, '\0' }, NULL, NULL, NULL, NULL, 0 }, /* line */
     { { (unichar_t *) N_("_Quit"), (GImage *) "filequit.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'Q' }, H_("Quit|Ctl+Q"), NULL, NULL, MenuExit, 0 },
     GMENUITEM2_EMPTY
@@ -2339,9 +2341,7 @@ BitmapView *BitmapViewCreate(BDFChar *bc, BDFFont *bdf, FontView *fv, int enc) {
     char buf[300];
     static GWindow icon = NULL;
     GTextInfo ti;
-    FontRequest rq;
     int as, ds, ld;
-    static char *infofamily = NULL;
 
     BitmapViewInit();
 
@@ -2441,24 +2441,11 @@ BitmapView *BitmapViewCreate(BDFChar *bc, BDFFont *bdf, FontView *fv, int enc) {
     bv->showing_tool = ( bc->refs == NULL ) ? bvt_pencil : bvt_pointer;
     bv->pressed_tool = bv->pressed_display = bv->active_tool = bvt_none;
 
-    /*GWidgetHidePalettes();*/
     /*bv->tools = BVMakeTools(bv);*/
     /*bv->layers = BVMakeLayers(bv);*/
 
-    if ( infofamily==NULL ) {	/* Yes, let's use the same resource name */
-	infofamily = copy(GResourceFindString("CharView.InfoFamily"));
-	/* FontConfig doesn't have access to all the X11 bitmap fonts */
-	/*  so the font I used to use isn't found, and a huge monster is */
-	/*  inserted instead */
-	if ( infofamily==NULL )
-	    infofamily = SANS_UI_FAMILIES;
-    }
-
-    memset(&rq,0,sizeof(rq));
-    rq.utf8_family_name = infofamily;
-    rq.point_size = -7;
-    rq.weight = 400;
-    bv->small = GDrawInstanciateFont(gw,&rq);
+    extern GResFont cv_pointnumberfont;
+    bv->small = cv_pointnumberfont.fi;
     GDrawWindowFontMetrics(gw,bv->small,&as,&ds,&ld);
     bv->sfh = as+ds; bv->sas = as;
 

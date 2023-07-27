@@ -29,6 +29,8 @@
 #define FONTFORGE_FFPYTHON_H
 
 #include "flaglist.h"
+#include "splinefont.h"
+#include "views.h"
 
 #pragma push_macro("real")
 #undef real
@@ -84,13 +86,12 @@ typedef struct ff_point {
     PyObject_HEAD
     /* Type-specific fields go here. */
     double x,y;
-    uint8 on_curve;
-    uint8 selected;
-    uint8 type;
-    uint8 interpolated;
+    uint8_t on_curve;
+    uint8_t selected;
+    uint8_t type;
+    uint8_t interpolated;
     char *name;
 } PyFF_Point;
-static PyTypeObject PyFF_PointType;
 
 typedef struct ff_contour {
     PyObject_HEAD
@@ -117,32 +118,28 @@ typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
     SplineChar *sc;
-    uint8 replace;
-    uint8 ended;
-    uint8 changed;
+    uint8_t replace;
+    uint8_t ended;
+    uint8_t changed;
     int layer;
 } PyFF_GlyphPen;
-static PyTypeObject PyFF_GlyphPenType;
 
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
     SplineChar *sc;
 } PyFF_LayerArray;
-static PyTypeObject PyFF_LayerArrayType;
 
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
     SplineChar *sc;
 } PyFF_RefArray;
-static PyTypeObject PyFF_RefArrayType;
 
 typedef struct glyphmathkernobject {
     PyObject_HEAD
     SplineChar *sc;
 } PyFF_MathKern;
-static PyTypeObject PyFF_MathKernType;
 
 typedef struct {
     PyObject_HEAD
@@ -153,7 +150,6 @@ typedef struct {
     PyFF_MathKern *mk;
     int layer;
 } PyFF_Glyph;
-static PyTypeObject PyFF_GlyphType;
 
 typedef struct {
     PyObject_HEAD
@@ -161,14 +157,12 @@ typedef struct {
     SplineFont *sf;
     int layer;
 } PyFF_LayerInfo;
-static PyTypeObject PyFF_LayerInfoType;
 
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
     SplineFont *sf;
 } PyFF_LayerInfoArray;
-static PyTypeObject PyFF_LayerInfoArrayType;
 
 typedef struct {
     PyObject_HEAD
@@ -176,7 +170,6 @@ typedef struct {
     SplineFont *sf;
     FontViewBase *fv;
 } PyFF_Private;
-static PyTypeObject PyFF_PrivateType;
 
 typedef struct {
     PyObject_HEAD
@@ -184,7 +177,6 @@ typedef struct {
     FontViewBase *fv;
     int by_glyphs;
 } PyFF_Selection;
-static PyTypeObject PyFF_SelectionType;
 
 typedef struct {
     PyObject_HEAD
@@ -192,13 +184,11 @@ typedef struct {
     SplineFont *sf;
     struct ttf_table *cvt;
 } PyFF_Cvt;
-static PyTypeObject PyFF_CvtType;
 
 typedef struct fontmathobject {
     PyObject_HEAD
     SplineFont *sf;
 } PyFF_Math;
-static PyTypeObject PyFF_MathType;
 
 typedef struct {
     PyObject_HEAD
@@ -210,7 +200,6 @@ typedef struct {
     PyFF_Selection *selection;
     PyFF_Math *math;
 } PyFF_Font;
-static PyTypeObject PyFF_FontType;
 
 extern PyMethodDef PyFF_Font_methods[];
 extern PyMethodDef module_fontforge_methods[];

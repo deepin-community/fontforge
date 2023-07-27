@@ -29,6 +29,7 @@ set(FONTFORGE_NOINST_HEADERS
   macbinary.h
   macenc.h
   mathconstants.h
+  multidialog.h
   namelist.h
   othersubrs.h
   palmfonts.h
@@ -38,6 +39,7 @@ set(FONTFORGE_NOINST_HEADERS
   parsettfatt.h
   parsettfbmf.h
   parsettfvar.h
+  plugin.h
   psread.h
   pua.h
   savefont.h
@@ -168,6 +170,7 @@ add_library(fontforge
   parsettfatt.c
   parsettfbmf.c
   parsettfvar.c
+  plugin.c
   print.c
   psread.c
   pua.c
@@ -251,9 +254,6 @@ if(ENABLE_FREETYPE_DEBUGGER)
 endif()
 if(ENABLE_LIBSPIRO_RESULT)
   target_link_libraries(fontforge PUBLIC Libspiro::Libspiro)
-endif()
-if(ENABLE_LIBUNINAMESLIST_RESULT)
-  target_link_libraries(fontforge PUBLIC Libuninameslist::Libuninameslist)
 endif()
 if(ENABLE_LIBREADLINE_RESULT)
   target_link_libraries(fontforge PUBLIC Readline::Readline)

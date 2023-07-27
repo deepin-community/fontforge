@@ -33,6 +33,7 @@
 #include "fontforgeui.h"
 #include "fvfonts.h"
 #include "gkeysym.h"
+#include "gresedit.h"
 #include "gwidget.h"
 #include "namelist.h"
 #include "splineorder2.h"
@@ -51,14 +52,16 @@
 /* ***************************** Problems Dialog **************************** */
 /* ************************************************************************** */
 
+GResFont validate_font = GRESFONT_INIT("400 11pt " SANS_UI_FAMILIES);
+
 struct mgrpl {
     char *search;
     char *rpl;		/* a rpl of "" means delete (NULL means not found) */
 };
 
 struct mlrpl {
-    uint32 search;
-    uint32 rpl;
+    uint32_t search;
+    uint32_t rpl;
 };
 
 struct problems {
@@ -252,7 +255,7 @@ static void FixIt(struct problems *p) {
 		p->sc->layers[p->layer].splines = ss;
 	    SCCharChangedUpdate(p->sc,p->layer);
 	} else
-	    IError("Could not find referenc");
+	    IError("Could not find reference");
 return;
     } else if ( p->explaining==_("This glyph's advance width is different from the standard width") ) {
 	SCSynchronizeWidth(p->sc,p->advancewidthval,p->sc->width,NULL);
@@ -416,7 +419,6 @@ return;
 		    (sp->me.y-sp->nextcp.y)*(sp->me.y-sp->nextcp.y));
 	    if ( cplen!=0 && cplen<p->irrelevantfactor*len ) {
 		sp->nextcp = sp->me;
-		sp->nonextcp = true;
 		ncp_changed = true;
 	    }
 	}
@@ -427,7 +429,6 @@ return;
 		    (sp->me.y-sp->prevcp.y)*(sp->me.y-sp->prevcp.y));
 	    if ( cplen!=0 && cplen<p->irrelevantfactor*len ) {
 		sp->prevcp = sp->me;
-		sp->noprevcp = true;
 		pcp_changed = true;
 	    }
 	}
@@ -1708,7 +1709,7 @@ static int SCProblems(CharView *cv,SplineChar *sc,struct problems *p) {
 		    first = s;
 		if ( s->acceptableextrema )
 	    continue;		/* If marked as good, don't check it */
-		/* rough appoximation to spline's length */
+		/* rough approximation to spline's length */
 		x = (s->to->me.x-s->from->me.x);
 		y = (s->to->me.y-s->from->me.y);
 		len2 = x*x + y*y;
@@ -2166,8 +2167,8 @@ static void ClearMissingState(struct problems *p) {
 enum missingglyph_type { mg_pst, mg_fpst, mg_kern, mg_vkern, mg_asm };
 struct mgask_data {
     GWindow gw;
-    uint8 done, skipped;
-    uint32 tag;
+    uint8_t done, skipped;
+    uint32_t tag;
     char **_str, *start, *end;
     SplineChar *sc;
     PST *pst;
@@ -2252,7 +2253,7 @@ return( false );
 return( true );
 }
 
-static int mgAsk(struct problems *p,char **_str,char *str, char *end,uint32 tag,
+static int mgAsk(struct problems *p,char **_str,char *str, char *end,uint32_t tag,
 	SplineChar *sc,enum missingglyph_type which,void *data) {
     char buffer[200];
     static char *pstnames[] = { "", N_("position"), N_("pair"), N_("substitution"),
@@ -2275,7 +2276,7 @@ static int mgAsk(struct problems *p,char **_str,char *str, char *end,uint32 tag,
     GTextInfo label[12];
     struct mgask_data d;
     int blen = GIntGetResource(_NUM_Buttonsize), ptwidth;
-    int k, rplpos;
+    int k;
 
     end_ch = *end; *end = '\0';
 
@@ -2355,7 +2356,6 @@ static int mgAsk(struct problems *p,char **_str,char *str, char *end,uint32 tag,
     gcd[k].gd.flags = gg_visible | gg_enabled;
     gcd[k++].creator = GLabelCreate;
 
-    rplpos = k;
     gcd[k].gd.pos.x = 10; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+13; gcd[k].gd.pos.width = ptwidth-20;
     gcd[k].gd.flags = gg_visible | gg_enabled;
     gcd[k].gd.cid = CID_RplText;
@@ -2551,7 +2551,7 @@ return( found );
 }
 
 static int LookupFeaturesMissScript(struct problems *p,OTLookup *otl,OTLookup *nested,
-	uint32 script, SplineFont *sf, char *glyph_name) {
+	uint32_t script, SplineFont *sf, char *glyph_name) {
     OTLookup *invokers, *any;
     struct lookup_subtable *subs;
     int i,l, ret;
@@ -2643,7 +2643,7 @@ return( found );
 static int SCMissingScriptFeat(struct problems *p,SplineFont *sf,SplineChar *sc) {
     PST *pst;
     int found = false;
-    uint32 script;
+    uint32_t script;
     AnchorPoint *ap;
 
     if ( !p->missingscriptinfeature || p->finish || sc==NULL )
@@ -2662,7 +2662,7 @@ static int StrMissingScript(struct problems *p,SplineFont *sf,OTLookup *otl,char
     char *pt, *start;
     int ch;
     SplineChar *sc;
-    uint32 script;
+    uint32_t script;
     int found = 0;
 
     if ( class==NULL )
@@ -2729,10 +2729,6 @@ static int CheckForATT(struct problems *p) {
     ASM *sm;
     KernClass *kc;
     SplineFont *_sf, *sf;
-    static char *buts[3];
-    buts[0] = _("_Yes");
-    buts[1] = _("_No");
-    buts[2] = NULL;
 
     _sf = p->fv->b.sf;
     if ( _sf->cidmaster ) _sf = _sf->cidmaster;
@@ -3031,7 +3027,7 @@ return( true );
 
 static int Prob_TextChanged(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_textchanged ) {
-	GGadgetSetChecked(GWidgetGetControl(GGadgetGetWindow(g),(intpt) GGadgetGetUserData(g)),true);
+	GGadgetSetChecked(GWidgetGetControl(GGadgetGetWindow(g),(intptr_t) GGadgetGetUserData(g)),true);
     }
 return( true );
 }
@@ -5106,13 +5102,15 @@ static void VWDrawWindow(GWindow pixmap,struct val_data *vw, GEvent *e) {
     int bit, skips, vs, y, m;
     GRect old, r;
 
+    Color fg = GDrawGetDefaultForeground(NULL);
+
     GDrawPushClip(pixmap,&e->u.expose.rect,&old);
     GDrawSetFont(pixmap,vw->font);
     gid = VW_FindLine(vw,vw->loff_top, &skips);
     if ( gid==-1 ) {
 	GDrawDrawText8(pixmap,2,(vw->vlcnt-1)*vw->fh/2 + vw->as,
 		vw->finished_first_pass ? _("Passed Validation") : _("Thinking..."),
-		-1,0x000000 );
+		-1,fg );
 	GDrawPopClip(pixmap,&old);
 return;
     }
@@ -5136,19 +5134,18 @@ return;
 	    vs = VSModMask(sc,vw);
 	    if ((vs&vs_known) && (vs&vw->mask)!=0 ) {
 		r.x = 2;   r.y = y-vw->as+1;
-		GDrawDrawRect(pixmap,&r,0x000000);
-		GDrawDrawLine(pixmap,r.x+2,r.y+vw->as/2,r.x+vw->as-2,r.y+vw->as/2,
-			0x000000);
+		GDrawDrawRect(pixmap,&r,fg);
+		GDrawDrawLine(pixmap,r.x+2,r.y+vw->as/2,r.x+vw->as-2,r.y+vw->as/2,fg);
 		if ( !sc->vs_open )
-		    GDrawDrawLine(pixmap,r.x+vw->as/2,r.y+2,r.x+vw->as/2,r.y+vw->as-2,
-			    0x000000);
-		GDrawDrawText8(pixmap,r.x+r.width+2,y,sc->name,-1,0x000000 );
+		    GDrawDrawLine(pixmap,r.x+vw->as/2,r.y+2,r.x+vw->as/2,r.y+vw->as-2,fg);
+		GDrawDrawText8(pixmap,r.x+r.width+2,y,sc->name,-1,fg);
 		y += vw->fh;
 		++sofar;
 		if ( sc->vs_open ) {
 		    for ( m=0, bit=(vs_known<<1) ; bit<=vs_last; ++m, bit<<=1 )
 			if ( (bit&vw->mask) && (vs&bit) && vserrornames[m]!=NULL ) {
-			    GDrawDrawText8(pixmap,10+r.width+r.x,y,_(vserrornames[m]),-1,0xff0000 );
+			    GDrawDrawText8(pixmap,10+r.width+r.x,y,_(vserrornames[m]),-1,
+			                   GDrawGetWarningForeground(NULL) );
 			    y += vw->fh;
 			    ++sofar;
 			}
@@ -5163,11 +5160,12 @@ return;
 	if ( vs!=0 ) {
 	    /* GT: "Private" is a keyword (sort of) in PostScript. Perhaps it */
 	    /* GT: should remain untranslated? */
-	    GDrawDrawText8(pixmap,r.x+r.width+2,y,_("Private Dictionary"),-1,0x000000 );
+	    GDrawDrawText8(pixmap,r.x+r.width+2,y,_("Private Dictionary"),-1,fg );
 	    y += vw->fh;
 	    for ( m=0, bit=1 ; bit!=0; ++m, bit<<=1 ) {
 		if ( vs&bit ) {
-		    GDrawDrawText8(pixmap,10+r.width+r.x,y,_(privateerrornames[m]),-1,0xff0000 );
+		    GDrawDrawText8(pixmap,10+r.width+r.x,y,_(privateerrornames[m]),-1,
+		                   GDrawGetWarningForeground(NULL));
 		    y += vw->fh;
 		}
 	    }
@@ -5263,7 +5261,6 @@ static int vwv_e_h(GWindow gw, GEvent *event) {
       case et_expose:
 	if ( vw->recheck==NULL ) {
 	    vw->recheck = GDrawRequestTimer(vw->v,500,500,NULL);
-	    VWCheckup(vw);
 	}
 	VWDrawWindow(gw,vw,event);
       break;
@@ -5288,6 +5285,7 @@ return( false );
       case et_timer:
 	VWCheckup(vw);
       break;
+      default: break;
     }
 return( true );
 }
@@ -5319,10 +5317,8 @@ void SFValidationWindow(SplineFont *sf,int layer,enum fontformat format) {
     int cidmax;
     SplineFont *sub;
     SplineChar *sc;
-    FontRequest rq;
     int as, ds, ld;
     int mask, needs_blue;
-    static GFont *valfont=NULL;
 
     if ( sf->cidmaster )
 	sf = sf->cidmaster;
@@ -5392,15 +5388,7 @@ return;
     pos.height = GDrawPointsToPixels(NULL,300);
     valwin->gw = gw = GDrawCreateTopWindow(NULL,&pos,vw_e_h,valwin,&wattrs);
 
-    if ( valfont==NULL ) {
-	memset(&rq,0,sizeof(rq));
-	rq.utf8_family_name = "Helvetica";
-	rq.point_size = 11;
-	rq.weight = 400;
-	valfont = GDrawInstanciateFont(gw,&rq);
-	valfont = GResourceFindFont("Validate.Font",valfont);
-    }
-    valwin->font = valfont;
+    valwin->font = validate_font.fi;
     GDrawWindowFontMetrics(valwin->gw,valwin->font,&as,&ds,&ld);
     valwin->fh = as+ds;
     valwin->as = as;

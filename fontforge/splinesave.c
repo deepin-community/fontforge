@@ -70,7 +70,7 @@ int autohint_before_generate = 1;
 /*  we need to know where the subr will leave us, so we actually allocate 2 */
 /*  BasePoints, one containing the start point, one the end point */
 /*   But that's still not good enough, hints are defined in such a way that */
-/*  they are not relocateable. So our subrs can't include any hint definitions*/
+/*  they are not relocatable. So our subrs can't include any hint definitions*/
 /*  (or if they do then that subr can't be translated at all). So hints must */
 /*  be set outside the subrs, and the subrs can't be for chars that need hint */
 /*  substitution. Unless... The subr will never be relocated. */
@@ -84,7 +84,7 @@ int autohint_before_generate = 1;
 /*  guarantee that all invocations of that subr are done with the same number */
 /*  of hints in the character). This again means that no char with hint subs- */
 /*  titutions may be put in a subr. UNLESS all the other references in a */
-/*  refering character contain no hints */
+/*  referring character contain no hints */
 
 /* That's very complex. And it doesn't do a very good job. */
 /* Instead let's take all strings bounded by either moveto or hintmask operators */
@@ -103,7 +103,7 @@ int autohint_before_generate = 1;
 /*  to my surprise, it just made things worse.                                */
 
 struct potentialsubrs {
-    uint8 *data;		/* the charstring of the subr */
+    uint8_t *data;		/* the charstring of the subr */
     int len;			/* the length of the charstring */
     int idx;			/* initially index into psubrs array */
     				/*  then index into subrs array or -1 if none */
@@ -117,7 +117,7 @@ struct potentialsubrs {
 };
 
 struct bits {
-    uint8 *data;
+    uint8_t *data;
     int dlen;
     int psub_index;
 };
@@ -127,7 +127,7 @@ struct glyphbits {
     int fd;			/* Which subfont is it in */
     int bcnt;
     struct bits *bits;
-    uint8 wasseac;
+    uint8_t wasseac;
 };
 
 #define HSH_SIZE	511
@@ -151,13 +151,13 @@ typedef struct glyphinfo {
 } GlyphInfo;
 
 struct mhlist {
-    uint8 mask[HntMax/8];
+    uint8_t mask[HntMax/8];
     int subr;
     struct mhlist *next;
 };
 
 struct hintdb {
-    uint8 mask[HntMax/8];
+    uint8_t mask[HntMax/8];
     int cnt;				/* number of hints */
     struct mhlist *sublist;
     struct pschars *subrs;
@@ -240,8 +240,8 @@ return;
     gi->justbroken = false;
 }
 
-static int hashfunc(uint8 *data, int len) {
-    uint8 *end = data+len;
+static int hashfunc(uint8_t *data, int len) {
+    uint8_t *end = data+len;
     unsigned int hash = 0, r;
 
     while ( data<end ) {
@@ -315,7 +315,7 @@ return;
     gi->bcnt = 0;
 }
 
-static int NumberHints(SplineChar *scs[MmMax], int instance_count) {
+static int NumberHints(SplineChar **scs, int instance_count) {
     int i,j, cnt=-1;
     StemInfo *s;
 
@@ -595,7 +595,7 @@ return;
 }
 
 static void CvtPsMasked(GrowBuf *gb,SplineChar *scs[MmMax], int instance_count,
-	int ishstem, int round, uint8 mask[12] ) {
+	int ishstem, int round, uint8_t mask[12] ) {
     StemInfo *hs[MmMax];
     bigreal data[MmMax][6], off;
     int i;
@@ -696,7 +696,7 @@ static void SubrsCheck(struct pschars *subrs) {
 
     if ( subrs->next>=subrs->cnt ) {
 	subrs->cnt += 100;
-	subrs->values = realloc(subrs->values,subrs->cnt*sizeof(uint8 *));
+	subrs->values = realloc(subrs->values,subrs->cnt*sizeof(uint8_t *));
 	subrs->lens = realloc(subrs->lens,subrs->cnt*sizeof(int));
 	if ( subrs->keys!=NULL ) {
 	    int i;
@@ -711,12 +711,12 @@ static void SubrsCheck(struct pschars *subrs) {
 /*  subr. Else build a new subr with the hints we need. Note we can only use */
 /*  *stem3 commands if there are no conflicts in that coordinate, it isn't cjk*/
 /*  and all the other conditions are met */
-static int FindOrBuildHintSubr(struct hintdb *hdb, uint8 mask[12], int round) {
+static int FindOrBuildHintSubr(struct hintdb *hdb, uint8_t mask[12], int round) {
     struct mhlist *mh;
     GrowBuf gb;
 
     for ( mh=hdb->sublist; mh!=NULL; mh=mh->next ) {
-	if ( memcmp(mask,mh->mask,sizeof(uint8)*12)==0 )
+	if ( memcmp(mask,mh->mask,sizeof(uint8_t)*12)==0 )
 return( mh->subr );
     }
     SubrsCheck(hdb->subrs);
@@ -737,11 +737,11 @@ return( mh->subr );
     /* Replace an old subroutine */
     if ( mh!=NULL ) {
 	free( hdb->subrs->values[mh->subr]);
-	hdb->subrs->values[mh->subr] = (uint8 *) copyn((char *) gb.base,gb.pt-gb.base);
+	hdb->subrs->values[mh->subr] = (uint8_t *) copyn((char *) gb.base,gb.pt-gb.base);
 	hdb->subrs->lens[mh->subr] = gb.pt-gb.base;
 	memcpy(mh->mask,mask,sizeof(mh->mask));
     } else {
-	hdb->subrs->values[hdb->subrs->next] = (uint8 *) copyn((char *) gb.base,gb.pt-gb.base);
+	hdb->subrs->values[hdb->subrs->next] = (uint8_t *) copyn((char *) gb.base,gb.pt-gb.base);
 	hdb->subrs->lens[hdb->subrs->next] = gb.pt-gb.base;
 
 	mh = calloc(1,sizeof(struct mhlist));
@@ -1780,7 +1780,7 @@ static void SplineFont2FullSubrs1(int flags,GlyphInfo *gi) {
 		if ( r!=NULL )	/* Contains a reference to something which is */
 	continue;		/* not in a sub itself. Skip it for now, we'll*/
 				/* come back to it next pass when perhaps the */
-			        /* reference will be nicely ensconsed itself */
+			        /* reference will be nicely ensconced itself */
 		if ( gi->pcnt>=gi->pmax )
 		    gi->psubrs = realloc(gi->psubrs,(gi->pmax+=gi->glyphcnt)*sizeof(struct potentialsubrs));
 		ps = &gi->psubrs[gi->pcnt];
@@ -1937,7 +1937,7 @@ static void SetupType1Chrs(struct pschars *chrs,struct pschars *subrs,GlyphInfo 
 	if ( !iscid )
 	    chrs->keys[i] = copy(gb->sc->name);
 	for ( k=0; k<2; ++k ) if ( k!=0 || gb->sc->ttf_glyph!=0x7fff ) {
-	    uint8 *vals;
+	    uint8_t *vals;
 	    for ( j=0; j<gb->bcnt; ++j ) {
 		if ( k!=0 || j!=0 )
 		    len += gb->bits[j].dlen;
@@ -2149,7 +2149,7 @@ struct pschars *CID2ChrsSubrs(SplineFont *cidmaster,struct cidbytes *cidbytes,in
 	dummynotdef.name = ".notdef";
 	dummynotdef.parent = cidmaster->subfonts[0];
 	dummynotdef.layer_cnt = layer+1;
-	dummynotdef.layers = calloc(layer+1,sizeof(Layer));;
+	dummynotdef.layers = calloc(layer+1,sizeof(Layer));
 	dummynotdef.width = SFOneWidth(dummynotdef.parent);
 	if ( dummynotdef.width==-1 )
 	    dummynotdef.width = (dummynotdef.parent->ascent+dummynotdef.parent->descent);
@@ -2281,7 +2281,7 @@ static void AddNumber2(GrowBuf *gb, real pos, int round) {
     gb->pt = str;
 }
 
-static void AddMask2(GrowBuf *gb,uint8 mask[12],int cnt, int oper) {
+static void AddMask2(GrowBuf *gb,uint8_t mask[12],int cnt, int oper) {
     int i;
 
     if ( gb->pt+1+((cnt+7)>>3)>=gb->end )
@@ -2615,7 +2615,7 @@ static void CvtPsSplineSet2(GrowBuf *gb, SplinePointList *spl,
 	struct hintdb *hdb, int is_order2,int round ) {
     Spline *spline, *first;
     SplinePointList temp, *freeme = NULL;
-    int unhinted = true;;
+    int unhinted = true;
 
     if ( is_order2 )
 	freeme = spl = SplineSetsPSApprox(spl);
@@ -2779,7 +2779,7 @@ return;
 
 static void DumpRefsHints(GrowBuf *gb, struct hintdb *hdb,RefChar *cur,StemInfo *h,StemInfo *v,
 	BasePoint *trans, int round,int layer) {
-    uint8 masks[12];
+    uint8_t masks[12];
     int cnt, sets=0;
     StemInfo *rs;
 
@@ -3292,7 +3292,7 @@ struct pschars *SplineFont2ChrsSubrs2(SplineFont *sf, int nomwid, int defwid,
     chrs->keys = malloc(cnt*sizeof(char *));
     for ( i=0; i<cnt; ++i ) {
 	int len=0;
-	uint8 *vals;
+	uint8_t *vals;
 	struct glyphbits *gb = &gi.gb[i];
 	if ( gb->sc==NULL )
     continue;

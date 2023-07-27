@@ -29,6 +29,7 @@
 
 #include "cvundoes.h"
 #include "fontforgeui.h"
+#include "gresedit.h"
 #include "spiro.h"
 #include "splinefill.h"
 #include "splineorder2.h"
@@ -38,7 +39,6 @@
 
 #include "charview_private.h"
 #include "gkeysym.h"
-#include "gresource.h"
 #include "hotkeys.h"
 #include "splinefont.h"
 #include "ustring.h"
@@ -53,14 +53,15 @@ float rr_radius=0;
 int ps_pointcnt=6;
 float star_percent=1.7320508;	/* Regular 6 pointed star */
 extern int interpCPsOnMotion;
+extern Color cvpalettefgcol;
+extern Color cvpalettebgcol;
+extern Color cvpaletteactborcol;
+extern Color cvbutton3dedgelightcol;
+extern Color cvbutton3dedgedarkcol;
 
 static void CVLCheckLayerCount(CharView *cv, int resize);
 
 extern void CVDebugFree(DebugView *dv);
-
-extern GBox _ggadget_Default_Box;
-#define ACTIVE_BORDER   (_ggadget_Default_Box.active_border)
-#define MAIN_FOREGROUND (_ggadget_Default_Box.main_foreground)
 
 extern GDevEventMask input_em[];
 extern const int input_em_cnt;
@@ -104,7 +105,8 @@ static GCursor tools[cvt_max+1] = { ct_pointer }, spirotools[cvt_max+1];
 enum cvtools cv_b1_tool = cvt_pointer, cv_cb1_tool = cvt_pointer,
 	     cv_b2_tool = cvt_magnify, cv_cb2_tool = cvt_ruler;
 
-static GFont *toolsfont=NULL, *layersfont=NULL;
+GResFont toolspalette_font = GRESFONT_INIT("400 10px " SANS_UI_FAMILIES);
+GResFont layerspalette_font = GRESFONT_INIT("400 10px " SANS_UI_FAMILIES);
 
 #define CV_LAYERS_WIDTH		104
 #define CV_LAYERS_HEIGHT	100
@@ -147,6 +149,16 @@ static GFont *toolsfont=NULL, *layersfont=NULL;
 #define CID_LayersMenu  9003
 #define CID_LayerLabel  9004
 
+static void SetPaletteVisible(GWindow parent, GWindow palette, bool visible) {
+    GDrawSetVisible(palette, visible);
+    if (!palettes_docked) {
+        GDrawSetTransientFor(palette, visible ? parent : NULL);
+        if (visible) {
+            GDrawRaise(palette);
+        }
+    }
+}
+
 /* Initialize a window that is to be used for a palette. Specific widgets and other functionality are added elsewhere. */
 static GWindow CreatePalette(GWindow w, GRect *pos, int (*eh)(GWindow,GEvent *), void *user_data, GWindowAttrs *wattrs, GWindow v) {
     GWindow gw;
@@ -177,7 +189,7 @@ static GWindow CreatePalette(GWindow w, GRect *pos, int (*eh)(GWindow,GEvent *),
     }
     wattrs->mask |= wam_bordcol|wam_bordwidth;
     wattrs->border_width = 1;
-    wattrs->border_color = GDrawGetDefaultForeground(NULL);
+    wattrs->border_color = cvpalettefgcol;
 
     newpos.x = pt.x; newpos.y = pt.y; newpos.width = pos->width; newpos.height = pos->height;
     wattrs->mask|= wam_positioned;
@@ -757,7 +769,6 @@ static int Ask(char *rb1, char *rb2, int rb, char *lab, float *val, int *co,
     d.reg = gcd[6].ret;
     d.pts = gcd[7].ret;
 
-    GWidgetHidePalettes();
     GDrawSetVisible(d.gw,true);
     while ( !d.done )
 	GDrawProcessOneEvent(NULL);
@@ -939,7 +950,7 @@ typedef void (*visitButtonsVisitor) ( CharView *cv,             // CharView pass
 static void visitButtons( CharView* cv, visitButtonsVisitor v, void* udata ) 
 {
     GImage* (*buttons)[14][2] = (CVInSpiro(cv) ? spirobuttons : normbuttons);
-    int i,j,sel,norm, mi;
+    int i,j,sel, mi;
     int tool = cv->cntrldown?cv->cb1_tool:cv->b1_tool;
     int icony = 1;
     for ( i=0; buttons[0][i][0]; ++i ) {
@@ -948,8 +959,8 @@ static void visitButtons( CharView* cv, visitButtonsVisitor v, void* udata )
 
 	    mi = i;
 	    sel = (tool == mi*2+j );
-	    if( buttons[0][mi][j] == &GIcon_rect && rectelipse
-		|| buttons[0][mi][j] == &GIcon_poly && polystar )
+	    if( (buttons[0][mi][j] == &GIcon_rect && rectelipse)
+		|| (buttons[0][mi][j] == &GIcon_poly && polystar) )
 	    {
 		sel = (tool == (mi+1)*2+j );
 		mi+=2;
@@ -1001,8 +1012,6 @@ static IJ getIJFromMouse( CharView* cv, int mx, int my )
  */
 
 void cvp_draw_relief(GWindow pixmap, GImage *iconimg, int iconx, int icony, int selected) {
-	extern Color cvbutton3dedgelightcol; // Default 0xe0e0e0.		
-	extern Color cvbutton3dedgedarkcol; // Default 0x707070.
 	int iconw = iconimg->u.image->width;
 	int iconh = iconimg->u.image->height;
 	int norm = !selected;
@@ -1053,18 +1062,16 @@ static void ToolsExpose(GWindow pixmap, CharView *cv, GRect *r) {
 	    { '^', 'M', 's', 'e', '1',  '\0' },
 	    { 'M', 's', 'e', '2',  '\0' },
 	    { '^', 'M', 's', 'e', '2',  '\0' }};
-    int i,j,sel,norm, mi;
-    int tool = cv->cntrldown?cv->cb1_tool:cv->b1_tool;
+    int j;
     int dither = GDrawSetDither(NULL,false);
     GRect temp;
     int canspiro = hasspiro(), inspiro = canspiro && cv->b.sc->inspiro;
-    GImage* (*buttons)[14][2] = (inspiro ? spirobuttons : normbuttons);
     GImage **smalls = inspiro ? spirosmalls : normsmalls;
 
     normbuttons[0][3][1] = canspiro ? &GIcon_spiroup : &GIcon_spirodisabled;
 
     GDrawPushClip(pixmap,r,&old);
-    GDrawFillRect(pixmap,r,GDrawGetDefaultBackground(NULL));
+    GDrawFillRect(pixmap,r,cvpalettebgcol);
     GDrawSetLineWidth(pixmap,0);
 
     ToolsExposeVisitorData d;
@@ -1074,15 +1081,15 @@ static void ToolsExpose(GWindow pixmap, CharView *cv, GRect *r) {
     int bottomOfMainIconsY = d.maxicony + d.lastIconHeight;
     
     
-    GDrawSetFont(pixmap,toolsfont);
+    GDrawSetFont(pixmap,toolspalette_font.fi);
     temp.x = 52-16;
     temp.y = bottomOfMainIconsY;
     temp.width = 16;
     temp.height = 4*12;
-    GDrawFillRect(pixmap,&temp,GDrawGetDefaultBackground(NULL));
+    GDrawFillRect(pixmap,&temp,cvpalettebgcol);
     for ( j=0; j<4; ++j ) {
 	GDrawDrawText(pixmap,2,bottomOfMainIconsY+j*getSmallIconsHeight()+10,
-		      (unichar_t *) _Mouse[j],-1,GDrawGetDefaultForeground(NULL));
+		      (unichar_t *) _Mouse[j],-1,cvpalettefgcol);
 	if ( (&cv->b1_tool)[j]!=cvt_none && smalls[(&cv->b1_tool)[j]])
 	    GDrawDrawImage(pixmap,smalls[(&cv->b1_tool)[j]],NULL,52-16,bottomOfMainIconsY+j*getSmallIconsHeight());
     }
@@ -1321,7 +1328,7 @@ static void ToolsMouse(CharView *cv, GEvent *event) {
     }
     pos = mi*2 + j;
     GGadgetEndPopup();
-    /* we have two fewer buttons than commands as two bottons each control two commands */
+    /* we have two fewer buttons than commands as two buttons each control two commands */
     if ( pos<0 || pos>=cvt_max )
 	pos = cvt_none;
     if ( event->type == et_mousedown ) {
@@ -1460,8 +1467,9 @@ return( true );
 	PostCharToWindow(cv->gw,event);
       break;
       case et_close:
-	GDrawSetVisible(gw,false);
+	SetPaletteVisible(NULL, gw, false);
       break;
+      default: break;
     }
 return( true );
 }
@@ -1469,7 +1477,6 @@ return( true );
 GWindow CVMakeTools(CharView *cv) {
     GRect r;
     GWindowAttrs wattrs;
-    FontRequest rq;
 
     if ( cvtools!=NULL )
 return( cvtools );
@@ -1495,17 +1502,8 @@ return( cvtools );
 	/* Success! They've got a wacom tablet */
     }
 
-    if ( toolsfont==NULL ) {
-	memset(&rq,0,sizeof(rq));
-	rq.utf8_family_name = SANS_UI_FAMILIES;
-	rq.point_size = -10;
-	rq.weight = 400;
-	toolsfont = GDrawInstanciateFont(NULL,&rq);
-	toolsfont = GResourceFindFont("ToolsPalette.Font",toolsfont);
-    }
-
     if ( cvvisible[1])
-	GDrawSetVisible(cvtools,true);
+	SetPaletteVisible(cv->gw, cvtools,true);
 return( cvtools );
 }
 
@@ -1642,7 +1640,6 @@ static void Layers2Expose(CharView *cv,GWindow pixmap,GEvent *event) {
     GRect r, oldclip;
     struct _GImage base;
     GImage gi;
-    int as = (24*cv->b.sc->parent->ascent)/(cv->b.sc->parent->ascent+cv->b.sc->parent->descent);
     int leftOffset, layerCount;
 
     if ( event->u.expose.rect.y+event->u.expose.rect.height<layer2.header_height )
@@ -1658,7 +1655,7 @@ return;
     r.y = layer2.header_height;
     r.height = r.height - layer2.header_height;
     GDrawPushClip(pixmap, &r, &oldclip);
-    GDrawFillRect(pixmap,&r,GDrawGetDefaultBackground(NULL));
+    GDrawFillRect(pixmap,&r,cvpalettebgcol);
 
     GDrawSetDither(NULL, false);	/* on 8 bit displays we don't want any dithering */
 
@@ -1682,7 +1679,7 @@ return;
             r.width = layer2.sb_start - r.x;
             r.y = layer2.header_height + i * CV_LAYERS2_LINE_HEIGHT;
 	    r.height = CV_LAYERS2_LINE_HEIGHT;
-	    GDrawFillRect(pixmap,&r,GDrawGetDefaultForeground(NULL));
+	    GDrawFillRect(pixmap,&r,cvpalettefgcol);
 	}
         GDrawDrawLine(pixmap, r.x, layer2.header_height + i * CV_LAYERS2_LINE_HEIGHT,
                       r.x + r.width, layer2.header_height + i * CV_LAYERS2_LINE_HEIGHT,
@@ -1690,7 +1687,7 @@ return;
 	if ( i==0 || i==1 ) {
 	    str = i==0?_("Guide") : _("Back");
             GDrawDrawText8(pixmap, r.x + 2, layer2.header_height + i * CV_LAYERS2_LINE_HEIGHT + (CV_LAYERS2_LINE_HEIGHT - 12) / 2 + 12,
-		    (char *) str,-1,ll==layer2.active?0xffffff:GDrawGetDefaultForeground(NULL));
+		    (char *) str,-1,ll==layer2.active?cvpalettebgcol:cvpalettefgcol);
 	} else if ( layer2.offtop+i>=layer2.current_layers ) {
     break;
 	} else if ( layer2.layers[layer2.offtop+i]!=NULL ) {
@@ -1717,7 +1714,7 @@ return;
 	    }
 	    // And this comes from above.
             GDrawDrawText8(pixmap, r.x + 2, layer2.header_height + i * CV_LAYERS2_LINE_HEIGHT + (CV_LAYERS2_LINE_HEIGHT - 12) / 2 + 12,
-		    (char *) layername,-1,ll==layer2.active?0xffffff:GDrawGetDefaultForeground(NULL));
+		    (char *) layername,-1,ll==layer2.active?cvpalettebgcol:cvpalettefgcol);
 #endif // 0
 	}
     }
@@ -1892,7 +1889,7 @@ return( true );
 
     switch ( event->type ) {
       case et_close:
-	GDrawSetVisible(gw,false);
+	SetPaletteVisible(NULL, gw, false);
       break;
       case et_char: case et_charup:
 	PostCharToWindow(cv->gw,event);
@@ -1982,6 +1979,7 @@ return(true);
 	} else
 	    Layer2Scroll(cv,event);
       break;
+      default: break;
     }
 return( true );
 }
@@ -1993,7 +1991,6 @@ static void CVMakeLayers2(CharView *cv) {
     GGadgetCreateData gcd[25];
     GTextInfo label[25];
     static GBox radio_box = { bt_none, bs_rect, 0, 0, 0, 0, 0, 0, 0, 0, COLOR_DEFAULT, COLOR_DEFAULT, 0, 0, 0, 0, 0, 0, 0 };
-    FontRequest rq;
     int i;
     extern int _GScrollBar_Width;
 
@@ -2021,18 +2018,9 @@ return;
     memset(&label,0,sizeof(label));
     memset(&gcd,0,sizeof(gcd));
 
-    if ( layersfont==NULL ) {
-	memset(&rq,'\0',sizeof(rq));
-	rq.utf8_family_name = SANS_UI_FAMILIES;
-	rq.point_size = -12;
-	rq.weight = 400;
-	layersfont = GDrawInstanciateFont(cvlayers2,&rq);
-	layersfont = GResourceFindFont("LayersPalette.Font",layersfont);
-    }
-
     for ( i=0; i<sizeof(label)/sizeof(label[0]); ++i )
-	label[i].font = layersfont;
-    layer2.font = layersfont;
+	label[i].font = layerspalette_font.fi;
+    layer2.font = layerspalette_font.fi;
 
     gcd[0].gd.pos.width = GDrawPointsToPixels(cv->gw,_GScrollBar_Width);
     gcd[0].gd.pos.x = CV_LAYERS2_WIDTH-gcd[0].gd.pos.width;
@@ -2110,7 +2098,7 @@ return;
     GGadgetGetSize(GWidgetGetControl(cvlayers2, CID_VGrid), &r);
     GGadgetMove(GWidgetGetControl(cvlayers2, CID_LayerLabel), r.x + r.width, 5);
     if ( cvvisible[0] )
-	GDrawSetVisible(cvlayers2,true);
+	SetPaletteVisible(cv->gw, cvlayers2, true);
 }
 
 static void LayersSwitch(CharView *cv) {
@@ -2227,9 +2215,9 @@ return;
  * Get the offset at the right hand size of the eyeball to show/hide
  * a layer. This is the x offset where the Q/C indicators might be drawn.
  */
-static int32 Layers_getOffsetAtRightOfViewLayer(CharView *cv)
+static int32_t Layers_getOffsetAtRightOfViewLayer(CharView *cv)
 {
-    int32 ret = 64;
+    int32_t ret = 64;
     GGadget *v = GWidgetGetControl(cvlayers,CID_VBack);
     if( v )
     {
@@ -2248,7 +2236,6 @@ static void LayersExpose(CharView *cv,GWindow pixmap,GEvent *event) {
     GRect r;
     struct _GImage base;
     GImage gi;
-    Color mocolor = ACTIVE_BORDER; /* mouse over color */
     int ww;
 
     int yt = .7*layer_height; /* vertical spacer to add when drawing text in the row */
@@ -2305,11 +2292,11 @@ return;
                 r.x = quadcol; r.width = column_width;
                 r.y = y;
                 r.height = layer_height;
-                GDrawFillRect(pixmap,&r,mocolor);
+                GDrawFillRect(pixmap,&r,cvpaletteactborcol);
             }
             str = ( ll>=0 && ll<cv->b.sc->layer_cnt ? (cv->b.sc->layers[ll].order2? "Q" : "C") : " ");
 	    GDrawDrawText8(pixmap, quadcol, y + yt,
-		    (char *) str,-1,GDrawGetDefaultForeground(NULL));
+		    (char *) str,-1,cvpalettefgcol);
         }
 
          /* draw fg/bg toggle */
@@ -2318,11 +2305,11 @@ return;
                 r.x = fgcol; r.width = column_width;
                 r.y = y;
                 r.height = layer_height;
-                GDrawFillRect(pixmap,&r,mocolor);
+                GDrawFillRect(pixmap,&r,cvpaletteactborcol);
             }
             str = ( ll>=0 && ll<cv->b.sc->layer_cnt ? (cv->b.sc->layers[ll].background? "B" : "F") : "#");
 	    GDrawDrawText8(pixmap, fgcol, y + yt,
-		    (char *) str,-1,GDrawGetDefaultForeground(NULL));
+		    (char *) str,-1,cvpalettefgcol);
         }
 
          /* draw layer thumbnail and label */
@@ -2330,18 +2317,18 @@ return;
             r.x = editcol; r.width = ww-r.x;
 	    r.y = y;
 	    r.height = layer_height;
-	    GDrawFillRect(pixmap,&r,GDrawGetDefaultForeground(NULL));
+	    GDrawFillRect(pixmap,&r,cvpalettefgcol);
 	} else if ( layerinfo.mo_layer==ll && layerinfo.mo_col==CID_EBase ) {
             r.x = editcol; r.width = ww-r.x;
             r.y = y;
             r.height = layer_height;
-            GDrawFillRect(pixmap,&r,mocolor);
+            GDrawFillRect(pixmap,&r,cvpaletteactborcol);
         }
         r.x=editcol;
 	if ( ll==-1 || ll==0 || ll==1) {
 	    str = ll==-1 ? _("Guide") : (ll==0 ?_("Back") : _("Fore")) ;
 	    GDrawDrawText8(pixmap,r.x+2,y + yt,
-		    (char *) str,-1,ll==layerinfo.active?0xffffff:GDrawGetDefaultForeground(NULL));
+		    (char *) str,-1,ll==layerinfo.active?cvpalettebgcol:cvpalettefgcol);
 	} else if ( ll>=layerinfo.current_layers ) {
              break; /* no more layers to draw! */
 	} else if ( ll>=0 && layerinfo.layers[ll]!=NULL ) {
@@ -2356,7 +2343,7 @@ return;
             str = cv->b.sc->parent->layers[ll].name;
             if ( !str || !*str ) str="-";
 	    GDrawDrawText8(pixmap, r.x+2, y + yt,
-		        (char *) str,-1,ll==layerinfo.active?0xffffff:GDrawGetDefaultForeground(NULL));
+		        (char *) str,-1,ll==layerinfo.active?cvpalettebgcol:cvpalettefgcol);
 	}
     }
 
@@ -2389,7 +2376,7 @@ static void CVLRemoveEdit(CharView *cv, int save) {
 	GDrawRequestExpose(cvlayers,NULL,false);
 
 	layerinfo.rename_active = 0;
-	CVInfoDrawText(cv,cv->gw);
+	GDrawRequestExpose(cv->gw, NULL, false);
     }
 }
 
@@ -2870,8 +2857,6 @@ static int CVLScanForItem(int x, int y, int *col) {
 
 /* Called in response to some event where we want to change the current layer. */
 void CVLSelectLayer(CharView *cv, int layer) {
-    enum drawmode dm = cv->b.drawmode;
-
     if ( layer<-1 || layer>=cv->b.sc->layer_cnt )
 	return;
 
@@ -2900,9 +2885,7 @@ void CVLSelectLayer(CharView *cv, int layer) {
     GDrawRequestExpose(cv->v,NULL,false);
     if (cvlayers2) GDrawRequestExpose(cvlayers2,NULL,false);
     if (cvlayers)  GDrawRequestExpose(cvlayers,NULL,false);
-    if ( dm!=cv->b.drawmode )
-        GDrawRequestExpose(cv->gw,NULL,false); /* the logo (where the scrollbars join) shows what layer we are in */
-    CVInfoDrawText(cv,cv->gw);
+    GDrawRequestExpose(cv->gw,NULL,false);
 }
 
 static int cvlayers_e_h(GWindow gw, GEvent *event) {
@@ -2921,7 +2904,7 @@ static int cvlayers_e_h(GWindow gw, GEvent *event) {
 
     switch ( event->type ) {
       case et_close:
-	GDrawSetVisible(gw,false);
+	SetPaletteVisible(NULL, gw, false);
       break;
       case et_char: case et_charup:
 	if ( event->u.chr.keysym == GK_Return) {
@@ -3174,7 +3157,6 @@ int CVPaletteMnemonicCheck(GEvent *event) {
     int j, i, ch;
     char *foo;
     GEvent fake;
-    GGadget *g;
     CharView *cv;
     SplineFont *parent;
     int curlayer;
@@ -3188,7 +3170,6 @@ return( false );
     if ( isdigit(event->u.chr.keysym) ) {
 	int off = event->u.chr.keysym - '0';
 
-	g = GWidgetGetControl(cvlayers, CID_EBase+off-1);
 	if ( off-1<parent->layer_cnt && off!=curlayer ) {
             CVLSelectLayer(cv, off);
 	    if ( cv->b.sc->parent->multilayer )
@@ -3245,7 +3226,6 @@ GWindow CVMakeLayers(CharView *cv) {
     GGadgetCreateData gcd[25];
     GTextInfo label[25];
     GGadget *gadget;
-    FontRequest rq;
     extern int _GScrollBar_Width;
     int i=0;
     int viscol=0;
@@ -3256,15 +3236,8 @@ return( cvlayers );
      /* Initialize layerinfo */
     if ( layerinfo.clut==NULL )
 	layerinfo.clut = _BDFClut(4);
-    if ( layersfont==NULL ) {
-	memset(&rq,'\0',sizeof(rq));
-	rq.utf8_family_name = SANS_UI_FAMILIES;
-	rq.point_size = -12;
-	rq.weight = 400;
-	layersfont = GDrawInstanciateFont(cvlayers2,&rq);
-	layersfont = GResourceFindFont("LayersPalette.Font",layersfont);
-    }
-    layerinfo.font = layersfont;
+
+    layerinfo.font = layerspalette_font.fi;
 
      /* Initialize palette window */
     memset(&wattrs,0,sizeof(wattrs));
@@ -3288,8 +3261,8 @@ return( cvlayers );
     memset(&label,0,sizeof(label));
     memset(&gcd,0,sizeof(gcd));
 
-    int32 plusw = GDrawGetText8Width(cv->gw,  _("+"), -1);
-    int32 plush = GDrawGetText8Height(cv->gw, _("+"), -1);
+    int32_t plusw = GDrawGetText8Width(cv->gw,  _("+"), -1);
+    int32_t plush = GDrawGetText8Height(cv->gw, _("+"), -1);
     plusw = GDrawPointsToPixels(NULL,plusw+4);
     plush = GDrawPointsToPixels(NULL,plush+4);
     plush = MAX( plush, plusw ); // make it square.
@@ -3376,7 +3349,7 @@ return( cvlayers );
 
     GGadgetsCreate(cvlayers,gcd);
     if ( cvvisible[0] )
-	GDrawSetVisible(cvlayers,true);
+	SetPaletteVisible(cv->gw, cvlayers, true);
     layers_max=2;
 
     gadget=GWidgetGetControl(cvlayers,CID_AddLayer);
@@ -3386,7 +3359,7 @@ return( cvlayers );
 
     GGadgetGetSize(GWidgetGetControl(cvlayers,CID_VGrid),&size);
     layer_height = size.height;
-    int32 w = GDrawGetText8Width(cvlayers, "W", -1);
+    int32_t w = GDrawGetText8Width(cvlayers, "W", -1);
     layerinfo.column_width = w+6;
 
     layerinfo.active = CVLayer(&cv->b); /* the index of the active layer */
@@ -3755,11 +3728,11 @@ return( cvlayers!=NULL && GDrawIsVisible(cvlayers) );
 void CVPaletteSetVisible(CharView *cv,int which,int visible) {
     CVPaletteCheck(cv);
     if ( which==1 && cvtools!=NULL)
-	GDrawSetVisible(cvtools,visible );
+	SetPaletteVisible(cv->gw, cvtools, visible);
     else if ( which==0 && cv->b.sc->parent->multilayer && cvlayers2!=NULL )
-	GDrawSetVisible(cvlayers2,visible );
+	SetPaletteVisible(cv->gw, cvlayers2, visible );
     else if ( which==0 && cvlayers!=NULL )
-	GDrawSetVisible(cvlayers,visible );
+	SetPaletteVisible(cv->gw, cvlayers, visible );
     cvvisible[which] = visible;
     SavePrefs(true);
 }
@@ -3779,14 +3752,14 @@ void _CVPaletteActivate(CharView *cv, int force, int docking_changed) {
     CVPaletteCheck(cv);
     if ( layers2_active!=-1 && layers2_active!=cv->b.sc->parent->multilayer ) {
 	if ( !cvvisible[0] ) {
-	    if ( cvlayers2!=NULL ) GDrawSetVisible(cvlayers2,false);
-	    if ( cvlayers !=NULL ) GDrawSetVisible(cvlayers,false);
+	    if ( cvlayers2!=NULL ) SetPaletteVisible(NULL, cvlayers2, false);
+	    if ( cvlayers !=NULL ) SetPaletteVisible(NULL, cvlayers, false);
 	} else if ( layers2_active && cvlayers!=NULL ) {
-	    if ( cvlayers2!=NULL ) GDrawSetVisible(cvlayers2,false);
-	    GDrawSetVisible(cvlayers,true);
+	    if ( cvlayers2!=NULL ) SetPaletteVisible(NULL, cvlayers2, false);
+	    SetPaletteVisible(cv->gw, cvlayers, true);
 	} else if ( !layers2_active && cvlayers2!=NULL ) {
-	    if ( cvlayers !=NULL ) GDrawSetVisible(cvlayers,false);
-	    GDrawSetVisible(cvlayers2,true);
+	    if ( cvlayers !=NULL ) SetPaletteVisible(NULL, cvlayers, false);
+	    SetPaletteVisible(cv->gw, cvlayers2, true);
 	}
     }
     layers2_active = cv->b.sc->parent->multilayer;
@@ -3841,11 +3814,11 @@ void _CVPaletteActivate(CharView *cv, int force, int docking_changed) {
 	    if ( cvvisible[1])
 		RestoreOffsets(cv->gw,cvtools,&cvtoolsoff);
 	}
-	GDrawSetVisible(cvtools,cvvisible[1]);
+	SetPaletteVisible(cv->gw, cvtools, cvvisible[1]);
 	if ( cv->b.sc->parent->multilayer )
-	    GDrawSetVisible(cvlayers2,cvvisible[0]);
+	    SetPaletteVisible(cv->gw, cvlayers2, cvvisible[0]);
 	else
-	    GDrawSetVisible(cvlayers,cvvisible[0]);
+	    SetPaletteVisible(cv->gw, cvlayers, cvvisible[0]);
 	if ( cvvisible[1]) {
 	    cv->showing_tool = cvt_none;
 	    CVToolsSetCursor(cv,0,NULL);
@@ -3865,9 +3838,9 @@ void _CVPaletteActivate(CharView *cv, int force, int docking_changed) {
 	    GDrawSetUserData(bvlayers,NULL);
 	    GDrawSetUserData(bvshades,NULL);
 	}
-	GDrawSetVisible(bvtools,false);
-	GDrawSetVisible(bvlayers,false);
-	GDrawSetVisible(bvshades,false);
+	SetPaletteVisible(NULL, bvtools, false);
+	SetPaletteVisible(NULL, bvlayers, false);
+	SetPaletteVisible(NULL, bvshades, false);
     }
 }
 
@@ -3913,15 +3886,15 @@ void CVPalettesHideIfMine(CharView *cv) {
 return;
     if ( GDrawGetUserData(cvtools)==cv ) {
 	SaveOffsets(cv->gw,cvtools,&cvtoolsoff);
-	GDrawSetVisible(cvtools,false);
+	SetPaletteVisible(NULL, cvtools, false);
 	GDrawSetUserData(cvtools,NULL);
 	if ( cv->b.sc->parent->multilayer && cvlayers2!=NULL ) {
 	    SaveOffsets(cv->gw,cvlayers2,&cvlayersoff);
-	    GDrawSetVisible(cvlayers2,false);
+	    SetPaletteVisible(NULL, cvlayers2, false);
 	    GDrawSetUserData(cvlayers2,NULL);
 	} else {
 	    SaveOffsets(cv->gw,cvlayers,&cvlayersoff);
-	    GDrawSetVisible(cvlayers,false);
+	    SetPaletteVisible(NULL, cvlayers, false);
 	    GDrawSetUserData(cvlayers,NULL);
 	}
     }
@@ -3954,7 +3927,7 @@ return( true );
 
     switch ( event->type ) {
       case et_close:
-	GDrawSetVisible(gw,false);
+	SetPaletteVisible(NULL, gw, false);
       break;
       case et_char: case et_charup:
 	PostCharToWindow(bv->gw,event);
@@ -3975,6 +3948,7 @@ return( true );
 	    GDrawRequestExpose(bv->v,NULL,false);
 	}
       break;
+      default: break;
     }
 return( true );
 }
@@ -3985,7 +3959,6 @@ GWindow BVMakeLayers(BitmapView *bv) {
     GGadgetCreateData gcd[8], boxes[2], *hvarray[5][3];
     GTextInfo label[8];
     static GBox radio_box = { bt_none, bs_rect, 0, 0, 0, 0, 0, 0, 0, 0, COLOR_DEFAULT, COLOR_DEFAULT, 0, 0, 0, 0, 0, 0, 0 };
-    FontRequest rq;
     int i;
 
     if ( bvlayers!=NULL )
@@ -4011,16 +3984,8 @@ return(bvlayers);
     memset(&gcd,0,sizeof(gcd));
     memset(&boxes,0,sizeof(boxes));
 
-    if ( layersfont==NULL ) {
-	memset(&rq,'\0',sizeof(rq));
-	rq.utf8_family_name = SANS_UI_FAMILIES;
-	rq.point_size = -12;
-	rq.weight = 400;
-	layersfont = GDrawInstanciateFont(cvlayers2,&rq);
-	layersfont = GResourceFindFont("LayersPalette.Font",layersfont);
-    }
     for ( i=0; i<sizeof(label)/sizeof(label[0]); ++i )
-	label[i].font = layersfont;
+	label[i].font = layerspalette_font.fi;
 
 /* GT: Abbreviation for "Visible" */
     label[0].text = (unichar_t *) _("V");
@@ -4088,7 +4053,7 @@ return(bvlayers);
     GHVBoxFitWindow(boxes[0].ret);
 
     if ( bvvisible[0] )
-	GDrawSetVisible(bvlayers,true);
+	SetPaletteVisible(bv->gw, bvlayers, true);
 return( bvlayers );
 }
 
@@ -4201,8 +4166,9 @@ return( true );
       case et_destroy:
       break;
       case et_close:
-	GDrawSetVisible(gw,false);
+	SetPaletteVisible(NULL, gw, false);
       break;
+      default: break;
     }
 return( true );
 }
@@ -4232,7 +4198,7 @@ return( bvshades );
     bvshades = CreatePalette( bv->gw, &r, bvshades_e_h, bv, &wattrs, bv->v );
     bv->shades_hidden = BDFDepth(bv->bdf)==1;
     if ( bvvisible[2] && !bv->shades_hidden )
-	GDrawSetVisible(bvshades,true);
+	SetPaletteVisible(bv->gw, bvshades, true);
 return( bvshades );
 }
 
@@ -4251,7 +4217,7 @@ static void BVToolsExpose(GWindow pixmap, BitmapView *bv, GRect *r) {
     int dither = GDrawSetDither(NULL,false);
 
     GDrawPushClip(pixmap,r,&old);
-    GDrawFillRect(pixmap,r,GDrawGetDefaultBackground(NULL));
+    GDrawFillRect(pixmap,r,cvpalettebgcol);
     GDrawSetLineWidth(pixmap,0);
     for ( i=0; i<sizeof(buttons)/sizeof(buttons[0]); ++i ) for ( j=0; j<2; ++j ) {
 	GDrawDrawImage(pixmap,buttons[i][j],NULL,j*27+1,i*27+1);
@@ -4437,8 +4403,9 @@ return( true );
 	PostCharToWindow(bv->gw,event);
       break;
       case et_close:
-	GDrawSetVisible(gw,false);
+	SetPaletteVisible(NULL, gw, false);
       break;
+      default: break;
     }
 return( true );
 }
@@ -4464,7 +4431,7 @@ return( bvtools );
     }
     bvtools = CreatePalette( bv->gw, &r, bvtools_e_h, bv, &wattrs, bv->v );
     if ( bvvisible[1] )
-	GDrawSetVisible(bvtools,true);
+	SetPaletteVisible(bv->gw, bvtools, true);
 return( bvtools );
 }
 
@@ -4571,11 +4538,11 @@ return( bvlayers!=NULL && GDrawIsVisible(bvlayers) );
 void BVPaletteSetVisible(BitmapView *bv,int which,int visible) {
     BVPaletteCheck(bv);
     if ( which==1 && bvtools!=NULL)
-	GDrawSetVisible(bvtools,visible );
+	SetPaletteVisible(bv->gw, bvtools, visible );
     else if ( which==2 && bvshades!=NULL)
-	GDrawSetVisible(bvshades,visible );
+	SetPaletteVisible(bv->gw, bvshades, visible );
     else if ( which==0 && bvlayers!=NULL )
-	GDrawSetVisible(bvlayers,visible );
+	SetPaletteVisible(bv->gw, bvlayers, visible );
     bvvisible[which] = visible;
     SavePrefs(true);
 }
@@ -4619,9 +4586,9 @@ static void _BVPaletteActivate(BitmapView *bv, int force, int docking_changed) {
 	    if ( bvvisible[2] && !bv->shades_hidden )
 		RestoreOffsets(bv->gw,bvshades,&bvshadesoff);
 	}
-	GDrawSetVisible(bvtools,bvvisible[1]);
-	GDrawSetVisible(bvlayers,bvvisible[0]);
-	GDrawSetVisible(bvshades,bvvisible[2] && bv->bdf->clut!=NULL);
+	SetPaletteVisible(bv->gw, bvtools, bvvisible[1]);
+	SetPaletteVisible(bv->gw, bvlayers, bvvisible[0]);
+	SetPaletteVisible(bv->gw, bvshades, bvvisible[2] && bv->bdf->clut!=NULL);
 	if ( bvvisible[1]) {
 	    bv->showing_tool = bvt_none;
 	    BVToolsSetCursor(bv,0,NULL);
@@ -4643,11 +4610,11 @@ static void _BVPaletteActivate(BitmapView *bv, int force, int docking_changed) {
 	    if ( cvlayers2!=NULL )
 		GDrawSetUserData(cvlayers2,NULL);
 	}
-	GDrawSetVisible(cvtools,false);
+	SetPaletteVisible(NULL, cvtools, false);
 	if ( cvlayers!=NULL )
-	    GDrawSetVisible(cvlayers,false);
+	    SetPaletteVisible(NULL, cvlayers, false);
 	if ( cvlayers2!=NULL )
-	    GDrawSetVisible(cvlayers2,false);
+	    SetPaletteVisible(NULL, cvlayers2, false);
     }
 }
 
@@ -4662,9 +4629,9 @@ return;
 	SaveOffsets(bv->gw,bvtools,&bvtoolsoff);
 	SaveOffsets(bv->gw,bvlayers,&bvlayersoff);
 	SaveOffsets(bv->gw,bvshades,&bvshadesoff);
-	GDrawSetVisible(bvtools,false);
-	GDrawSetVisible(bvlayers,false);
-	GDrawSetVisible(bvshades,false);
+	SetPaletteVisible(NULL, bvtools, false);
+	SetPaletteVisible(NULL, bvlayers, false);
+	SetPaletteVisible(NULL, bvshades, false);
 	GDrawSetUserData(bvtools,NULL);
 	GDrawSetUserData(bvlayers,NULL);
 	GDrawSetUserData(bvshades,NULL);
@@ -4685,11 +4652,11 @@ void CVPaletteDeactivate(void) {
 		GDrawSetUserData(cvlayers,NULL);
 	    }
 	}
-	GDrawSetVisible(cvtools,false);
+	SetPaletteVisible(NULL, cvtools, false);
 	if ( cvlayers!=NULL )
-	    GDrawSetVisible(cvlayers,false);
+	    SetPaletteVisible(NULL, cvlayers, false);
 	if ( cvlayers2!=NULL )
-	    GDrawSetVisible(cvlayers2,false);
+	    SetPaletteVisible(NULL, cvlayers2, false);
     }
     if ( bvtools!=NULL ) {
 	BitmapView *bv = GDrawGetUserData(bvtools);
@@ -4701,9 +4668,9 @@ void CVPaletteDeactivate(void) {
 	    GDrawSetUserData(bvlayers,NULL);
 	    GDrawSetUserData(bvshades,NULL);
 	}
-	GDrawSetVisible(bvtools,false);
-	GDrawSetVisible(bvlayers,false);
-	GDrawSetVisible(bvshades,false);
+	SetPaletteVisible(NULL, bvtools, false);
+	SetPaletteVisible(NULL, bvlayers, false);
+	SetPaletteVisible(NULL, bvshades, false);
     }
 }
 
@@ -4724,7 +4691,7 @@ void BVPaletteChangedChar(BitmapView *bv) {
     if ( bvshades!=NULL && bvvisible[2]) {
 	int hidden = bv->bdf->clut==NULL;
 	if ( hidden!=bv->shades_hidden ) {
-	    GDrawSetVisible(bvshades,!hidden);
+	    SetPaletteVisible(bv->gw, bvshades, !hidden);
 	    bv->shades_hidden = hidden;
 	    GDrawRequestExpose(bv->gw,NULL,false);
 	} else

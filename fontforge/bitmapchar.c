@@ -285,7 +285,7 @@ return( false );
 }
 
 static void def_Charset_Col(SplineFont *sf,EncMap *map, char *buffer) {
-    uint32 codepages[2];
+    uint32_t codepages[2];
     /* A buffer with 250 bytes should be more than big enough */
 
     OS2FigureCodePages(sf,codepages);
@@ -786,11 +786,11 @@ void Default_Properties(BDFFont *bdf,EncMap *map,char *onlyme) {
 	lc_cnt = lc_sum = uc_cnt = uc_sum = 0;
 	for ( gid = 0; gid<bdf->glyphcnt; ++gid ) if ( (bdfc=bdf->glyphs[gid])!=NULL ) {
 	    SplineChar *sc = bdfc->sc;
-	    if ( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 && islower(sc->unicodeenc ) ) {
+	    if ( sc->unicodeenc!=-1 && islower(sc->unicodeenc ) ) {
 		++lc_cnt;
 		lc_sum += bdfc->width;
 	    }
-	    if ( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 && isupper(sc->unicodeenc ) ) {
+	    if ( sc->unicodeenc!=-1 && isupper(sc->unicodeenc ) ) {
 		++uc_cnt;
 		uc_sum += bdfc->width;
 	    }
@@ -803,7 +803,7 @@ void Default_Properties(BDFFont *bdf,EncMap *map,char *onlyme) {
 
     /* MIN_SPACE, MAX_SPACE & END_SPACE are judgement calls and I shan't default them */
     /* also SMALL_CAP_SIZE, STRIKEOUT_ASCENT, STRIKEOUT_DESCENT, DESTINATION */
-    /* WEIGHT requires a knowlege of stem sizes and I'm not going to do that */
+    /* WEIGHT requires a knowledge of stem sizes and I'm not going to do that */
     /*  much analysis */
     /* NOTICE is very similar to copyright. */
     /* FONT_TYPE, RASTERIZER_NAME, RASTERIZER_VERSION */

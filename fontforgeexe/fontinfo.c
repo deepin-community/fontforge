@@ -30,12 +30,12 @@
 
 #include "autowidth.h"
 #include "bitmapchar.h"
-#include "chardata.h"
 #include "dumppfa.h"
 #include "encoding.h"
 #include "featurefile.h"
 #include "fontforgeui.h"
 #include "gkeysym.h"
+#include "gresedit.h"
 #include "gutils.h"
 #include "lookups.h"
 #include "namelist.h"
@@ -63,6 +63,8 @@ extern int _GScrollBar_Width;
 extern GBox _ggadget_Default_Box;
 #define ACTIVE_BORDER   (_ggadget_Default_Box.active_border)
 #define MAIN_FOREGROUND (_ggadget_Default_Box.main_foreground)
+
+GResFont fontinfo_font = GRESFONT_INIT("400 12pt " SANS_UI_FAMILIES);
 
 static int last_aspect=0;
 
@@ -971,7 +973,7 @@ static GTextInfo mslanguages[] = {
     { (unichar_t *) N_("Russian"), NULL, 0, 0, (void *) 0x419, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
     { (unichar_t *) N_("Russian (Moldova)"), NULL, 0, 0, (void *) 0x819, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
     { (unichar_t *) N_("Sami (Lappish)"), NULL, 0, 0, (void *) 0x43b, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) N_("Sanskrit"), NULL, 0, 0, (void *) 0x43b, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) N_("Sanskrit"), NULL, 0, 0, (void *) 0x44f, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
     { (unichar_t *) N_("Sepedi"), NULL, 0, 0, (void *) 0x46c, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
     { (unichar_t *) N_("Serbian (Cyrillic)"), NULL, 0, 0, (void *) 0xc1a, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
     { (unichar_t *) N_("Serbian (Latin)"), NULL, 0, 0, (void *) 0x81a, NULL, 0, 0, 0, 0, 0, 0, 1, 0, 0, '\0'},
@@ -1071,26 +1073,26 @@ static GTextInfo ttfnameids[] = {
 };
 static GTextInfo otfssfeattags[] = {
 /* These should not be translated. They are tags */
-    { (unichar_t *) "ss01", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','1'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss02", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','2'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss03", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','3'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss04", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','4'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss05", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','5'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss06", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','6'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss07", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','7'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss08", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','8'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss09", NULL, 0, 0, (void *) (intpt) CHR('s','s','0','9'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss10", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','0'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss11", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','1'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss12", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','2'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss13", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','3'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss14", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','4'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss15", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','5'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss16", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','6'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss17", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','7'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss18", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','8'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss19", NULL, 0, 0, (void *) (intpt) CHR('s','s','1','9'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
-    { (unichar_t *) "ss20", NULL, 0, 0, (void *) (intpt) CHR('s','s','2','0'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss01", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','1'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss02", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','2'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss03", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','3'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss04", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','4'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss05", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','5'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss06", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','6'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss07", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','7'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss08", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','8'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss09", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','0','9'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss10", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','0'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss11", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','1'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss12", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','2'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss13", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','3'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss14", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','4'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss15", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','5'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss16", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','6'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss17", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','7'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss18", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','8'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss19", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','1','9'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
+    { (unichar_t *) "ss20", NULL, 0, 0, (void *) (intptr_t) CHR('s','s','2','0'), NULL, 0, 0, 0, 0, 1, 0, 1, 0, 0, '\0'},
     GTEXTINFO_EMPTY
 };
 /* Put styles (docs call it subfamily) first because it is most likely to change */
@@ -1807,7 +1809,7 @@ const char *UI_TTFNameIds(int id) {
 
     FontInfoInit();
     for ( i=0; ttfnameids[i].text!=NULL; ++i )
-	if ( ttfnameids[i].userdata == (void *) (intpt) id )
+	if ( ttfnameids[i].userdata == (void *) (intptr_t) id )
 return( (char *) ttfnameids[i].text );
 
     if ( id==6 )
@@ -1821,12 +1823,12 @@ const char *UI_MSLangString(int language) {
 
     FontInfoInit();
     for ( i=0; mslanguages[i].text!=NULL; ++i )
-	if ( mslanguages[i].userdata == (void *) (intpt) language )
+	if ( mslanguages[i].userdata == (void *) (intptr_t) language )
 return( (char *) mslanguages[i].text );
 
     language &= 0xff;
     for ( i=0; mslanguages[i].text!=NULL; ++i )
-	if ( ((intpt) mslanguages[i].userdata & 0xff) == language )
+	if ( ((intptr_t) mslanguages[i].userdata & 0xff) == language )
 return( (char *) mslanguages[i].text );
 
 return( _("Unknown") );
@@ -2509,41 +2511,8 @@ static struct otfname *OtfNameFromStyleNames(GGadget *me) {
 return( head );
 }
 
-void GListMoveSelected(GGadget *list,int offset) {
-    int32 len; int i,j;
-    GTextInfo **old, **new;
-
-    old = GGadgetGetList(list,&len);
-    new = calloc(len+1,sizeof(GTextInfo *));
-    j = (offset<0 ) ? 0 : len-1;
-    for ( i=0; i<len; ++i ) if ( old[i]->selected ) {
-	if ( offset==0x80000000 || offset==0x7fffffff )
-	    /* Do Nothing */;
-	else if ( offset<0 ) {
-	    if ( (j= i+offset)<0 ) j=0;
-	    while ( new[j] ) ++j;
-	} else {
-	    if ( (j= i+offset)>=len ) j=len-1;
-	    while ( new[j] ) --j;
-	}
-	new[j] = malloc(sizeof(GTextInfo));
-	*new[j] = *old[i];
-	new[j]->text = u_copy(new[j]->text);
-	if ( offset<0 ) ++j; else --j;
-    }
-    for ( i=j=0; i<len; ++i ) if ( !old[i]->selected ) {
-	while ( new[j] ) ++j;
-	new[j] = malloc(sizeof(GTextInfo));
-	*new[j] = *old[i];
-	new[j]->text = u_copy(new[j]->text);
-	++j;
-    }
-    new[len] = calloc(1,sizeof(GTextInfo));
-    GGadgetSetList(list,new,false);
-}
-
 void GListDelSelected(GGadget *list) {
-    int32 len; int i,j;
+    int32_t len; int i,j;
     GTextInfo **old, **new;
 
     old = GGadgetGetList(list,&len);
@@ -2560,7 +2529,7 @@ void GListDelSelected(GGadget *list) {
 
 GTextInfo *GListChangeLine(GGadget *list,int pos, const unichar_t *line) {
     GTextInfo **old, **new;
-    int32 i,len;
+    int32_t i,len;
 
     old = GGadgetGetList(list,&len);
     new = calloc(len+1,sizeof(GTextInfo *));
@@ -2580,7 +2549,7 @@ return( new[pos]);
 
 GTextInfo *GListAppendLine(GGadget *list,const unichar_t *line,int select) {
     GTextInfo **old, **new;
-    int32 i,len;
+    int32_t i,len;
 
     old = GGadgetGetList(list,&len);
     new = calloc(len+2,sizeof(GTextInfo *));
@@ -2603,7 +2572,7 @@ return( new[i]);
 
 GTextInfo *GListChangeLine8(GGadget *list,int pos, const char *line) {
     GTextInfo **old, **new;
-    int32 i,len;
+    int32_t i,len;
 
     old = GGadgetGetList(list,&len);
     new = calloc(len+1,sizeof(GTextInfo *));
@@ -2623,7 +2592,7 @@ return( new[pos]);
 
 GTextInfo *GListAppendLine8(GGadget *list,const char *line,int select) {
     GTextInfo **old, **new;
-    int32 i,len;
+    int32_t i,len;
 
     old = GGadgetGetList(list,&len);
     new = calloc(len+2,sizeof(GTextInfo *));
@@ -2779,7 +2748,7 @@ return( tn_recalculatedef(d,strings[3*r+1].u.md_ival ));
 static const char *langname(int lang,char *buffer) {
     int i;
     for ( i=0; mslanguages[i].text!=NULL; ++i )
-	if ( mslanguages[i].userdata == (void *) (intpt) lang )
+	if ( mslanguages[i].userdata == (void *) (intptr_t) lang )
 return( (char *) mslanguages[i].text );
 
     sprintf( buffer, "%04X", lang );
@@ -2883,7 +2852,7 @@ return( false );
 
 static int CheckActiveStyleTranslation(struct gfi_data *d,
 	struct matrix_data *strings,int r, int rows, int iswws ) {
-    int i,j, eng_pos, other_pos;
+    int i,j, other_pos;
     char *english, *new=NULL, *temp, *pt;
     int other_lang = strings[3*r].u.md_ival;
     int changed = false;
@@ -2907,7 +2876,7 @@ static int CheckActiveStyleTranslation(struct gfi_data *d,
 	else
 	    new = copy(english);
 	for ( i=0; stylelist[i]!=NULL; ++i ) {
-	    eng_pos = other_pos = -1;
+	    other_pos = -1;
 	    for ( j=0; stylelist[i][j].str!=NULL; ++j ) {
 		if ( stylelist[i][j].lang == other_lang ) {
 		    other_pos = j;
@@ -3006,7 +2975,7 @@ static void TN_StrIDEnable(GGadget *g,GMenuItem *mi, int r, int c) {
     struct matrix_data *strings = GMatrixEditGet(g, &rows);
 
     for ( i=0; mi[i].ti.text!=NULL; ++i ) {
-	int strid = (intpt) mi[i].ti.userdata;
+	int strid = (intptr_t) mi[i].ti.userdata;
 	for ( j=0; j<rows; ++j ) if ( j!=r )
 	    if ( strings[3*j].u.md_ival == strings[3*r].u.md_ival &&
 		    strings[3*j+1].u.md_ival == strid ) {
@@ -3034,7 +3003,7 @@ static void TN_NewName(GGadget *g,int row) {
 static void TN_FinishEdit(GGadget *g,int row,int col,int wasnew) {
     int i,rows;
     struct matrix_data *strings = GMatrixEditGet(g, &rows);
-    uint8 found[ttf_namemax];
+    uint8_t found[ttf_namemax];
     struct gfi_data *d = (struct gfi_data *) GGadgetGetUserData(g);
     int ret = false;
 
@@ -3172,7 +3141,7 @@ static char *TN_BigEditTitle(GGadget *g,int r, int c) {
     struct matrix_data *strings = GMatrixEditGet(g, &rows);
 
     lang = langname(strings[3*r].u.md_ival,buf2);
-    for ( k=0; ttfnameids[k].text!=NULL && ttfnameids[k].userdata!=(void *) (intpt) strings[3*r+1].u.md_ival;
+    for ( k=0; ttfnameids[k].text!=NULL && ttfnameids[k].userdata!=(void *) (intptr_t) strings[3*r+1].u.md_ival;
 	    ++k );
     snprintf(buf,sizeof(buf),_("%1$.30s string for %2$.30s"),
 	    lang, (char *) ttfnameids[k].text );
@@ -3182,7 +3151,7 @@ return( copy( buf ));
 static void TNMatrixInit(struct matrixinit *mi,struct gfi_data *d) {
     SplineFont *sf = d->sf;
     int i,j,k,cnt;
-    uint8 sawEnglishUS[ttf_namemax];
+    uint8_t sawEnglishUS[ttf_namemax];
     struct ttflangname *tln;
     struct matrix_data *md;
 
@@ -3261,20 +3230,11 @@ static int GFI_AddOFL(GGadget *g, GEvent *e) {
 /* Author, and Font Family Name for rows[0,1] of the license. You can access */
 /* this routine from GUI at Element->Font_Info->TTF_Names. info at PS_Names. */
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	struct gfi_data *d = GDrawGetUserData(GGadgetGetWindow(g));
 	GGadget *tng = GWidgetGetControl(GGadgetGetWindow(g),CID_TNames);
 	int rows;
 	struct matrix_data *tns, *newtns;
 	int i,j,k,l,m, extras, len;
-	char *all, *pt, **data;
-	char buffer[1024], *bpt;
-	const char *author = GetAuthor();
-	char *reservedname, *fallback;
-	time_t now;
-	struct tm *tm;
-
-	now = GetTime();
-	tm = localtime(&now);
+	char *all, *pt, **data, *bpt;
 
 	tns = GMatrixEditGet(tng, &rows); newtns = NULL;
 	for ( k=0; k<2; ++k ) {
@@ -3296,34 +3256,14 @@ static int GFI_AddOFL(GGadget *g, GEvent *e) {
 		    newtns[j*3+1].u.md_ival = ofl_str_lang_data[i].strid;
 		    newtns[j*3+0].u.md_ival = ofl_str_lang_data[i].lang;
 		    data = ofl_str_lang_data[i].data;
-		    reservedname = fallback = NULL;
-		    for ( m=0; m<rows; ++m ) {
-			if ( newtns[j*3+1].u.md_ival==ttf_family ) {
-			    if ( newtns[j*3+0].u.md_ival==0x409 )
-				fallback = newtns[3*j+2].u.md_str;
-			    else if ( newtns[j*3+0].u.md_ival==ofl_str_lang_data[i].lang )
-				reservedname = newtns[3*j+2].u.md_str;
-			}
-		    }
-		    if ( reservedname==NULL )
-			reservedname = fallback;
-		    if ( reservedname==NULL )
-			reservedname = d->sf->familyname;
 		    for ( m=0; m<2; ++m ) {
 			len = 0;
 			for ( l=0; data[l]!=NULL; ++l ) {
-			    if ( l==0 ) {
-				sprintf( buffer, data[l], tm->tm_year+1900, author );
-			        bpt = buffer;
-			    } else if ( l==1 ) {
-				sprintf( buffer, data[l], reservedname );
-			        bpt = buffer;
-			    } else
-				bpt = data[l];
+			    bpt = data[l];
 			    if ( m ) {
 				strcpy( pt, bpt );
-			        pt += strlen( bpt );
-			        *pt++ = '\n';
+				pt += strlen( bpt );
+				*pt++ = '\n';
 			    } else
 				len += strlen( bpt ) + 1;		/* for a new line */
 			}
@@ -3346,8 +3286,8 @@ static int GFI_AddOFL(GGadget *g, GEvent *e) {
 	    "The OFL is a community-approved software license designed for libre/open font projects. \n"
 	    "Fonts under the OFL can be used, studied, copied, modified, embedded, merged and redistributed while giving authors enough control and artistic integrity. For more details including an FAQ see http://scripts.sil.org/OFL. \n\n"
 	    "This font metadata will help users, designers and distribution channels to know who you are, how to contact you and what rights you are granting. \n" 
-        "When releasing modified versions, remember to add your additional notice, including any extra Reserved Font Name(s). \n\n" 
-	    "Have fun designing open fonts!" ));
+	    "When releasing modified versions, remember to add your additional notice, including any extra Reserved Font Name(s). FontForge used to add RFN's by default, but no longer does, as they are used by a minority of OFL fonts and FontForge's RFN's were often legally invalid. Please see the official SIL FAQ and FontForge GitHub issue №4434 for more information. \n\n"
+	    "Have fun designing open fonts! 🔣🔧🥳" ));
     }
 return( true );
 }
@@ -3802,9 +3742,9 @@ static int SSNameValidate(struct gfi_data *d) {
 	continue;
 	    if ( strings[3*i  ].u.md_ival == strings[3*j  ].u.md_ival &&
 		    strings[3*i+1].u.md_ival == strings[3*j+1].u.md_ival ) {
-		uint32 tag = strings[3*i+1].u.md_ival;
+		uint32_t tag = strings[3*i+1].u.md_ival;
 		for ( k=0; mslanguages[k].text!=NULL &&
-			((intpt) mslanguages[k].userdata)!=strings[3*i].u.md_ival; ++k );
+			((intptr_t) mslanguages[k].userdata)!=strings[3*i].u.md_ival; ++k );
 		if ( mslanguages[k].text==NULL ) k=0;
 		ff_post_error(_("Duplicate StyleSet Name"),_("The feature '%c%c%c%c' is named twice in language %s\n%.80s\n%.80s"),
 			tag>>24, tag>>16, tag>>8, tag,
@@ -3824,7 +3764,7 @@ static void StoreSSNames(struct gfi_data *d) {
     int rows;
     struct matrix_data *strings = GMatrixEditGet(edit, &rows);
     int i;
-    uint32 tag, lang;
+    uint32_t tag, lang;
     struct otffeatname *fn;
     struct otfname *on;
     SplineFont *sf = d->sf;
@@ -3907,7 +3847,7 @@ static void GFI_ApplyLookupChanges(struct gfi_data *gfi) {
     }
 }
 
-static void hexparse(GWindow gw, int cid, char *name, uint32 *data, int len, int *err) {
+static void hexparse(GWindow gw, int cid, char *name, uint32_t *data, int len, int *err) {
     int i;
     const unichar_t *ret;
     unichar_t *end;
@@ -4052,7 +3992,7 @@ static int GFI_OK(GGadget *g, GEvent *e) {
 	int vmetrics, namechange, guideorder2;
 	int xuidchanged = false, usexuid, useuniqueid;
 	GTextInfo *pfmfam, *ibmfam, *fstype, *nlitem, *stylemap;
-	int32 len;
+	int32_t len;
 	GTextInfo **ti;
 	int subs[4], super[4], strike[2];
 	struct otfname *fontstyle_name;
@@ -4070,7 +4010,7 @@ static int GFI_OK(GGadget *g, GEvent *e) {
 	struct matrix_data *markclasses = GMatrixEditGet(GWidgetGetControl(d->gw,CID_MarkClasses), &mc_rows);
 	struct matrix_data *marksets    = GMatrixEditGet(GWidgetGetControl(d->gw,CID_MarkSets), &ms_rows);
 	int was_ml = sf->multilayer, was_stroke = sf->strokedfont;
-	uint32 codepages[2], uranges[4];
+	uint32_t codepages[2], uranges[4];
 	int layer_cnt;
 	struct matrix_data *layers = GMatrixEditGet(GWidgetGetControl(d->gw,CID_Backgrounds), &layer_cnt);
 	int layer_flags;
@@ -4231,7 +4171,7 @@ return(true);
 		char *wc = GGadgetGetTitle8(GWidgetGetControl(gw,CID_WeightClass));
 		for ( i=0; widthclass[i].text!=NULL; ++i ) {
 		    if ( strcmp(wc,(char *) widthclass[i].text)==0 ) {
-			weight = (intpt) widthclass[i].userdata;
+			weight = (intptr_t) widthclass[i].userdata;
 		break;
 		    }
 		}
@@ -4298,7 +4238,7 @@ return( true );
 	    ti = GGadgetGetList(GWidgetGetControl(d->gw,CID_MacStyles),&len);
 	    for ( i=0; i<len; ++i )
 		if ( ti[i]->selected )
-		    mcs |= (int) (intpt) ti[i]->userdata;
+		    mcs |= (int) (intptr_t) ti[i]->userdata;
 	    if ( (mcs&sf_condense) && (mcs&sf_extend)) {
 		ff_post_error(_("Bad Style"),_("A style may not have both condense and extend set (it makes no sense)"));
 return( true );
@@ -4450,7 +4390,7 @@ return(true);
 
 	interp = GGadgetGetFirstListSelectedItem(GWidgetGetControl(gw,CID_Interpretation));
 	if ( interp==-1 ) sf->uni_interp = ui_none;
-	else sf->uni_interp = (intpt) interpretations[interp].userdata;
+	else sf->uni_interp = (intptr_t) interpretations[interp].userdata;
 
 	sf->for_new_glyphs = nl;
 
@@ -4475,23 +4415,23 @@ return(true);
 	    sf->pfminfo.width = GGadgetGetFirstListSelectedItem(GWidgetGetControl(gw,CID_WidthClass))+1;
 	    pfmfam = GGadgetGetListItemSelected(GWidgetGetControl(gw,CID_PFMFamily));
 	    if ( pfmfam!=NULL )
-		sf->pfminfo.pfmfamily = (intpt) (pfmfam->userdata);
+		sf->pfminfo.pfmfamily = (intptr_t) (pfmfam->userdata);
 	    else
 		sf->pfminfo.pfmfamily = 0x11;
 	    ibmfam = GGadgetGetListItemSelected(GWidgetGetControl(gw,CID_IBMFamily));
 	    if ( ibmfam!=NULL )
-		sf->pfminfo.os2_family_class = (intpt) (ibmfam->userdata);
+		sf->pfminfo.os2_family_class = (intptr_t) (ibmfam->userdata);
 	    else
 		sf->pfminfo.os2_family_class = 0x00;
         stylemap = GGadgetGetListItemSelected(GWidgetGetControl(gw,CID_StyleMap));
         if ( stylemap!=NULL )
-        sf->pfminfo.stylemap = (intpt) (stylemap->userdata);
+        sf->pfminfo.stylemap = (intptr_t) (stylemap->userdata);
         else
         sf->pfminfo.stylemap = -1;
 	    memcpy(sf->pfminfo.os2_vendor,os2_vendor,sizeof(os2_vendor));
 	    fstype = GGadgetGetListItemSelected(GWidgetGetControl(gw,CID_FSType));
 	    if ( fstype!=NULL )
-		sf->pfminfo.fstype = (intpt) (fstype->userdata);
+		sf->pfminfo.fstype = (intptr_t) (fstype->userdata);
 	    else
 		sf->pfminfo.fstype = 0xc;
 	    if ( GGadgetIsChecked(GWidgetGetControl(gw,CID_NoSubsetting)))
@@ -4499,7 +4439,7 @@ return(true);
 	    if ( GGadgetIsChecked(GWidgetGetControl(gw,CID_OnlyBitmaps)))
 		sf->pfminfo.fstype |=0x200;
 	    for ( i=0; i<10; ++i )
-		sf->pfminfo.panose[i] = (intpt) (GGadgetGetListItemSelected(GWidgetGetControl(gw,CID_PanFamily+i))->userdata);
+		sf->pfminfo.panose[i] = (intptr_t) (GGadgetGetListItemSelected(GWidgetGetControl(gw,CID_PanFamily+i))->userdata);
 	    sf->pfminfo.panose_set = !GGadgetIsChecked(GWidgetGetControl(gw,CID_PanDefault));
 	    sf->pfminfo.os2_typolinegap = tlinegap;
 	    sf->pfminfo.linegap = linegap;
@@ -4872,7 +4812,7 @@ static void TTFSetup(struct gfi_data *d) {
     }
     GGadgetSelectOneListItem(GWidgetGetControl(d->gw,CID_WidthClass),info.width-1);
     for ( i=0; pfmfamily[i].text!=NULL; ++i )
-	if ( (intpt) (pfmfamily[i].userdata)==info.pfmfamily ) {
+	if ( (intptr_t) (pfmfamily[i].userdata)==info.pfmfamily ) {
 	    GGadgetSelectOneListItem(GWidgetGetControl(d->gw,CID_PFMFamily),i);
     break;
 	}
@@ -4887,7 +4827,7 @@ static void TTFSetup(struct gfi_data *d) {
     GGadgetSetChecked(GWidgetGetControl(d->gw,CID_WeightWidthSlopeOnly),d->sf->weight_width_slope_only);
 
     for ( i=0; ibmfamily[i].text!=NULL; ++i )
-	if ( (intpt) (ibmfamily[i].userdata)==info.os2_family_class ) {
+	if ( (intptr_t) (ibmfamily[i].userdata)==info.os2_family_class ) {
 	    GGadgetSelectOneListItem(GWidgetGetControl(d->gw,CID_IBMFamily),i);
     break;
 	}
@@ -5230,26 +5170,26 @@ static void FigureUnicode(struct gfi_data *d) {
     char buffer[200];
 
     GGadgetClearList(list);
-    ri = SFUnicodeRanges(d->sf,(includeempties?ur_includeempty:0)|ur_sortbyunicode);
+    ri = SFUnicodeRanges(d->sf,includeempties);
     if ( ri==NULL ) cnt=0;
     else
 	for ( cnt=0; ri[cnt].range!=NULL; ++cnt );
 
     ti = malloc((cnt+1) * sizeof( GTextInfo * ));
     for ( i=0; i<cnt; ++i ) {
-	if ( ri[i].range->first==-1 )
+	if ( ri[i].range->start==(unichar_t)-1 )
 	    snprintf( buffer, sizeof(buffer),
 		    "%s  %d/0", _(ri[i].range->name), ri[i].cnt);
 	else
 	    snprintf( buffer, sizeof(buffer),
 		    "%s  U+%04X-U+%04X %d/%d",
 		    _(ri[i].range->name),
-		    (int) ri[i].range->first, (int) ri[i].range->last,
-		    ri[i].cnt, ri[i].range->actual );
+		    (int) ri[i].range->start, (int) ri[i].range->end,
+		    ri[i].cnt, ri[i].range->num_assigned );
 	ti[i] = calloc(1,sizeof(GTextInfo));
 	ti[i]->fg = ti[i]->bg = COLOR_DEFAULT;
 	ti[i]->text = utf82u_copy(buffer);
-	ti[i]->userdata = ri[i].range;
+	ti[i]->userdata = (void*)ri[i].range;
     }
     ti[i] = calloc(1,sizeof(GTextInfo));
     GGadgetSetList(list,ti,false);
@@ -5259,7 +5199,7 @@ static void FigureUnicode(struct gfi_data *d) {
 static int GFI_UnicodeRangeChange(GGadget *g, GEvent *e) {
     struct gfi_data *d = GDrawGetUserData(GGadgetGetWindow(g));
     GTextInfo *ti = GGadgetGetListItemSelected(g);
-    struct unicoderange *r;
+    const struct unicode_range *r;
     int gid, first=-1;
     SplineFont *sf = d->sf;
     FontView *fv = (FontView *) (sf->fv);
@@ -5280,23 +5220,23 @@ return( true );
     if ( e->u.control.subtype == et_listselected ) {
 	for ( gid=0; gid<sf->glyphcnt; ++gid ) if ( sf->glyphs[gid]!=NULL ) {
 	    enc = map->backmap[gid];
-	    if ( sf->glyphs[gid]->unicodeenc>=r->first && sf->glyphs[gid]->unicodeenc<=r->last &&
+	    if ( sf->glyphs[gid]->unicodeenc>=r->start && sf->glyphs[gid]->unicodeenc<=r->end &&
 		    enc!=-1 ) {
 		if ( first==-1 || enc<first ) first = enc;
 		fv->b.selected[enc] = true;
 	    }
 	}
-    } else if ( e->u.control.subtype == et_listdoubleclick && !r->unassigned ) {
-	char *found = calloc(r->last-r->first+1,1);
+    } else if ( e->u.control.subtype == et_listdoubleclick && r->num_assigned>0 ) {
+	char *found = calloc(r->end-r->start+1,1);
 	for ( gid=0; gid<sf->glyphcnt; ++gid ) if ( sf->glyphs[gid]!=NULL ) {
 	    int u = sf->glyphs[gid]->unicodeenc;
-	    if ( u>=r->first && u<=r->last ) {
-		found[u-r->first] = true;
+	    if ( u>=r->start && u<=r->end ) {
+		found[u-r->start] = true;
 	    }
 	}
-	for ( i=0; i<=r->last-r->first; ++i ) {
-	    if ( isunicodepointassigned(i+r->first) && !found[i] ) {
-		enc = EncFromUni(i+r->first,map->enc);
+	for ( i=0; i<=r->end-r->start; ++i ) {
+	    if ( isunicodepointassigned(i+r->start) && !found[i] ) {
+		enc = EncFromUni(i+r->start,map->enc);
 		if ( enc!=-1 ) {
 		    if ( first==-1 || enc<first ) first = enc;
 		    fv->b.selected[enc] = true;
@@ -5368,7 +5308,7 @@ return( true );
 }
 
 static int OS2_UnicodeChange(GGadget *g, GEvent *e) {
-    int32 flags[4];
+    int32_t flags[4];
     int len,i,bit,set;
 
     if ( e==NULL || (e->type==et_controlevent && e->u.control.subtype == et_textchanged )) {
@@ -5390,7 +5330,7 @@ static int OS2_UnicodeChange(GGadget *g, GEvent *e) {
 	list = GWidgetGetControl(gw,CID_UnicodeList);
 
 	for ( i=0; unicoderangenames[i].text!=NULL; ++i ) {
-	    bit = (intpt) (unicoderangenames[i].userdata);
+	    bit = (intptr_t) (unicoderangenames[i].userdata);
 	    set = (flags[bit>>5]&(1<<(bit&31)))?1 : 0;
 	    GGadgetSelectListItem(list,i,set);
 	}
@@ -5404,7 +5344,7 @@ static int OS2_UnicodeChange(GGadget *g, GEvent *e) {
 	flags[0] = flags[1] = flags[2] = flags[3] = 0;
 	for ( i=0; i<len; ++i )
 	    if ( list[i]->selected ) {
-		bit = ((intpt) (list[i]->userdata));
+		bit = ((intptr_t) (list[i]->userdata));
 		flags[bit>>5] |= (1<<(bit&31));
 	    }
 
@@ -5436,7 +5376,7 @@ return( true );
 }
 
 static int OS2_CodePageChange(GGadget *g, GEvent *e) {
-    int32 flags[2];
+    int32_t flags[2];
     int len,i,bit,set;
 
     if ( e==NULL || (e->type==et_controlevent && e->u.control.subtype == et_textchanged )) {
@@ -5454,7 +5394,7 @@ static int OS2_CodePageChange(GGadget *g, GEvent *e) {
 	list = GWidgetGetControl(gw,CID_CodePageList);
 
 	for ( i=0; codepagenames[i].text!=NULL; ++i ) {
-	    bit = (intpt) (codepagenames[i].userdata);
+	    bit = (intptr_t) (codepagenames[i].userdata);
 	    set = (flags[bit>>5]&(1<<(bit&31)))?1 : 0;
 	    GGadgetSelectListItem(list,i,set);
 	}
@@ -5468,7 +5408,7 @@ static int OS2_CodePageChange(GGadget *g, GEvent *e) {
 	flags[0] = flags[1] = 0;
 	for ( i=0; i<len; ++i )
 	    if ( list[i]->selected ) {
-		bit = ((intpt) (list[i]->userdata));
+		bit = ((intptr_t) (list[i]->userdata));
 		flags[bit>>5] |= (1<<(bit&31));
 	    }
 
@@ -5550,7 +5490,7 @@ struct selection_bits {
     int lookup_cnt, sub_cnt;	/* Number of selected lookups, and selected sub tables */
     int a_lookup, a_sub;	/* The index of one of those lookups, or subtables */
     int a_sub_lookup;		/*  the index of the lookup containing a_sub */
-    int any_first, any_last;	/* Whether any of the selected items is first or last in its catagory */
+    int any_first, any_last;	/* Whether any of the selected items is first or last in its category */
     int sub_table_mergeable;	/* Can we merge the selected subtables? */
     int lookup_mergeable;	/* Can we merge the selected lookups? */
 };
@@ -5716,7 +5656,7 @@ static int LookupsHScroll(GGadget *g,GEvent *event) {
     int isgpos = GGadgetGetCid(g)-CID_LookupHSB;
     struct lkdata *lk = &gfi->tables[isgpos];
     int newpos = lk->off_left;
-    int32 sb_min, sb_max, sb_pagesize;
+    int32_t sb_min, sb_max, sb_pagesize;
 
     if ( event->type!=et_controlevent || event->u.control.subtype != et_scrollbarchange )
 return( true );
@@ -5768,7 +5708,7 @@ static int LookupsVScroll(GGadget *g,GEvent *event) {
     int isgpos = GGadgetGetCid(g)-CID_LookupVSB;
     struct lkdata *lk = &gfi->tables[isgpos];
     int newpos = lk->off_top;
-    int32 sb_min, sb_max, sb_pagesize;
+    int32_t sb_min, sb_max, sb_pagesize;
 
     if ( event->type!=et_controlevent || event->u.control.subtype != et_scrollbarchange )
 return( true );
@@ -5797,6 +5737,7 @@ return( true );
       case et_sb_thumbrelease:
         newpos = event->u.control.u.sb.pos;
       break;
+      case et_sb_halfup: case et_sb_halfdown: break;
     }
     if ( newpos>(sb_max-sb_pagesize) )
         newpos = (sb_max-sb_pagesize);
@@ -6502,7 +6443,7 @@ static int GFI_LookupImportLookup(GGadget *g, GEvent *e) {
 	while ( !done )
 	    GDrawProcessOneEvent(NULL);
 	if ( done==2 ) {
-	    int32 len;
+	    int32_t len;
 	    GTextInfo **ti = GGadgetGetList(gcd[1].ret,&len);
 	    OTLookup **list = malloc((len+1)*sizeof(OTLookup*));
 	    struct lkdata *lk = &gfi->tables[isgpos];
@@ -6572,10 +6513,10 @@ static void LookupExpose(GWindow pixmap, struct gfi_data *gfi, int isgpos) {
 	    }
 	    r.x = LK_MARGIN-lk->off_left; r.width = (gfi->as&~1);
 	    r.y = LK_MARGIN+(lcnt-lk->off_top)*gfi->fh; r.height = r.width;
-	    GDrawDrawRect(pixmap,&r,0x000000);
-	    GDrawDrawLine(pixmap,r.x+2,r.y+(r.height/2), r.x+r.width-2,r.y+(r.height/2), 0x000000);
+	    GDrawDrawRect(pixmap,&r,MAIN_FOREGROUND);
+	    GDrawDrawLine(pixmap,r.x+2,r.y+(r.height/2), r.x+r.width-2,r.y+(r.height/2), MAIN_FOREGROUND);
 	    if ( !lk->all[i].open )
-		GDrawDrawLine(pixmap,r.x+(r.width/2),r.y+2, r.x+(r.width/2),r.y+r.height-2, 0x000000);
+		GDrawDrawLine(pixmap,r.x+(r.width/2),r.y+2, r.x+(r.width/2),r.y+r.height-2, MAIN_FOREGROUND);
 	    GDrawDrawText8(pixmap,r.x+gfi->fh, r.y+gfi->as,
 		    lk->all[i].lookup->lookup_name,-1,MAIN_FOREGROUND);
 	}
@@ -6656,7 +6597,7 @@ static void LookupPopup(GWindow gw,OTLookup *otl,struct lookup_subtable *sub,
 			sl->script>>8, sl->script&0xff );
 		pos += strlen( popup_msg+pos );
 		for ( l=0; l<sl->lang_cnt; ++l ) {
-		    uint32 lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
+		    uint32_t lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
 		    snprintf(popup_msg+pos,sizeof(popup_msg)-pos,"%c%c%c%c,",
 			    lang>>24, lang>>16,
 			    lang>>8, lang&0xff );
@@ -6721,7 +6662,7 @@ static void AddDFLT(OTLookup *otl) {
 	    if ( sl->script == DEFAULT_SCRIPT )
 		hasDFLT = true;
 	    for ( l=0; l<sl->lang_cnt; ++l ) {
-		uint32 lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
+		uint32_t lang = l<MAX_LANG ? sl->langs[l] : sl->morelangs[l-MAX_LANG];
 		if ( lang==DEFAULT_LANG ) {
 		    hasdflt = true;
 	    break;
@@ -7476,6 +7417,7 @@ return( GFI_Char(gfi,event) );
 	GFI_LookupScrollbars(gfi,true,false);
       }
       break;
+      default: break;
     }
 return( true );
 }
@@ -7536,7 +7478,6 @@ void FontInfo(SplineFont *sf,int deflayer,int defaspect,int sync) {
     int i,j,k,g, psrow;
     int mcs;
     char title[130];
-    FontRequest rq;
     int as, ds, ld;
     char **nlnames;
     char createtime[200], modtime[200];
@@ -7548,7 +7489,6 @@ void FontInfo(SplineFont *sf,int deflayer,int defaspect,int sync) {
     int ltype;
     static GBox small_blue_box;
     extern GBox _GGadget_button_box;
-    static GFont *fi_font=NULL;
     char *copied_copyright;
 
     FontInfoInit();
@@ -10208,7 +10148,7 @@ return;
 
     mcs = MacStyleCode(sf,NULL);
     for ( i=0; macstyles[i].text!=NULL; ++i )
-	macstyles[i].selected = (mcs&(int) (intpt) macstyles[i].userdata)? 1 : 0;
+	macstyles[i].selected = (mcs&(int) (intptr_t) macstyles[i].userdata)? 1 : 0;
 
     mcarray[0] = &mcgcd[0]; mcarray[1] = GCD_Glue; mcarray[2] = NULL;
     mcarray[3] = &mcbox[2]; mcarray[4] = &mcgcd[3]; mcarray[5] = NULL;
@@ -10859,15 +10799,7 @@ return;
     OS2_UnicodeChange(GWidgetGetControl(gw,CID_UnicodeRanges),NULL);
     OS2_CodePageChange(GWidgetGetControl(gw,CID_CodePageRanges),NULL);
 
-    if ( fi_font==NULL ) {
-	memset(&rq,0,sizeof(rq));
-	rq.utf8_family_name = SANS_UI_FAMILIES;
-	rq.point_size = 12;
-	rq.weight = 400;
-	fi_font = GDrawInstanciateFont(gw,&rq);
-	fi_font = GResourceFindFont("FontInfo.Font",fi_font);
-    }
-    d->font = fi_font;
+    d->font = fontinfo_font.fi;
     GDrawWindowFontMetrics(gw,d->font,&as,&ds,&ld);
     d->as = as; d->fh = as+ds;
 
@@ -10888,7 +10820,6 @@ return;
 
     GHVBoxFitWindow(mb[0].ret);
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gw,true);
 
     if ( sync ) {

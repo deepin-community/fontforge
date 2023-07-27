@@ -29,7 +29,6 @@
 #include <fontforge-config.h>
 
 #include "bvedit.h"
-#include "chardata.h"
 #include "encoding.h"
 #include "ffglib.h"
 #include "fontforgevw.h"
@@ -47,10 +46,15 @@
 #include <math.h>
 #include <unistd.h>
 
-static uint32 simple_stdfeatures[] = { CHR('c','c','m','p'), CHR('l','o','c','a'), CHR('k','e','r','n'), CHR('l','i','g','a'), CHR('c','a','l','t'), CHR('m','a','r','k'), CHR('m','k','m','k'), REQUIRED_FEATURE, 0 };
-static uint32 arab_stdfeatures[] = { CHR('c','c','m','p'), CHR('l','o','c','a'), CHR('i','s','o','l'), CHR('i','n','i','t'), CHR('m','e','d','i'),CHR('f','i','n','a'), CHR('r','l','i','g'), CHR('l','i','g','a'), CHR('c','a','l','t'), CHR('k','e','r','n'), CHR('c','u','r','s'), CHR('m','a','r','k'), CHR('m','k','m','k'), REQUIRED_FEATURE, 0 };
-static uint32 hebrew_stdfeatures[] = { CHR('c','c','m','p'), CHR('l','o','c','a'), CHR('l','i','g','a'), CHR('c','a','l','t'), CHR('k','e','r','n'), CHR('m','a','r','k'), CHR('m','k','m','k'), REQUIRED_FEATURE, 0 };
-static struct { uint32 script, *stdfeatures; } script_2_std[] = {
+#define BREAK_AFTER 0x1
+#define BREAK_BEFORE 0x2
+#define BREAK_NONSTART 0x4
+#define BREAK_NONEND 0x8
+
+static uint32_t simple_stdfeatures[] = { CHR('c','c','m','p'), CHR('l','o','c','a'), CHR('k','e','r','n'), CHR('l','i','g','a'), CHR('c','a','l','t'), CHR('m','a','r','k'), CHR('m','k','m','k'), REQUIRED_FEATURE, 0 };
+static uint32_t arab_stdfeatures[] = { CHR('c','c','m','p'), CHR('l','o','c','a'), CHR('i','s','o','l'), CHR('i','n','i','t'), CHR('m','e','d','i'),CHR('f','i','n','a'), CHR('r','l','i','g'), CHR('l','i','g','a'), CHR('c','a','l','t'), CHR('k','e','r','n'), CHR('c','u','r','s'), CHR('m','a','r','k'), CHR('m','k','m','k'), REQUIRED_FEATURE, 0 };
+static uint32_t hebrew_stdfeatures[] = { CHR('c','c','m','p'), CHR('l','o','c','a'), CHR('l','i','g','a'), CHR('c','a','l','t'), CHR('k','e','r','n'), CHR('m','a','r','k'), CHR('m','k','m','k'), REQUIRED_FEATURE, 0 };
+static struct { uint32_t script, *stdfeatures; } script_2_std[] = {
     { CHR('l','a','t','n'), simple_stdfeatures },
     { CHR('D','F','L','T'), simple_stdfeatures },
     { CHR('c','y','r','l'), simple_stdfeatures },
@@ -60,7 +64,51 @@ static struct { uint32 script, *stdfeatures; } script_2_std[] = {
     { 0, NULL }
 };
 
-uint32 *StdFeaturesOfScript(uint32 script) {
+static int BreakClassify(unichar_t ch) {
+    int flags = 0;
+    switch (g_unichar_break_type(ch)) {
+        case G_UNICODE_BREAK_SPACE:
+        case G_UNICODE_BREAK_HYPHEN:
+        case G_UNICODE_BREAK_AFTER:
+        case G_UNICODE_BREAK_ZERO_WIDTH_SPACE:
+            flags |= BREAK_AFTER;
+            break;
+        case G_UNICODE_BREAK_BEFORE:
+            flags |= BREAK_BEFORE;
+            break;
+        case G_UNICODE_BREAK_BEFORE_AND_AFTER:
+        case G_UNICODE_BREAK_IDEOGRAPHIC:
+            flags |= BREAK_AFTER | BREAK_BEFORE;
+            break;
+        case G_UNICODE_BREAK_NON_STARTER:
+        case G_UNICODE_BREAK_CLOSE_PUNCTUATION:
+            flags |= BREAK_NONSTART;
+            break;
+        case G_UNICODE_BREAK_NON_BREAKING_GLUE:
+            flags |= BREAK_NONSTART | BREAK_NONEND;
+            break;
+        case G_UNICODE_BREAK_OPEN_PUNCTUATION:
+        case G_UNICODE_BREAK_COMBINING_MARK:
+            flags |= BREAK_NONEND;
+            break;
+        default:
+            break;
+    }
+    return flags;
+}
+
+// This is a copy of the algorithm from the old utype.c/makeutype.c
+// See https://github.com/fontforge/fontforge/blob/a5dedb4010cd49a5fcfaeed5d188dd7942294005/Unicode/makeutype.c#L687-L706
+static int IsBreakBetweenOk(unichar_t ch1, unichar_t ch2) {
+    int b1 = BreakClassify(ch1), b2 = BreakClassify(ch2);
+    return (
+        ((b1 & BREAK_AFTER) && !(b2 & BREAK_NONSTART)) ||
+        ((b2 & BREAK_BEFORE) && !(b1 & BREAK_NONEND)) ||
+        (!isdigit(ch2) && ch1 == '/')
+    );
+}
+
+uint32_t *StdFeaturesOfScript(uint32_t script) {
     int i;
 
     for ( i=0; script_2_std[i].script!=0; ++i )
@@ -121,21 +169,21 @@ return( x );
 return( x );
 }
 
-uint32 *LI_TagsCopy(uint32 *tags) {
+uint32_t *LI_TagsCopy(uint32_t *tags) {
     int i;
-    uint32 *ret;
+    uint32_t *ret;
 
     if ( tags==NULL )
 return( NULL );
     for ( i=0; tags[i]!=0; ++i );
-    ret = malloc((i+1)*sizeof(uint32));
+    ret = malloc((i+1)*sizeof(uint32_t));
     for ( i=0; tags[i]!=0; ++i )
 	ret[i] = tags[i];
     ret[i] = 0;
 return( ret );
 }
 
-static int TagsSame(uint32 *tags1, uint32 *tags2) {
+static int TagsSame(uint32_t *tags1, uint32_t *tags2) {
     int i;
 
     if ( tags1==NULL || tags2==NULL )
@@ -200,9 +248,7 @@ return( 1 );
 	    }
 	    pos = paratext[end]->orig_index +
 		    ((struct fontlist *) (paratext[end]->fl))->start;
-	    if ( ((li->text[pos+1]<0x10000 && li->text[pos]<0x10000 &&
-			isbreakbetweenok(li->text[pos],li->text[pos+1])) ||
-		    (li->text[pos]==' ' && li->text[pos+1]>=0x10000 )))
+	    if (IsBreakBetweenOk(li->text[pos],li->text[pos+1]))
 		break_pos = end;
 	}
 	if ( paratext[end]==NULL && end!=0 ) {
@@ -234,7 +280,7 @@ return( ret );
 }
 
 static struct basescript *FindBS(struct Base *base,struct opentype_str *ch,LayoutInfo *li) {
-    uint32 script = SCScriptFromUnicode(ch->sc);
+    uint32_t script = SCScriptFromUnicode(ch->sc);
     struct basescript *bs;
     if ( script == DEFAULT_SCRIPT ) {
 	struct fontlist *fl = ch->fl;
@@ -245,7 +291,7 @@ static struct basescript *FindBS(struct Base *base,struct opentype_str *ch,Layou
 return( bs );
 }
 
-static uint32 FigureBaselineTag(struct opentype_str *ch,LayoutInfo *li,
+static uint32_t FigureBaselineTag(struct opentype_str *ch,LayoutInfo *li,
 	struct Base *cur_base,struct Base *start_base) {
     struct basescript *bs;
 
@@ -260,7 +306,7 @@ return( start_base->baseline_tags[bs->def_baseline] );
 return( 0 );
 }
 
-static int BaselineOffset(struct Base *base, struct basescript *bs,uint32 cur_bsln_tag) {
+static int BaselineOffset(struct Base *base, struct basescript *bs,uint32_t cur_bsln_tag) {
     int i;
 
     for ( i=0; i<base->baseline_cnt; ++i )
@@ -281,7 +327,7 @@ static void LIFigureLineHeight(LayoutInfo *li,int l,int p) {
 	FontData *start_fd = ((struct fontlist *) (line[0]->fl))->fd;
 	struct Base *start_base=start_fd->sf->horiz_base;
 	struct basescript *start_bs = NULL;
-	uint32 start_bsln_tag = 0;
+	uint32_t start_bsln_tag = 0;
 
 	for ( i=0; line[i]!=NULL; ++i )
 	    line[i]->bsln_off = 0;
@@ -297,7 +343,7 @@ static void LIFigureLineHeight(LayoutInfo *li,int l,int p) {
 	    for ( i=1; line[i]!=NULL; ++i ) {
 		FontData *fd = ((struct fontlist *) (line[i]->fl))->fd;
 		struct Base *base = fd->sf->horiz_base;
-		uint32 cur_bsln_tag;
+		uint32_t cur_bsln_tag;
 		if ( fd->sf->horiz_base==NULL )
 	    continue;
 		cur_bsln_tag = FigureBaselineTag(line[i],li,base,start_base);
@@ -355,7 +401,7 @@ static void LIFigureLineHeight(LayoutInfo *li,int l,int p) {
 static void SFDoBiText(struct opentype_str **line) {
     int i, j, start, end, inr;
     /* I'm going to make a huge simplification. Instead of doing the unicode */
-    /*  algorithem to determine whether a glyph should be r2l or l2r, I'm */
+    /*  algorithm to determine whether a glyph should be r2l or l2r, I'm */
     /*  just going to assume that the script tells us that. Each glyph is */
     /*  tagged with a script because each fontlist is. So things are easy */
 
@@ -529,7 +575,7 @@ void LayoutInfoRefigureLines(LayoutInfo *li, int start_of_change,
 	int eol=0;
 	do {
 	    li->lines[l] = LineFromPara(&li->paras[p].para[eol],&eol);
-	    LIFigureLineHeight(li,l,p);	/* Must preceed BiText */
+	    LIFigureLineHeight(li,l,p);	/* Must precede BiText */
 	    SFDoBiText(li->lines[l++]);
 	} while ( li->paras[p].para[eol]!=NULL );
     }
@@ -654,7 +700,7 @@ static void LayoutInfoChangeFontList(LayoutInfo *li,int rpllen,
 	int sel_start, int sel_end) {
     /* we are removing a chunk starting at sel_start going to sel_end */
     /*  and replacing it with a chunk that is rpllen long */
-    /* So we remove any chunks wholy within sel_start,sel_end and extend the */
+    /* So we remove any chunks wholly within sel_start,sel_end and extend the */
     /*  chunk at sel_start by rpllen */
     struct fontlist *fl, *next, *test;
     int diff;
@@ -963,7 +1009,7 @@ static FontData *FontDataCopyNoBDF(LayoutInfo *print_li, FontData *source) {
 return( head );
 }
 
-void LayoutInfoInitLangSys(LayoutInfo *li, int end, uint32 script, uint32 lang) {
+void LayoutInfoInitLangSys(LayoutInfo *li, int end, uint32_t script, uint32_t lang) {
     struct fontlist *prev, *next;
 
     if ( (li->text!=NULL && li->text[0]!='\0') || li->fontlist==NULL ) {
@@ -1051,7 +1097,7 @@ return( head );
 
 static Array *SFDefaultScriptsLines(Array *arr,SplineFont *sf) {
     int pixelsize=24;
-    uint32 scripts[200], script;
+    uint32_t scripts[200], script;
     char *lines[209];
     int i, scnt, lcnt, gid;
     /* If the font has more than 200 scripts we can't give a good sample image */
@@ -1181,7 +1227,7 @@ void FontImage(SplineFont *sf,char *filename,Array *arr,int width,int height) {
     GImage *image;
     struct _GImage *base;
     unichar_t *upt;
-    uint32 script;
+    uint32_t script;
     struct opentype_str **line;
     int ybase=0;
     Array *freeme=NULL;

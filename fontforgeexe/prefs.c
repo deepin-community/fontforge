@@ -29,17 +29,16 @@
 #include <fontforge-config.h>
 
 #include "autotrace.h"
-#include "charset.h"
 #include "encoding.h"
 #include "ffglib.h"
 #include "fontforgeui.h"
 #include "gfile.h"
 #include "gkeysym.h"
 #include "gresedit.h"
-#include "gresource.h"
 #include "groups.h"
 #include "macenc.h"
 #include "namelist.h"
+#include "plugin.h"
 #include "othersubrs.h"
 #include "prefs.h"
 #include "sfd.h"
@@ -47,6 +46,7 @@
 #include "ttf.h"
 #include "ustring.h"
 
+#include <assert.h>
 #include <dirent.h>
 #include <locale.h>
 #include <stdlib.h>
@@ -54,13 +54,10 @@
 #include <sys/types.h>
 #include <time.h>
 
-#if HAVE_LANGINFO_H
-# include <langinfo.h>
-#endif
-
 #define RAD2DEG	(180/FF_PI)
 
 static void change_res_filename(const char *newname);
+GResFont prefs_monofont = GRESFONT_INIT("400 12pt " MONO_UI_FAMILIES);
 
 extern int splash;
 extern int adjustwidth;
@@ -189,6 +186,7 @@ extern int AutoSaveFrequency;			/* autosave.c */
 extern int UndoRedoLimitToSave;  /* sfd.c */
 extern int UndoRedoLimitToLoad;  /* sfd.c */
 extern int prefRevisionsToRetain; /* sfd.c */
+extern int SaveEditorState; /* sfd.c */
 extern int prefs_cv_show_control_points_always_initially; /* from charview.c */
 extern int prefs_create_dragging_comparison_outline;      /* from charview.c */
 extern int prefs_cv_outline_thickness; /* from charview.c */
@@ -277,7 +275,7 @@ return( false );
 
 
 /* don't use mnemonics 'C' or 'O' (Cancel & OK) */
-enum pref_types { pr_int, pr_real, pr_bool, pr_enum, pr_encoding, pr_string,
+enum pref_types { pr_int, pr_real, pr_bool, pr_encoding, pr_string,
 	pr_file, pr_namelist, pr_unicode, pr_angle };
 struct enums { char *name; int value; };
 
@@ -313,7 +311,11 @@ static struct prefs_list {
 	{ N_("AutoSaveFrequency"), pr_int, &AutoSaveFrequency, NULL, NULL, '\0', NULL, 0, N_( "The number of seconds between autosaves. If you set this to 0 there will be no autosaves.") },
 	{ N_("RevisionsToRetain"), pr_int, &prefRevisionsToRetain, NULL, NULL, '\0', NULL, 0, N_( "When Saving, keep this number of previous versions of the file. file.sfd-01 will be the last saved file, file.sfd-02 will be the file saved before that, and so on. If you set this to 0 then no revisions will be retained.") },
 	{ N_("UndoRedoLimitToSave"), pr_int, &UndoRedoLimitToSave, NULL, NULL, '\0', NULL, 0, N_( "The number of undo and redo operations which will be saved in sfd files.\nIf you set this to 0 undo/redo information is not saved to sfd files.\nIf set to -1 then all available undo/redo information is saved without limit.") },
+	{ N_("SaveEditorState"), pr_bool, &SaveEditorState, NULL, NULL, '\0', NULL, 0, N_( "When saving, keep editor state like window size and position, selected points and references, and open glyphs.") },
 	{ N_("WarnScriptUnsaved"), pr_bool, &warn_script_unsaved, NULL, NULL, '\0', NULL, 0, N_( "Whether or not to warn you if you have an unsaved script in the «Execute Script» dialog.") },
+#ifndef _NO_PYTHON
+	{ N_("UsePlugins"), pr_bool, &use_plugins, NULL, NULL, '\0', NULL, 0, N_( "Whether or not to try to discover and import Python plugins.") },
+#endif
 	PREFS_LIST_EMPTY
 },
   new_list[] = {
@@ -373,7 +375,7 @@ static struct prefs_list {
 	PREFS_LIST_EMPTY
 },
  tt_list[] = {
-	{ N_("ClearInstrsBigChanges"), pr_bool, &clear_tt_instructions_when_needed, NULL, NULL, 'C', NULL, 0, N_("Instructions in a TrueType font refer to\npoints by number, so if you edit a glyph\nin such a way that some points have different\nnumbers (add points, remove them, etc.) then\nthe instructions will be applied to the wrong\npoints with disasterous results.\n  Normally FontForge will remove the instructions\nif it detects that the points have been renumbered\nin order to avoid the above problem. You may turn\nthis behavior off -- but be careful!") },
+	{ N_("ClearInstrsBigChanges"), pr_bool, &clear_tt_instructions_when_needed, NULL, NULL, 'C', NULL, 0, N_("Instructions in a TrueType font refer to\npoints by number, so if you edit a glyph\nin such a way that some points have different\nnumbers (add points, remove them, etc.) then\nthe instructions will be applied to the wrong\npoints with disastrous results.\n  Normally FontForge will remove the instructions\nif it detects that the points have been renumbered\nin order to avoid the above problem. You may turn\nthis behavior off -- but be careful!") },
 	{ N_("CopyTTFInstrs"), pr_bool, &copyttfinstr, NULL, NULL, '\0', NULL, 0, N_("When copying glyphs from the font view, also copy the\nglyphs' truetype instructions.") },
 	PREFS_LIST_EMPTY
 },
@@ -436,7 +438,7 @@ static struct prefs_list {
 	PREFS_LIST_EMPTY
 },
 /* These are hidden, so will never appear in preference ui, hence, no "N_(" */
-/*  They are controled elsewhere AntiAlias is a menu item in the font window's View menu */
+/*  They are controlled elsewhere AntiAlias is a menu item in the font window's View menu */
 /*  etc. */
  hidden_list[] = {
 	{ "AntiAlias", pr_bool, &default_fv_antialias, NULL, NULL, '\0', NULL, 1, NULL },
@@ -522,6 +524,9 @@ static struct prefs_list {
 	{ "CV_CB2Tool", pr_int, (int *) &cv_cb2_tool, NULL, NULL, '\0', NULL, 1, NULL },
 	{ "XUID-Base", pr_string, &xuid, NULL, NULL, 'X', NULL, 0, N_("If specified this should be a space separated list of integers each\nless than 16777216 which uniquely identify your organization\nFontForge will generate a random number for the final component.") }, /* Obsolete */
 	{ "ShowKerningPane", pr_int, (int *) &show_kerning_pane_in_class, NULL, NULL, '\0', NULL, 1, NULL },
+#ifndef _NO_PYTHON
+	{ "PluginStartupMode", pr_string, NULL, &GetPluginStartupMode, &SetPluginStartupMode, '\0', NULL, 1, NULL },
+#endif
 	PREFS_LIST_EMPTY
 },
  oldnames[] = {
@@ -784,200 +789,21 @@ static char *getPfaEditPrefs(void) {
     return prefs;
 }
 
-static char *PrefsUI_getFontForgeShareDir(void) {
+static const char *PrefsUI_getFontForgeShareDir(void) {
     return getShareDir();
 }
 
-static int encmatch(const char *enc,int subok) {
-    static struct { char *name; int enc; } encs[] = {
-	{ "US-ASCII", e_usascii },
-	{ "ASCII", e_usascii },
-	{ "ISO646-NO", e_iso646_no },
-	{ "ISO646-SE", e_iso646_se },
-	{ "LATIN10", e_iso8859_16 },
-	{ "LATIN1", e_iso8859_1 },
-	{ "ISO-8859-1", e_iso8859_1 },
-	{ "ISO-8859-2", e_iso8859_2 },
-	{ "ISO-8859-3", e_iso8859_3 },
-	{ "ISO-8859-4", e_iso8859_4 },
-	{ "ISO-8859-5", e_iso8859_4 },
-	{ "ISO-8859-6", e_iso8859_4 },
-	{ "ISO-8859-7", e_iso8859_4 },
-	{ "ISO-8859-8", e_iso8859_4 },
-	{ "ISO-8859-9", e_iso8859_4 },
-	{ "ISO-8859-10", e_iso8859_10 },
-	{ "ISO-8859-11", e_iso8859_11 },
-	{ "ISO-8859-13", e_iso8859_13 },
-	{ "ISO-8859-14", e_iso8859_14 },
-	{ "ISO-8859-15", e_iso8859_15 },
-	{ "ISO-8859-16", e_iso8859_16 },
-	{ "ISO_8859-1", e_iso8859_1 },
-	{ "ISO_8859-2", e_iso8859_2 },
-	{ "ISO_8859-3", e_iso8859_3 },
-	{ "ISO_8859-4", e_iso8859_4 },
-	{ "ISO_8859-5", e_iso8859_4 },
-	{ "ISO_8859-6", e_iso8859_4 },
-	{ "ISO_8859-7", e_iso8859_4 },
-	{ "ISO_8859-8", e_iso8859_4 },
-	{ "ISO_8859-9", e_iso8859_4 },
-	{ "ISO_8859-10", e_iso8859_10 },
-	{ "ISO_8859-11", e_iso8859_11 },
-	{ "ISO_8859-13", e_iso8859_13 },
-	{ "ISO_8859-14", e_iso8859_14 },
-	{ "ISO_8859-15", e_iso8859_15 },
-	{ "ISO_8859-16", e_iso8859_16 },
-	{ "ISO8859-1", e_iso8859_1 },
-	{ "ISO8859-2", e_iso8859_2 },
-	{ "ISO8859-3", e_iso8859_3 },
-	{ "ISO8859-4", e_iso8859_4 },
-	{ "ISO8859-5", e_iso8859_4 },
-	{ "ISO8859-6", e_iso8859_4 },
-	{ "ISO8859-7", e_iso8859_4 },
-	{ "ISO8859-8", e_iso8859_4 },
-	{ "ISO8859-9", e_iso8859_4 },
-	{ "ISO8859-10", e_iso8859_10 },
-	{ "ISO8859-11", e_iso8859_11 },
-	{ "ISO8859-13", e_iso8859_13 },
-	{ "ISO8859-14", e_iso8859_14 },
-	{ "ISO8859-15", e_iso8859_15 },
-	{ "ISO8859-16", e_iso8859_16 },
-	{ "ISO88591", e_iso8859_1 },
-	{ "ISO88592", e_iso8859_2 },
-	{ "ISO88593", e_iso8859_3 },
-	{ "ISO88594", e_iso8859_4 },
-	{ "ISO88595", e_iso8859_4 },
-	{ "ISO88596", e_iso8859_4 },
-	{ "ISO88597", e_iso8859_4 },
-	{ "ISO88598", e_iso8859_4 },
-	{ "ISO88599", e_iso8859_4 },
-	{ "ISO885910", e_iso8859_10 },
-	{ "ISO885911", e_iso8859_11 },
-	{ "ISO885913", e_iso8859_13 },
-	{ "ISO885914", e_iso8859_14 },
-	{ "ISO885915", e_iso8859_15 },
-	{ "ISO885916", e_iso8859_16 },
-	{ "8859_1", e_iso8859_1 },
-	{ "8859_2", e_iso8859_2 },
-	{ "8859_3", e_iso8859_3 },
-	{ "8859_4", e_iso8859_4 },
-	{ "8859_5", e_iso8859_4 },
-	{ "8859_6", e_iso8859_4 },
-	{ "8859_7", e_iso8859_4 },
-	{ "8859_8", e_iso8859_4 },
-	{ "8859_9", e_iso8859_4 },
-	{ "8859_10", e_iso8859_10 },
-	{ "8859_11", e_iso8859_11 },
-	{ "8859_13", e_iso8859_13 },
-	{ "8859_14", e_iso8859_14 },
-	{ "8859_15", e_iso8859_15 },
-	{ "8859_16", e_iso8859_16 },
-	{ "KOI8-R", e_koi8_r },
-	{ "KOI8R", e_koi8_r },
-	{ "WINDOWS-1252", e_win },
-	{ "CP1252", e_win },
-	{ "Big5", e_big5 },
-	{ "Big-5", e_big5 },
-	{ "BigFive", e_big5 },
-	{ "Big-Five", e_big5 },
-	{ "Big5HKSCS", e_big5hkscs },
-	{ "Big5-HKSCS", e_big5hkscs },
-	{ "UTF-8", e_utf8 },
-	{ "ISO-10646/UTF-8", e_utf8 },
-	{ "ISO_10646/UTF-8", e_utf8 },
-	{ "UCS2", e_unicode },
-	{ "UCS-2", e_unicode },
-	{ "UCS-2-INTERNAL", e_unicode },
-	{ "ISO-10646", e_unicode },
-	{ "ISO_10646", e_unicode },
-	/* { "eucJP", e_euc }, */
-	/* { "EUC-JP", e_euc }, */
-	/* { "ujis", ??? }, */
-	/* { "EUC-KR", e_euckorean }, */
-	{ NULL, 0 }
-    };
+static void DefaultEncoding(void) {
+    const char* charset = NULL;
+    bool is_utf8 = g_get_charset(&charset);
 
-    int i;
-    char buffer[80];
-#if HAVE_ICONV_H
-    static char *last_complaint;
-
-    iconv_t test;
-    free(iconv_local_encoding_name);
-    iconv_local_encoding_name= NULL;
-#endif
-
-    if ( strchr(enc,'@')!=NULL && strlen(enc)<sizeof(buffer)-1 ) {
-	strcpy(buffer,enc);
-	*strchr(buffer,'@') = '\0';
-	enc = buffer;
+    if (!SetupUCharMap(FindUnicharName(), charset, is_utf8)) {
+        fprintf(stderr, "Failed to set up unichar<->system local encoding, assuming utf-8 and trying again...\n");
+        if (!SetupUCharMap(FindUnicharName(), "UTF-8", true)) {
+            fprintf(stderr, "Failed to set up unichar<->utf-8 encoding.");
+            assert(false);
+        }
     }
-
-    for ( i=0; encs[i].name!=NULL; ++i )
-	if ( strmatch(enc,encs[i].name)==0 )
-return( encs[i].enc );
-
-    if ( subok ) {
-	for ( i=0; encs[i].name!=NULL; ++i )
-	    if ( strstrmatch(enc,encs[i].name)!=NULL )
-return( encs[i].enc );
-
-#if HAVE_ICONV_H
-	/* I only try to use iconv if the encoding doesn't match one I support*/
-	/*  loading iconv unicode data takes a while */
-	test = iconv_open(enc,FindUnicharName());
-	if ( test==(iconv_t) (-1) || test==NULL ) {
-	    if ( last_complaint==NULL || strcmp(last_complaint,enc)!=0 ) {
-		fprintf( stderr, "Neither FontForge nor iconv() supports your encoding (%s) we will pretend\n you asked for latin1 instead.\n", enc );
-		free( last_complaint );
-		last_complaint = copy(enc);
-	    }
-	} else {
-	    if ( last_complaint==NULL || strcmp(last_complaint,enc)!=0 ) {
-		fprintf( stderr, "FontForge does not support your encoding (%s), it will try to use iconv()\n or it will pretend the local encoding is latin1\n", enc );
-		free( last_complaint );
-		last_complaint = copy(enc);
-	    }
-	    iconv_local_encoding_name= copy(enc);
-	    iconv_close(test);
-	}
-#else
-	fprintf( stderr, "FontForge does not support your encoding (%s), it will pretend the local encoding is latin1\n", enc );
-#endif
-
-return( e_iso8859_1 );
-    }
-return( e_unknown );
-}
-
-static int DefaultEncoding(void) {
-    const char *loc;
-    int enc;
-
-#if HAVE_LANGINFO_H
-    loc = nl_langinfo(CODESET);
-    enc = encmatch(loc,false);
-    if ( enc!=e_unknown )
-return( enc );
-#endif
-    loc = getenv("LC_ALL");
-    if ( loc==NULL ) loc = getenv("LC_CTYPE");
-    /*if ( loc==NULL ) loc = getenv("LC_MESSAGES");*/
-    if ( loc==NULL ) loc = getenv("LANG");
-
-    if ( loc==NULL )
-return( e_iso8859_1 );
-
-    enc = encmatch(loc,false);
-    if ( enc==e_unknown ) {
-	loc = strrchr(loc,'.');
-	if ( loc==NULL )
-return( e_iso8859_1 );
-	enc = encmatch(loc+1,true);
-    }
-    if ( enc==e_unknown )
-return( e_iso8859_1 );
-
-return( enc );
 }
 
 static void DefaultXUID(void) {
@@ -1003,9 +829,8 @@ static void DefaultXUID(void) {
 }
 
 static void PrefsUI_SetDefaults(void) {
-
     DefaultXUID();
-    local_encoding = DefaultEncoding();
+    DefaultEncoding();
 }
 
 static void ParseMacMapping(char *pt,struct macsettingname *ms) {
@@ -1143,7 +968,7 @@ static void PrefsUI_LoadPrefs_FromFile( char* filename )
 void Prefs_LoadDefaultPreferences( void )
 {
     char filename[PATH_MAX+1];
-    char* sharedir = getShareDir();
+    const char* sharedir = getShareDir();
 
     snprintf(filename,PATH_MAX,"%s/prefs", sharedir );
     PrefsUI_LoadPrefs_FromFile( filename );
@@ -1435,7 +1260,7 @@ return( ti );
 }
 
 void GListAddStr(GGadget *list,unichar_t *str, void *ud) {
-    int32 i,len;
+    int32_t i,len;
     GTextInfo **ti = GGadgetGetList(list,&len);
     GTextInfo **replace = malloc((len+2)*sizeof(GTextInfo *));
 
@@ -1453,7 +1278,7 @@ void GListAddStr(GGadget *list,unichar_t *str, void *ud) {
 }
 
 void GListReplaceStr(GGadget *list,int index, unichar_t *str, void *ud) {
-    int32 i,len;
+    int32_t i,len;
     GTextInfo **ti = GGadgetGetList(list,&len);
     GTextInfo **replace = malloc((len+2)*sizeof(GTextInfo *));
 
@@ -1486,7 +1311,7 @@ struct setdata {
 static int set_e_h(GWindow gw, GEvent *event) {
     struct setdata *sd = GDrawGetUserData(gw);
     int i;
-    int32 len;
+    int32_t len;
     GTextInfo **ti;
     const unichar_t *ret1; unichar_t *end;
     int on, feat, val1, val2;
@@ -1565,7 +1390,7 @@ static unichar_t *AskSetting(struct macsettingname *temp,GGadget *list, int inde
     struct setdata sd;
     char buf[20];
     unichar_t ubuf3[6];
-    int32 len, i;
+    int32_t len, i;
     GTextInfo **ti;
 
     memset(&sd,0,sizeof(sd));
@@ -1680,7 +1505,7 @@ return( sd.ret );
 
 static void ChangeSetting(GGadget *list,int index,GGadget *flist) {
     struct macsettingname temp;
-    int32 len;
+    int32_t len;
     GTextInfo **ti = GGadgetGetList(list,&len);
     char *str;
     unichar_t *ustr;
@@ -1733,7 +1558,7 @@ return( true );
 
 static int Pref_MappingSel(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_listselected ) {
-	int32 len;
+	int32_t len;
 	GTextInfo **ti = GGadgetGetList(g,&len);
 	GWindow gw = GGadgetGetWindow(g);
 	int i, sel_cnt=0;
@@ -1753,7 +1578,7 @@ static int Pref_DefaultMapping(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	GGadget *list = GWidgetGetControl(GGadgetGetWindow(g),CID_Mapping);
 	GTextInfo *ti, **arr;
-	uint16 cnt;
+	uint16_t cnt;
 
 	ti = Pref_MappingList(false);
 	arr = GTextInfoArrayFromList(ti,&cnt);
@@ -1765,16 +1590,15 @@ return( true );
 
 static int Prefs_Ok(GGadget *g, GEvent *e) {
     int i, j, mi;
-    int err=0, enc;
+    int err=0;
     struct pref_data *p;
     GWindow gw;
     const unichar_t *ret;
     const unichar_t *names[SCRIPT_MENU_MAX], *scripts[SCRIPT_MENU_MAX];
     struct prefs_list *pl;
     GTextInfo **list;
-    int32 len;
-    int maxl, t;
-    char *str;
+    int32_t len;
+    char *buf, *str;
     real dangle;
 
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
@@ -1845,7 +1669,6 @@ return( true );
 		    e = ParseEncodingNameFromList(GWidgetGetControl(gw,j*CID_PrefsOffset+CID_PrefsBase+i));
 		    if ( e!=NULL )
 			*((Encoding **) (pl->val)) = e;
-		    enc = 1;	/* So gcc doesn't complain about unused. It is unused, but why add the ifdef and make the code even messier? Sigh. icc complains anyway */
 		}
 	      break;
 	      case pr_namelist:
@@ -1893,24 +1716,21 @@ return( true );
 	UserSettingsFree();
 	user_macfeat_otftag = malloc((len+1)*sizeof(struct macsettingname));
 	user_macfeat_otftag[len].otf_tag = 0;
-	maxl = 0;
+
 	for ( i=0; i<len; ++i ) {
-	    t = u_strlen(list[i]->text);
-	    if ( t>maxl ) maxl = t;
-	}
-	str = malloc(maxl+3);
-	for ( i=0; i<len; ++i ) {
-	    u2encoding_strncpy(str,list[i]->text,maxl+1,e_mac);
+	    buf = u2utf8_copy(list[i]->text);
+	    str = Utf8ToMacStr(buf, 0, 0); // sm_roman/english
 	    ParseMacMapping(str,&user_macfeat_otftag[i]);
+	    free(str);
+	    free(buf);
 	}
-	free(str);
 
 	Prefs_ReplaceMacFeatures(GWidgetGetControl(gw,CID_Features));
 
 	if ( xuid!=NULL ) {
 	    char *pt;
 	    for ( pt=xuid; *pt==' ' ; ++pt );
-	    if ( *pt=='[' ) {	/* People who know PS well, might want to put brackets arround the xuid base array, but I don't want them */
+	    if ( *pt=='[' ) {	/* People who know PS well, might want to put brackets around the xuid base array, but I don't want them */
 		pt = copy(pt+1);
 		if (xuid != NULL) free( xuid );
 		xuid = pt;
@@ -2000,14 +1820,12 @@ void DoPrefs(void) {
     GGadgetCreateData **hvarray, boxes[2*TOPICS];
     struct pref_data p;
     int i, gc, sgc, j, k, line, line_max, y, y2, ii, si;
-    int32 llen;
+    int32_t llen;
     char buf[20];
     int gcnt[20];
     static unichar_t nullstr[] = { 0 };
     struct prefs_list *pl;
     char *tempstr;
-    FontRequest rq;
-    GFont *font;
 
     PrefsInit();
 
@@ -2515,13 +2333,8 @@ void DoPrefs(void) {
     for ( k=0; k<TOPICS; ++k )
 	GHVBoxSetExpandableRow(boxes[2*k].ret,gb_expandglue);
 
-    memset(&rq,0,sizeof(rq));
-    rq.utf8_family_name = MONO_UI_FAMILIES;
-    rq.point_size = 12;
-    rq.weight = 400;
-    font = GDrawInstanciateFont(gw,&rq);
-    GGadgetSetFont(mfgcd[0].ret,font);
-    GGadgetSetFont(msgcd[0].ret,font);
+    GGadgetSetFont(mfgcd[0].ret,prefs_monofont.fi);
+    GGadgetSetFont(msgcd[0].ret,prefs_monofont.fi);
     GHVBoxFitWindow(mboxes[0].ret);
 
     for ( k=0; visible_prefs_list[k].tab_name!=0; ++k ) for ( gc=0,i=0; visible_prefs_list[k].pl[i].name!=NULL; ++i ) {
@@ -2538,7 +2351,7 @@ void DoPrefs(void) {
 	    list = GGadgetGetList(g,&llen);
 	    for ( j=0; j<llen ; ++j ) {
 		if ( list[j]->text!=NULL &&
-			(void *) (intpt) ( *((int *) pl->val)) == list[j]->userdata )
+			(void *) (intptr_t) ( *((int *) pl->val)) == list[j]->userdata )
 		    list[j]->selected = true;
 		else
 		    list[j]->selected = false;
@@ -2564,7 +2377,6 @@ void DoPrefs(void) {
 	free(plabels[k]);
     }
 
-    GWidgetHidePalettes();
     GDrawSetVisible(gw,true);
     while ( !p.done )
 	GDrawProcessOneEvent(NULL);
@@ -2636,12 +2448,12 @@ static void change_res_filename(const char *newname) {
 }
 
 void DoXRes(void) {
-    extern GResInfo fontview_ri;
+    extern GResInfo view_ri;
 
     MVColInit();
     CVColInit();
     BVColInit();
-    GResEdit(&fontview_ri,xdefs_filename,change_res_filename);
+    GResEdit(&view_ri,xdefs_filename,change_res_filename);
 }
 
 struct prefs_list pointer_dialog_list[] = {
@@ -2663,7 +2475,7 @@ static int PrefsSubSet_Ok(GGadget *g, GEvent *e) {
     struct prefs_list* plist = p->plist;
     struct prefs_list* pl = plist;
     int i=0,j=0;
-    int err=0, enc;
+    int err=0;
     const unichar_t *ret;
 
     p->done = true;
@@ -2687,7 +2499,6 @@ static int PrefsSubSet_Ok(GGadget *g, GEvent *e) {
 		e = ParseEncodingNameFromList(GWidgetGetControl(gw,j*CID_PrefsOffset+CID_PrefsBase+i));
 		if ( e!=NULL )
 		    *((Encoding **) (pl->val)) = e;
-		enc = 1;	/* So gcc doesn't complain about unused. It is unused, but why add the ifdef and make the code even messier? Sigh. icc complains anyway */
 	}
 	break;
 	case pr_namelist:

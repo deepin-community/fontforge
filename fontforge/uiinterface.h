@@ -43,6 +43,7 @@
 
 struct importparams;
 struct exportparams;
+struct multi_dlg_spec;
 
 struct ui_interface {
    /* The following is used to post a fontforge internal error */
@@ -129,6 +130,10 @@ struct ui_interface {
 
     void (*import_dlg)(struct importparams *ip);
     void (*export_dlg)(struct exportparams *ep);
+#ifndef _NO_PYTHON
+    void (*plugin_dlg)(void);
+#endif
+    int (*ask_multi)(const char *title, struct multi_dlg_spec *spec);
 };
 extern struct ui_interface *ui_interface;
 
@@ -167,6 +172,10 @@ extern struct ui_interface *ui_interface;
 
 #define ImportParamsDlg			(ui_interface->import_dlg)
 #define ExportParamsDlg			(ui_interface->export_dlg)
+#ifndef _NO_PYTHON
+#define PluginDlg			(ui_interface->plugin_dlg)
+#endif
+#define ff_ask_multi			(ui_interface->ask_multi)
 
 void FF_SetUiInterface(struct ui_interface *uii);
 
@@ -180,7 +189,7 @@ struct prefs_interface {
     void  (*load_prefs)(void);
     int   (*get_prefs)(char *name,struct val *value);
     int   (*set_prefs)(char *name,struct val *val1, struct val *val2);
-    char *(*get_exe_share_dir)(void);
+    const char *(*get_exe_share_dir)(void);
     void  (*init_prefs)(void);
 };
 extern struct prefs_interface *prefs_interface;
@@ -501,7 +510,7 @@ struct clip_interface {
    /*  provide a routine to call which will give data on demand */
    /*  (and another routine to clean things up) */
     void  (*add_data_type)(const char *type, void *data, int cnt, int size,
-	void *(*gendata)(void *,int32 *len), void (*freedata)(void *));
+	void *(*gendata)(void *,int32_t *len), void (*freedata)(void *));
    /* Does the clipboard contain something of the given type? */
     int   (*clip_has_type)(const char *mimetype);
    /* Ask for the clipboard, and waits (and returns) for the response */

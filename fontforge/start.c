@@ -36,7 +36,6 @@
 #include "gfile.h"
 #include "namelist.h"
 #include "psfont.h"
-#include "unicodelibinfo.h"
 
 #include <locale.h>
 #include <sys/time.h>
@@ -46,7 +45,7 @@
 # include <stdlib.h>		/* getenv,setenv */
 #endif
 
-int32 unicode_from_adobestd[256];
+int32_t unicode_from_adobestd[256];
 struct lconv localeinfo;
 const char *coord_sep = ",";
 int quiet = 0;
@@ -85,8 +84,6 @@ void InitSimpleStuff(void) {
     else if ( *localeinfo.decimal_point!='.' ) coord_sep=" ";
     if ( getenv("FF_SCRIPT_IN_LATIN1") ) use_utf8_in_script=false;
 
-    inituninameannot();	/* Note: unicodenames done after locales set */
-
     SetDefaults();
 }
 
@@ -95,7 +92,7 @@ void doinitFontForgeMain(void) {
 
     if ( inited )
 return;
-    FindProgDir(NULL);
+    FindProgRoot(NULL);
     InitSimpleStuff();
     if ( default_encoding==NULL )
 	default_encoding=FindOrMakeEncoding("ISO8859-1");

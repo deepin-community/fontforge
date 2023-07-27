@@ -93,7 +93,7 @@ return( true );
 static int CW_FocusChange(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_textfocuschanged ) {
 	CreateWidthDlg *wd = GDrawGetUserData(GGadgetGetWindow(g));
-	int cid = (intpt) GGadgetGetUserData(g);
+	int cid = (intptr_t) GGadgetGetUserData(g);
 	GGadgetSetChecked(GWidgetGetControl(wd->gw,cid),true);
     }
 return( true );
@@ -102,7 +102,7 @@ return( true );
 static int CW_RadioChange(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_radiochanged ) {
 	CreateWidthDlg *wd = GDrawGetUserData(GGadgetGetWindow(g));
-	int cid = (intpt) GGadgetGetUserData(g);
+	int cid = (intptr_t) GGadgetGetUserData(g);
 	GWidgetIndicateFocusGadget(GWidgetGetControl(wd->gw,cid));
 	GTextFieldSelect(GWidgetGetControl(wd->gw,cid),0,-1);
     }
@@ -287,7 +287,6 @@ static void FVCreateWidth( void *_fv,SplineChar* _sc,void (*doit)(CreateWidthDat
 	free( temp );
     }
 
-    GWidgetHidePalettes();
     GDrawSetVisible(cwd.gw,true);
     while ( !cwd.wd.done )
 	GDrawProcessOneEvent(NULL);

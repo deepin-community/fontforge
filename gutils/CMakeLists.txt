@@ -4,7 +4,6 @@ add_library(gutils OBJECT
   dlist.c
   fsys.c
   gcol.c
-  g_giomime.c
   gimagebmpP.h
   gimage.c
   gimagereadbmp.c
@@ -23,14 +22,9 @@ add_library(gutils OBJECT
   gimagewritepng.c
   gimagewritexbm.c
   gimagewritexpm.c
-  gio.c
-  giofile.c
-  giofuncP.h
-  giotrans.c
   gutils.c
   gwwintl.c
   prefs.c
-  unicodelibinfo.c
 )
 
 if(BUILD_SHARED_LIBS)
@@ -49,9 +43,6 @@ if(ENABLE_LIBPNG_RESULT)
 endif()
 if(ENABLE_LIBTIFF_RESULT)
   list(APPEND gutils_LIBRARIES TIFF::TIFF)
-endif()
-if(ENABLE_LIBUNINAMESLIST_RESULT)
-  list(APPEND gutils_LIBRARIES Libuninameslist::Libuninameslist)
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")

@@ -183,8 +183,8 @@ return( 0 );
 
 #define czone_top 2
 #define czone_bot 1
-static uint8 GetStemCounterZone( StemData *stem, DBounds *orig_b ) {
-    uint8 ret = 0, by_x;
+static uint8_t GetStemCounterZone( StemData *stem, DBounds *orig_b ) {
+    uint8_t ret = 0, by_x;
     int i;
     double min, max, middle, fudge, s, e;
 
@@ -210,7 +210,7 @@ return( ret );
 }
 
 static double GetCounterBlackSpace( GlyphData *gd, StemData **dstems, int dcnt,
-    DBounds *orig_b, double cstart, double cend, double pos, uint8 czone, struct genericchange *gc, int x_dir ) {
+    DBounds *orig_b, double cstart, double cend, double pos, uint8_t czone, struct genericchange *gc, int x_dir ) {
 
     double ldist, rdist, lrdist, is, ie, temp, black=0;
     double scale, w;
@@ -318,7 +318,7 @@ static double ScaleCounter( GlyphData *gd, StemData **dstems, int dcnt,
 
     double min, max, onequarter, threequarters, cstart, cend, cntr_scale;
     double black25, black75, white25, white75, gen25, gen75, ret;
-    uint8 pczone, nczone;
+    uint8_t pczone, nczone;
 
     min = x_dir ? orig_b->minx : orig_b->miny;
     max = x_dir ? orig_b->maxx : orig_b->maxy;
@@ -726,7 +726,7 @@ static void InitZoneMappings( struct fixed_maps *fix, BlueData *bd, double stem_
 static void PosStemPoints( GlyphData *gd, struct genericchange *genchange, int has_dstems, int x_dir ) {
 
     int i, j, best_is_l;
-    uint8 flag = x_dir ? tf_x : tf_y;
+    uint8_t flag = x_dir ? tf_x : tf_y;
     PointData *pd;
     StemData *tstem, *best;
     struct stem_chunk *chunk;
@@ -838,7 +838,7 @@ return( ret );
 
 static void InterpolateStrong( GlyphData *gd, DBounds *orig_b, DBounds *new_b, int x_dir ) {
     int i;
-    uint8 mask, flag = x_dir ? tf_x : tf_y;
+    uint8_t mask, flag = x_dir ? tf_x : tf_y;
     double coord, new;
     double min, max, min_new, max_new;
     PointData *pd;
@@ -864,7 +864,7 @@ static void InterpolateStrong( GlyphData *gd, DBounds *orig_b, DBounds *new_b, i
 static void InterpolateWeak( GlyphData *gd, DBounds *orig_b, DBounds *new_b, double scale, int x_dir ) {
     PointData *pd, *tpd, *fpd;
     int i;
-    uint8 mask, flag = x_dir ? tf_x : tf_y;
+    uint8_t mask, flag = x_dir ? tf_x : tf_y;
     double coord, new, min, max, min_new, max_new;
 
     mask = flag | tf_d;
@@ -933,6 +933,8 @@ static void InterpolateWeak( GlyphData *gd, DBounds *orig_b, DBounds *new_b, dou
 		    (&pd->newprev.x)[!x_dir] = (&pd->newpos.x)[!x_dir] +
 			( coord - (&pd->base.x)[!x_dir] )*scale;
 	    }
+	} else if ( !gd->order2 ) {
+	    (&pd->newprev.x)[!x_dir] = (&pd->newpos.x)[!x_dir];
 	}
 	if ( !pd->sp->nonextcp ) {
 	    coord = (&pd->sp->nextcp.x)[!x_dir];
@@ -951,6 +953,8 @@ static void InterpolateWeak( GlyphData *gd, DBounds *orig_b, DBounds *new_b, dou
 	    }
 	    if ( gd->order2 )
 	       (&tpd->newprev.x)[!x_dir] = (&pd->newnext.x)[!x_dir];
+	} else {
+	    (&pd->newnext.x)[!x_dir] = (&pd->newpos.x)[!x_dir];
 	}
     }
     if ( gd->order2 ) {
@@ -1143,7 +1147,7 @@ static int CorrectDPointPos( GlyphData *gd, PointData *pd, StemData *stem,
     double scale, int next, int is_l, int x_dir ) {
 
     int i, found = 0;
-    uint8 flag = x_dir ? tf_x : tf_y;
+    uint8_t flag = x_dir ? tf_x : tf_y;
     double ndot, pdot, coord_orig, coord_new, base_orig, base_new;
     Spline *ns;
     StemData *tstem;
@@ -1207,7 +1211,7 @@ return( false );
 static void ShiftDependent( GlyphData *gd, PointData *pd, StemData *stem,
     DBounds *orig_b, DBounds *new_b, double cscale, int next, int is_l, int x_dir ) {
 
-    uint8 flag = x_dir ? tf_x : tf_y;
+    uint8_t flag = x_dir ? tf_x : tf_y;
     int i, scnt, from_min;
     double ndot, pdot, off, dist;
     Spline *ns;
@@ -1708,14 +1712,10 @@ return;
 	pd = &gd->points[i];
 	pd->sp->me.x = pd->newpos.x;
 	pd->sp->me.y = pd->newpos.y;
-	if ( !pd->sp->nonextcp ) {
-	    pd->sp->nextcp.x = pd->newnext.x;
-	    pd->sp->nextcp.y = pd->newnext.y;
-	}
-	if ( !pd->sp->noprevcp ) {
-	    pd->sp->prevcp.x = pd->newprev.x;
-	    pd->sp->prevcp.y = pd->newprev.y;
-	}
+	pd->sp->nextcp.x = pd->newnext.x;
+	pd->sp->nextcp.y = pd->newnext.y;
+	pd->sp->prevcp.x = pd->newprev.x;
+	pd->sp->prevcp.y = pd->newprev.y;
     }
     SplineSetRefigure(sc_sc->layers[layer].splines);
     SplineCharLayerFindBounds(sc_sc,layer,&new_b);
@@ -1917,7 +1917,7 @@ void SmallCapsFindConstants(struct smallcaps *small, SplineFont *sf,
 }
 
 static void MakeLookups(SplineFont *sf,OTLookup **lookups,int ltn,int crl,int grk,
-	int symbols, uint32 ftag) {
+	int symbols, uint32_t ftag) {
     OTLookup *any = NULL;
     int i;
     struct lookup_subtable *sub;
@@ -1995,7 +1995,7 @@ static void MakeSCLookups(SplineFont *sf,struct lookup_subtable **c2sc,
     struct scriptlanglist *sl;
     OTLookup *lc2sc[4], *lsmcp[4];
     int i;
-    uint32 ucfeat, lcfeat;
+    uint32_t ucfeat, lcfeat;
 
     memset(lc2sc,0,sizeof(lc2sc)); memset(lsmcp,0,sizeof(lsmcp));
 
@@ -2049,21 +2049,23 @@ static SplineChar *MakeSmallCapName(char *buffer, int bufsize, SplineFont *sf,
     const char *ext;
     int lower;
 
-    if ( sc->unicodeenc>=0 && sc->unicodeenc<0x10000 ) {
-	lower = tolower(sc->unicodeenc);
-	ext = isupper(sc->unicodeenc) ? genchange->extension_for_letters :
-	      islower(sc->unicodeenc) ? genchange->extension_for_letters :
-		sc->unicodeenc==0xdf  ? genchange->extension_for_letters :
-		sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06 ? genchange->extension_for_letters :
-					    genchange->extension_for_symbols;
-    } else {
-	lower = sc->unicodeenc;
-	ext = genchange->extension_for_symbols;
-    }
+    lower = tolower(sc->unicodeenc);
+    ext = isupper(sc->unicodeenc) ? genchange->extension_for_letters :
+	  islower(sc->unicodeenc) ? genchange->extension_for_letters :
+	  sc->unicodeenc==0xdf  ? genchange->extension_for_letters :
+	  sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06 ? genchange->extension_for_letters :
+		genchange->extension_for_symbols;
+
     lc_sc = SFGetChar(sf,lower,NULL);
-    if ( lc_sc!=NULL )
-	snprintf(buffer,bufsize,"%s.%s", lc_sc->name, ext );
-    else {
+    if ( lc_sc!=NULL ) {
+	// The Turkish dotted İ must be special cased because it rightly lowercases to the regular ASCII
+	// i, however, so does I.
+	if ( sc->unicodeenc == 0x130 ) {
+	    snprintf(buffer, bufsize, "idotaccent.%s", ext);
+	} else {
+	    snprintf(buffer, bufsize, "%s.%s", lc_sc->name, ext);
+	}
+    } else {
 	const char *pt = StdGlyphName(buffer,lower,sf->uni_interp,sf->for_new_glyphs);
 	if ( pt!=buffer )
 	    strcpy(buffer,pt);
@@ -2074,7 +2076,7 @@ return( lc_sc );
 }
 
 static SplineChar *MakeSmallCapGlyphSlot(SplineFont *sf,SplineChar *cap_sc,
-	uint32 script,struct lookup_subtable **c2sc,struct lookup_subtable **smcp,
+	uint32_t script,struct lookup_subtable **c2sc,struct lookup_subtable **smcp,
 	FontViewBase *fv, struct genericchange *genchange) {
     SplineChar *sc_sc, *lc_sc;
     char buffer[300];
@@ -2653,10 +2655,9 @@ return;		/* Can't randomly add things to a CID keyed font */
 
     for ( enc=0; enc<fv->map->enccount; ++enc ) {
 	if ( (gid=fv->map->map[enc])!=-1 && fv->selected[enc] && (sc=sf->glyphs[gid])!=NULL ) {
-	    if ( genchange->do_smallcap_symbols || ( sc->unicodeenc<0x10000 &&
-		    (isupper(sc->unicodeenc) || islower(sc->unicodeenc) ||
-		     (sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06)) )) {
-		uint32 script = SCScriptFromUnicode(sc);
+	    if ( genchange->do_smallcap_symbols || isupper(sc->unicodeenc) ||
+		     islower(sc->unicodeenc) || (sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06) ) {
+		uint32_t script = SCScriptFromUnicode(sc);
 		if ( script==CHR('l','a','t','n'))
 		    ++ltn, ++cnt;
 		else if ( script==CHR('g','r','e','k'))
@@ -2681,16 +2682,15 @@ return;
 	_("Building small capitals"),NULL,cnt,1);
     for ( enc=0; enc<fv->map->enccount; ++enc ) {
 	if ( (gid=fv->map->map[enc])!=-1 && fv->selected[enc] && (sc=sf->glyphs[gid])!=NULL ) {
-	    if ( genchange->do_smallcap_symbols || ( sc->unicodeenc<0x10000 &&
-		    (isupper(sc->unicodeenc) || islower(sc->unicodeenc) ||
-		     (sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06)) )) {
-		uint32 script = SCScriptFromUnicode(sc);
+	    if ( genchange->do_smallcap_symbols || isupper(sc->unicodeenc) ||
+		     islower(sc->unicodeenc) || (sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06) ) {
+		uint32_t script = SCScriptFromUnicode(sc);
 		if ( script!=CHR('l','a','t','n') &&
 			script!=CHR('g','r','e','k') &&
 			script!=CHR('c','y','r','l') &&
 			!genchange->do_smallcap_symbols )
     continue;
-		if ( sc->unicodeenc<0x10000 && islower(sc->unicodeenc)) {
+		if ( islower(sc->unicodeenc)) {
 		    sc = SFGetChar(sf,toupper(sc->unicodeenc),NULL);
 		    if ( sc==NULL )
       goto end_loop;
@@ -2721,16 +2721,15 @@ return;
     /*  look at things which depend on references */
     for ( enc=0; enc<fv->map->enccount; ++enc ) {
 	if ( (gid=fv->map->map[enc])!=-1 && fv->selected[enc] && (sc=sf->glyphs[gid])!=NULL ) {
-	    if ( genchange->do_smallcap_symbols || ( sc->unicodeenc<0x10000 &&
-		    (isupper(sc->unicodeenc) || islower(sc->unicodeenc) ||
-		     (sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06)) )) {
-		uint32 script = SCScriptFromUnicode(sc);
+	    if ( genchange->do_smallcap_symbols || isupper(sc->unicodeenc) ||
+		     islower(sc->unicodeenc) || (sc->unicodeenc>=0xfb00 && sc->unicodeenc<=0xfb06) ) {
+		uint32_t script = SCScriptFromUnicode(sc);
 		if ( script!=CHR('l','a','t','n') &&
 			script!=CHR('g','r','e','k') &&
 			script!=CHR('c','y','r','l') &&
 			!genchange->do_smallcap_symbols )
     continue;
-		if ( sc->unicodeenc<0x10000 &&islower(sc->unicodeenc)) {
+		if (islower(sc->unicodeenc)) {
 		    sc = SFGetChar(sf,toupper(sc->unicodeenc),NULL);
 		    if ( sc==NULL )
       goto end_loop2;
@@ -2800,8 +2799,8 @@ return;
 /* ************************** Subscript/Superscript ************************* */
 /* ************************************************************************** */
 
-static struct lookup_subtable *MakeSupSupLookup(SplineFont *sf,uint32 feature_tag,
-	uint32 *scripts,int scnt) {
+static struct lookup_subtable *MakeSupSupLookup(SplineFont *sf,uint32_t feature_tag,
+	uint32_t *scripts,int scnt) {
     OTLookup *test, *found;
     FeatureScriptLangList *fl;
     struct scriptlanglist *sl;
@@ -2904,11 +2903,11 @@ return;
     genchange->g.maps = malloc(genchange->g.cnt*sizeof(struct position_maps));
 
     if ( genchange->feature_tag!=0 ) {
-	uint32 *scripts = malloc(cnt*sizeof(uint32));
+	uint32_t *scripts = malloc(cnt*sizeof(uint32_t));
 	int scnt = 0;
 	for ( enc=0; enc<fv->map->enccount; ++enc ) {
 	    if ( (gid=fv->map->map[enc])!=-1 && fv->selected[enc] && (sc=sf->glyphs[gid])!=NULL ) {
-		uint32 script = SCScriptFromUnicode(sc);
+		uint32_t script = SCScriptFromUnicode(sc);
 		int i;
 		for ( i=0; i<scnt; ++i )
 		    if ( scripts[i]==script )
@@ -3118,7 +3117,7 @@ return( ss );
 /* However many glyphs have diagonal stems: V, A, W, M, K, X, Y */
 /*  Many of these have two zones (like "B" above) W, M, K, Y (maybe X) */
 /* Find the places where these guys hit the baseline/cap-height (x-height) */
-/*  and define these as potential counter boundries. Ignore places where   */
+/*  and define these as potential counter boundaries. Ignore places where   */
 /*  glyphs hit with curves (like O, Q, p). */
 /* Remember to merge a hint with a top/bottom hit (harder with serifs) */
 
@@ -3229,11 +3228,11 @@ static void PerGlyphFindCounters(struct counterinfo *ci,SplineChar *sc, int laye
     ci->sc = sc;
     ci->layer = layer;
     ci->bottom_y = 0;
-    if ( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 && isupper(sc->unicodeenc))
+    if ( sc->unicodeenc!=-1 && isupper(sc->unicodeenc))
 	ci->top_y = ci->bd.caph>0?ci->bd.caph:4*sc->parent->ascent/5;
     else
 	ci->top_y = ci->bd.xheight>0?ci->bd.xheight:sc->parent->ascent/2;
-    ci->boundry = ci->top_y/2;
+    ci->boundary = ci->top_y/2;
     ci->has_two_zones = false;
     ci->cnts[0] = ci->cnts[1] = 0;
 
@@ -3380,7 +3379,7 @@ static void BPAdjustCE(BasePoint *bp, struct counterinfo *ci) {
 	BPAdjustCEZ(bp,ci,TOP_Z);
     else if ( ci->cnts[TOP_Z]<2 && ci->cnts[BOT_Z]>=2 )
 	BPAdjustCEZ(bp,ci,BOT_Z);
-    else if ( bp->y > ci->boundry )
+    else if ( bp->y > ci->boundary )
 	BPAdjustCEZ(bp,ci,TOP_Z);
     else
 	BPAdjustCEZ(bp,ci,BOT_Z);
@@ -3505,7 +3504,7 @@ struct ptmoves {
     BasePoint pdir, ndir;
     double factor;
     BasePoint newpos;
-    uint8 touched;
+    uint8_t touched;
 };
 
 static int MaxContourCount(SplineSet *ss) {
@@ -4022,7 +4021,7 @@ static void AdjustCounters(SplineChar *sc, struct lcg_zones *zones,
     ci.stdvw = zones->stdvw;
     ci.top_y = zones->top_bound;
     ci.bottom_y = zones->bottom_bound;
-    ci.boundry = (zones->top_bound+zones->bottom_bound)/2;
+    ci.boundary = (zones->top_bound+zones->bottom_bound)/2;
     ci.c_add = zones->stroke_width;
     ci.c_factor = ci.sb_factor = 100;
     StemInfosFree(sc->vstem); sc->vstem = NULL;
@@ -4097,7 +4096,7 @@ static void SCEmbolden(SplineChar *sc, struct lcg_zones *zones, int layer) {
 }
 
 static struct {
-    uint32 script;
+    uint32_t script;
     SplineSet *(*embolden_hook)(SplineSet *,struct lcg_zones *,SplineChar *, int layer);
 } script_hooks[] = {
     { CHR('l','a','t','n'), LCG_HintedEmboldenHook },
@@ -4249,7 +4248,7 @@ static void PerGlyphInit(SplineChar *sc, struct lcg_zones *zones,
 	    }
 	}
 	if ( zones->embolden_hook == NULL ) {
-	    uint32 script = SCScriptFromUnicode(sc);
+	    uint32_t script = SCScriptFromUnicode(sc);
 	    for ( j=0; script_hooks[j].script!=0; ++j ) {
 		if ( script==script_hooks[j].script ) {
 		    zones->embolden_hook = script_hooks[j].embolden_hook;
@@ -4267,7 +4266,7 @@ static void PerGlyphInit(SplineChar *sc, struct lcg_zones *zones,
 	    zones->bottom_zone = b.maxy/3;
 	    zones->top_zone = 2*b.maxy/3;
 	    zones->top_bound = b.maxy;
-	} else if ( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 && islower(sc->unicodeenc)) {
+	} else if ( sc->unicodeenc!=-1 && islower(sc->unicodeenc)) {
 	    if ( zones->bd.xheight<=0 )
 		zones->bd.xheight = SearchBlues(sc->parent,'x',0);
 	    zones->bottom_zone = zones->bd.xheight>0 ? zones->bd.xheight/3 :
@@ -4279,7 +4278,7 @@ static void PerGlyphInit(SplineChar *sc, struct lcg_zones *zones,
 	    zones->top_bound = zones->bd.xheight>0 ? zones->bd.xheight :
 			    zones->bd.caph>0 ? 2*zones->bd.caph/3 :
 			    (sc->parent->ascent/2);
-	} else if ( sc->unicodeenc!=-1 && sc->unicodeenc<0x10000 && isupper(sc->unicodeenc)) {
+	} else if ( sc->unicodeenc!=-1 && isupper(sc->unicodeenc)) {
 	    if ( zones->bd.caph<0 )
 		zones->bd.caph = SearchBlues(sc->parent,'I',0);
 	    zones->bottom_zone = zones->bd.caph>0 ? zones->bd.caph/3 :
@@ -4393,10 +4392,8 @@ static int FigureCase(SplineChar *sc) {
     int uni;
     int smallcaps = false;
 
-    if ( sc->unicodeenc<0x10000 && sc->unicodeenc!=-1 )
+    if ( sc->unicodeenc!=-1 )
 return( islower(sc->unicodeenc) ? cs_lc : isupper(sc->unicodeenc) ? cs_uc : cs_neither );
-    else if ( sc->unicodeenc!=-1 )
-return( cs_neither );
 
     under = strchr(sc->name,'_');
     dot   = strchr(sc->name,'.');
@@ -4409,7 +4406,7 @@ return( cs_neither );
     ch = *dot; *dot = '\0';
     uni = UniFromName(sc->name,ui_none,&custom);
     *dot = ch;
-    if ( uni==-1 || uni>=0x10000 )
+    if ( uni==-1 )
 return( cs_neither );
 
     if ( smallcaps && (islower(uni) || isupper(uni)) )
@@ -4645,12 +4642,10 @@ static SplineSet *MakeBottomItalicSerif(double stemwidth,double endx,
 	    ++i;
 	} else {
 	    InterpBp(&last->nextcp,i,xscale,yscale,interp,endx,normal,bold);
-	    last->nonextcp = false;
 	    i+=2;
 	    InterpBp(&bp,i,xscale,yscale,interp,endx,normal,bold);
 	    cur = SplinePointCreate(bp.x,bp.y);
 	    InterpBp(&cur->prevcp,i-1,xscale,yscale,interp,endx,normal,bold);
-	    cur->noprevcp = false;
 	    SplineMake3(last,cur);
 	    ++i;
 	}
@@ -4697,7 +4692,7 @@ static SplineSet *MakeItalicDSerif(DStemInfo *d,double stemwidth,
     double cur_sw;
     int order2 = ii->order2;
 
-    ii->order2 = false;		/* Don't convert to order2 untill after */
+    ii->order2 = false;		/* Don't convert to order2 until after */
     ss = MakeBottomItalicSerif(stemwidth,0,ii,seriftype);
     ii->order2 = order2;	/* We finish messing with the serif */
 
@@ -5063,14 +5058,12 @@ static void FindBottomSerifOnDStem(SplineChar *sc,int layer,DStemInfo *d,
     SplinePoint *start=NULL, *end=NULL, *sp;
     SplinePointList *ss;
     double sdiff, ediff;
-    double pos;
     double fuzz = (sc->parent->ascent+sc->parent->descent)/100.0;
 
     for ( ss=sc->layers[layer].splines; ss!=NULL; ss=ss->next ) {
 	start=end=NULL;
 	for ( sp=ss->first; ; ) {
 	    if ( RoughlyParallel(sp,&d->unit)) {
-		pos = (sp->me.x-d->left.x)*d->unit.x + (sp->me.y-d->left.y)*d->unit.y;
 		if ( ( sdiff = (sp->me.x-d->left.x)*d->unit.y - (sp->me.y-d->left.y)*d->unit.x)<0 ) sdiff = -sdiff;
 		if ( ( ediff = (sp->me.x-d->right.x)*d->unit.y - (sp->me.y-d->right.y)*d->unit.x)<0 ) ediff = -ediff;
 		/* Hint Ranges for diagonals seem not to be what we want here */
@@ -5117,14 +5110,12 @@ static void FindTopSerifOnDStem(SplineChar *sc,int layer,DStemInfo *d,
     SplinePoint *start=NULL, *end=NULL, *sp;
     SplinePointList *ss;
     double sdiff, ediff;
-    double pos;
     double fuzz = (sc->parent->ascent+sc->parent->descent)/100.0;
 
     for ( ss=sc->layers[layer].splines; ss!=NULL; ss=ss->next ) {
 	start=end=NULL;
 	for ( sp=ss->first; ; ) {
 	    if ( RoughlyParallel(sp,&d->unit)) {
-		pos = (sp->me.x-d->left.x)*d->unit.x + (sp->me.y-d->left.y)*d->unit.y;
 		if ( ( sdiff = (sp->me.x-d->left.x)*d->unit.y - (sp->me.y-d->left.y)*d->unit.x)<0 ) sdiff = -sdiff;
 		if ( ( ediff = (sp->me.x-d->right.x)*d->unit.y - (sp->me.y-d->right.y)*d->unit.x)<0 ) ediff = -ediff;
 		/* Hint Ranges for diagonals seem not to be what we want here */
@@ -5179,7 +5170,12 @@ static void SerifRemove(SplinePoint *start,SplinePoint *end,SplineSet *ss) {
 	SplineFree(spnext->prev);
     }
     start->next = end->prev = NULL;
+    start->nextcp = start->me;
+    // The following is probably unneeded but restores the
+    // state of each now-open contour to what it would be when
+    // points are allocated with SplinePointCreate()
     start->nonextcp = end->noprevcp = true;
+    end->prevcp = end->me;
 }
 
 static SplinePoint *StemMoveBottomEndTo(SplinePoint *sp,double y,int is_start) {
@@ -5194,7 +5190,6 @@ static SplinePoint *StemMoveBottomEndTo(SplinePoint *sp,double y,int is_start) {
 	    SplineRefigure(sp->prev);
 	} else {
 	    other = SplinePointCreate(sp->me.x,y);
-	    sp->nonextcp = true;
 	    SplineMake(sp,other,sp->prev->order2);
 	    sp = other;
 	}
@@ -5232,7 +5227,6 @@ static SplinePoint *StemMoveDBottomEndTo(SplinePoint *sp,double y,DStemInfo *d,
 	    SplineRefigure(sp->prev);
 	} else {
 	    other = SplinePointCreate(sp->me.x+xoff,y);
-	    sp->nonextcp = true;
 	    SplineMake(sp,other,sp->prev->order2);
 	    sp = other;
 	}
@@ -5346,7 +5340,8 @@ return;
     if ( ii->secondary_serif == srf_flat ) {
 	start = StemMoveBottomEndTo(start,y,true);
 	end = StemMoveBottomEndTo(end,y,false);
-	start->nonextcp = end->noprevcp = true;
+	start->nextcp = start->me;
+	end->prevcp = end->me;
 	SplineMake(start,end,sc->layers[layer].order2);
     } else if ( ii->secondary_serif == srf_simpleslant ) {
 	if ( ii->tan_ia<0 ) {
@@ -5356,7 +5351,8 @@ return;
 	    start = StemMoveBottomEndTo(start,y,true);
 	    end = StemMoveBottomEndTo(end,y - (end->me.x-start->me.x)*ii->tan_ia,false);
 	}
-	start->nonextcp = end->noprevcp = true;
+	start->nextcp = start->me;
+	end->prevcp = end->me;
 	SplineMake(start,end,sc->layers[layer].order2);
     } else {
 	if ( ii->tan_ia<0 ) {
@@ -5368,7 +5364,8 @@ return;
 	    end = StemMoveBottomEndTo(end,y- .8*(end->me.x-start->me.x)*ii->tan_ia,false);
 	    mid = SplinePointCreate(.2*end->me.x+.8*start->me.x,y);
 	}
-	start->nonextcp = end->noprevcp = true;
+	start->nextcp = start->me;
+	end->prevcp = end->me;
 	mid->pointtype = pt_corner;
 	SplineMake(start,mid,sc->layers[layer].order2);
 	SplineMake(mid,end,sc->layers[layer].order2);
@@ -5517,7 +5514,6 @@ static SplinePoint *StemMoveTopEndTo(SplinePoint *sp,double y,int is_start) {
 	    SplineRefigure(sp->prev);
 	} else {
 	    other = SplinePointCreate(sp->me.x,y);
-	    sp->nonextcp = true;
 	    SplineMake(sp,other,sp->prev->order2);
 	    sp = other;
 	}
@@ -5530,7 +5526,6 @@ static SplinePoint *StemMoveTopEndTo(SplinePoint *sp,double y,int is_start) {
 	    SplineRefigure(sp->next);
 	} else {
 	    other = SplinePointCreate(sp->me.x,y);
-	    sp->noprevcp = true;
 	    SplineMake(other,sp,sp->next->order2);
 	    sp = other;
 	}
@@ -5546,12 +5541,10 @@ static SplinePoint *StemMoveDTopEndTo(SplinePoint *sp,double y,DStemInfo *d,
     xoff = (y-sp->me.y)*d->unit.x/d->unit.y;
     if ( is_start ) {
 	other = SplinePointCreate(sp->me.x+xoff,y);
-	sp->nonextcp = true;
 	SplineMake(sp,other,sp->prev->order2);
 	sp = other;
     } else {
 	other = SplinePointCreate(sp->me.x+xoff,y);
-	sp->noprevcp = true;
 	SplineMake(other,sp,sp->next->order2);
 	sp = other;
     }
@@ -5869,7 +5862,8 @@ return;
 
     start = StemMoveBottomEndTo(start,y,true);
     end = StemMoveBottomEndTo(end,y,false);
-    start->nonextcp = end->noprevcp = true;
+    start->nextcp = start->me;
+    end->prevcp = end->me;
     SplineMake(start,end,sc->layers[layer].order2);
     start->pointtype = end->pointtype = pt_corner;
 }
@@ -6183,7 +6177,7 @@ static void FigureFTop(ItalicInfo *ii) {
     StemInfo *h;
     SplinePoint *beste, *bests, *sp;
     SplineSet *ss;
-    double bestediff, sdiff, ediff;
+    double sdiff, ediff;
     DBounds b;
     real trans[6];
 
@@ -6203,7 +6197,6 @@ return;
     for ( h=f->vstem; h!=NULL; h=h->next ) if ( h->tobeused ) {
 	for ( ss=f->layers[ii->layer].splines; ss!=NULL; ss=ss->next ) {
 	    bests = beste = NULL;
-	    bestediff = 10;
 	    for ( sp=ss->first; ; ) {
 		if ( sp->me.y>.9*ii->x_height ) {
 		    if ( (sdiff = sp->me.x-h->start)<0 ) sdiff = -sdiff;
@@ -6211,7 +6204,6 @@ return;
 		    if ( sdiff<3 && (bests==NULL || sp->me.y>bests->me.y ))
 			bests = sp;
 		    else if ( ediff<3 && (beste==NULL || sp->me.y>beste->me.y )) {
-			bestediff = ediff;
 			beste = sp;
 		    }
 		}
@@ -6311,7 +6303,7 @@ static void FBottomGrows(SplineChar *sc,int layer,ItalicInfo *ii) {
 		sp = SplinePointCreate(start->me.x,start->me.y+ii->pq_depth);
 		sp->next = start->next;
 		sp->next->from = sp;
-		start->nonextcp = true;
+		start->nextcp = start->me;
 		SplineMake(start,sp,sc->layers[layer].order2);
 		start = sp;
 	    } else {
@@ -6322,7 +6314,7 @@ static void FBottomGrows(SplineChar *sc,int layer,ItalicInfo *ii) {
 		sp = SplinePointCreate(end->me.x,end->me.y+ii->pq_depth);
 		sp->prev = start->prev;
 		sp->prev->to = sp;
-		end->noprevcp = true;
+		end->prevcp = end->me;
 		SplineMake(sp,end,sc->layers[layer].order2);
 		end = sp;
 	    } else {
@@ -6532,7 +6524,8 @@ return;
 	end   = ltemp;
     }
     SerifRemove(start,end,sses[0]);
-    start->nonextcp = end->noprevcp = true;
+    start->nextcp = start->me;
+    end->prevcp = end->me;
     SplineMake(start,end,sc->layers[layer].order2);
  if ( sc->layers[layer].order2 )
   SSCPValidate(sses[0]);
@@ -6594,7 +6587,7 @@ static void _SCChangeXHeight(SplineChar *sc,int layer,struct xheightinfo *xi) {
 }
 
 static void SCMakeItalic(SplineChar *sc,int layer,ItalicInfo *ii) {
-    real skew[6], refpos[6];;
+    real skew[6], refpos[6];
     RefChar *ref;
     extern int no_windowing_ui;
     int nwi = no_windowing_ui;

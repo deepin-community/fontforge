@@ -1,3 +1,60 @@
+fontforge (1:20230101~dfsg-1) unstable; urgency=medium
+
+  * New upstream version 20230101~dfsg
+    which incidentally fixes a FTFBS bug with fonts-ocr-a, see #1015092
+    and https://github.com/fontforge/fontforge/issues/5070
+  * Remove build-dependency on libuninameslist-dev, as upstream has switched
+    from libuninameslist to internal nameslist functions since April 2021
+  * Bump Standards-Version to 4.6.2 (no change)
+  * Remove Debian patches that have been merged upstream.
+    Special thanks to Jan Tojnar who contributed an enhanced version of
+    0001-add-extra-cmake-install-rules.patch upstream;
+    see https://github.com/fontforge/fontforge/pull/4941
+  * Drop /usr/share/fontforge/python/simple/ from python3-fontforge.
+    Jeremy Tan explained in https://github.com/fontforge/fontforge/pull/4941:
+        It's a bunch of toy scripts, but they're basic/half-broken and are not
+        easily discoverable, so yeah, no reason to bundle it
+    I must have inadvertently reverted Jonas Smedegaard’s 2020-06-02 fix
+    "stop ship python simple/* scripts: No longer installed upstream"
+    in commit 4a44d9a38025f7b610292cfb1c6c3502cd315158 (Sorry!)
+  * Fix Lintian build-depends-on-obsolete-package warning on libtiff5-dev
+    by build-depending on libtiff-dev instead
+  * Fix miscellaneous errors and warnings detected by Lintian
+
+ -- Anthony Fok <foka@debian.org>  Wed, 18 Jan 2023 11:05:41 -0700
+
+fontforge (1:20220308~dfsg-1) unstable; urgency=medium
+
+  [ Boyuan Yang ]
+  * debian/control: Drop Rogério Brito from uploaders list. (Closes: #994659)
+
+  [ Anthony Fok ]
+  * New upstream version 20220308~dfsg
+  * Add 20120731.b-{6,7,7.1,7.2} changelog entries
+    from Nov 2015 to Apr 2016 that were missing partly due to the failed
+    (forgotten? ignored?) switch from master to debian/sid branch
+  * Add Jonas Smedegaard’s copyright file contributions (which I overlooked)
+    to the 1:20201107~dfsg-2 changelog entry
+  * Refresh Debian patches:
+    - 0001-add-extra-cmake-install-rules.patch: Upstream now installs
+      cidmaps by default (Thanks to Fredrick Brennan for the fix!)
+    - 0004-hurd-PATH_MAX-and-MAXPATHLEN.patch: Finally forwarded upstream
+      at https://github.com/fontforge/fontforge/pull/5046
+    - 0005-hurd-rename-extended-to-avoid-conflict-with-gnumach-dev.patch:
+      Resolve conflicts and rename more "extended" to "extendeddbl"
+  * Replace 0005-hurd-rename-extended-to-avoid-conflict-with-gnumach-dev.patch
+    with a much simpler 0005-hurd-undef-extended-temporarily.patch
+    that "#undef extended" temporarily to circumvent the name collision
+    issue on Hurd.  See https://github.com/fontforge/fontforge/pull/5047
+  * Update fontforge-common.install and fontforge-extras.install
+    - Stop installing app icon in legacy /usr/share/pixmaps location
+      (see upstream commit 6b4ab5a)
+    - cidmaps have been moved from /usr/share/fontforge/ to
+      /usr/share/fontforge/cidmap/ (see commit f97a2cd)
+  * Bump Standards-Version to 4.6.1 (no change)
+
+ -- Anthony Fok <foka@debian.org>  Thu, 16 Jun 2022 04:08:43 -0600
+
 fontforge (1:20201107~dfsg-4) unstable; urgency=medium
 
   * Rename extended to extendeddbl to avoid FTBFS on Hurd.
@@ -32,6 +89,18 @@ fontforge (1:20201107~dfsg-3) unstable; urgency=medium
 
 fontforge (1:20201107~dfsg-2) unstable; urgency=medium
 
+  [ Jonas Smedegaard ]
+  * modernize source script copyright-check
+  * copyright: update coverage
+  * tidy copyright file:
+    - wrap and sort files and copyright holders
+      (the later by name: sort -k2 -k1,1 -u)
+    - sort license sections
+    - wrap license grants and license sections using semantic newlines
+  * copyright: consistently use License-Reference
+  * update copyright hints
+
+  [ Anthony Fok ]
   * debian/libfontforge4.install: Fix incorrect path.  For example, on i386,
     /usr/bin/${DEB_HOST_GNU_TYPE} resolves to /usr/bin/i686-linux-gnu which
     does not exist on Debian, whereas /usr/bin/${DEB_HOST_MULTIARCH} correctly
@@ -516,6 +585,41 @@ fontforge (1:2.0.20140101-1) experimental; urgency=low
     - ignore manpage warning since upstream use it apurpose
 
  -- Hideki Yamane <henrich@debian.org>  Sun, 12 Jan 2014 12:59:48 +0900
+
+fontforge (20120731.b-7.2) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Fix undefined symbols when using libpng16. (Closes: #820598)
+
+ -- James Cowgill <jcowgill@debian.org>  Sat, 16 Apr 2016 01:05:09 +0100
+
+fontforge (20120731.b-7.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Build using giflib 5. Closes: #803273.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 16 Dec 2015 04:49:47 +0000
+
+fontforge (20120731.b-7) unstable; urgency=medium
+
+  * remove debian/menu to fix "command-in-menu-file-and-desktop-file"
+  * debian/control
+    - set Standards-Version: 3.9.6
+    - update Vcs-*
+  * update debian/gbp.conf
+
+ -- Hideki Yamane <henrich@debian.org>  Sat, 05 Dec 2015 17:09:26 +0900
+
+fontforge (20120731.b-6) unstable; urgency=medium
+
+  * debian/rules
+    - fix "FTBFS when built with dpkg-buildpackage -A" (Closes: #806025)
+      Thanks to Santiago Vila <sanvila@debian.org> for the report
+  * debian/fontforge-common.install
+    - fix icon location (Closes: #780907)
+      Thanks to Dmitry Shachnev <mitya57@debian.org> for the report
+
+ -- Hideki Yamane <henrich@debian.org>  Thu, 26 Nov 2015 20:31:07 +0900
 
 fontforge (20120731.b-5) unstable; urgency=low
 
