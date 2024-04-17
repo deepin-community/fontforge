@@ -1,3 +1,13 @@
+fontforge (1:20230101~dfsg-1.1) unstable; urgency=high
+
+  * Non-maintainer upload.
+  * CVE-2024-25081: Spline Font command injection via crafted filenames
+  * CVE-2024-25082: Spline Font command injection via crafted archives
+    or compressed files
+  * Closes: #1064967
+
+ -- Adrian Bunk <bunk@debian.org>  Fri, 08 Mar 2024 01:15:58 +0200
+
 fontforge (1:20230101~dfsg-1) unstable; urgency=medium
 
   * New upstream version 20230101~dfsg
