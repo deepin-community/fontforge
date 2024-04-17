@@ -2,3 +2,4 @@
 0003-use-local-libjs-mathjax.patch
 2003_avoid_privacy_breach.patch
 2004-fix-privacy-breach-logo.patch
+0001-fix-splinefont-shell-command-injection-5367.patch
