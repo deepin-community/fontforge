@@ -30,13 +30,12 @@ Build-Depends:
  python3-dev,
  libwoff-dev,
  libgtk-3-dev,
- pkg-kde-tools
+ pkg-kde-tools,
 Build-Depends-Indep:
  dh-sequence-sphinxdoc <!nodoc>,
  desktop-file-utils,
- potrace,
- python3-sphinx,
-Standards-Version: 4.6.2
+ python3-sphinx <!nodoc>,
+Standards-Version: 4.7.0
 Homepage: https://fontforge.github.io/en-US/
 Vcs-Git: https://salsa.debian.org/fonts-team/fontforge.git
 Vcs-Browser: https://salsa.debian.org/fonts-team/fontforge
@@ -164,6 +163,7 @@ Description: font editor - Python bindings
 
 Package: fontforge-doc
 Section: doc
+Build-Profiles: <!nodoc>
 Architecture: all
 Multi-Arch: foreign
 Depends: ${misc:Depends},

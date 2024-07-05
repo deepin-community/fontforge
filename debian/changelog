@@ -1,3 +1,26 @@
+fontforge (1:20230101~dfsg-3) unstable; urgency=medium
+
+  * debian/control: Drop build-dependency on potrace. The upstream build
+    system is no longer having compile-time check on the software. Note that
+    we still keep potrace in the binary Suggests: field. (Closes: #1035822)
+
+ -- Boyuan Yang <byang@debian.org>  Sun, 30 Jun 2024 12:46:40 -0400
+
+fontforge (1:20230101~dfsg-2) unstable; urgency=medium
+
+  * debian/control: Bump Standards-Version to 4.7.0.
+  * debian/patches/:
+    + 0006-Update-po-files-from-Croudin-sources-after-fixing-pr.patch:
+      Cherry-pick upstream PR #5330 to refresh po/ directory and fix
+      FTBFS with gettext 0.22.5. (Closes: #1074258)
+
+  [ David (Plasma) Paul ]
+  * Fully support the nodoc build profile. (Closes: #1035892)
+    - Don't build fontforge-doc in nodoc build profile.
+    - Mark Build-Depend:python3-sphinx <!nodoc>.
+
+ -- Boyuan Yang <byang@debian.org>  Wed, 26 Jun 2024 10:37:51 -0400
+
 fontforge (1:20230101~dfsg-1.1) unstable; urgency=high
 
   * Non-maintainer upload.
